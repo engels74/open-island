@@ -135,16 +135,16 @@ if ls "$WORKTREE_PATH"/*.xcodeproj 1>/dev/null 2>&1; then
     fi
 fi
 
-# ─── 4. Pre-commit hooks ───────────────────────────────────────────────────
+# ─── 4. Pre-commit hooks (prek) ───────────────────────────────────────────
 
 if [[ -f "$WORKTREE_PATH/.pre-commit-config.yaml" ]]; then
-    if command -v pre-commit >/dev/null 2>&1; then
-        info "Installing pre-commit hooks..."
-        pre-commit install --hook-type pre-commit --hook-type pre-push 2>&1 \
-            && ok "Pre-commit hooks installed" \
-            || warn "Pre-commit hook installation failed"
+    if command -v prek >/dev/null 2>&1; then
+        info "Installing prek hooks..."
+        prek install --hook-type pre-commit --hook-type pre-push 2>&1 \
+            && ok "prek hooks installed" \
+            || warn "prek hook installation failed"
     else
-        warn "pre-commit not found — skipping hook installation (brew install pre-commit)"
+        warn "prek not found — skipping hook installation (brew install prek)"
     fi
 fi
 
@@ -180,7 +180,7 @@ if command -v just >/dev/null 2>&1; then
     just check-tools 2>&1
 else
     # Inline fallback if just isn't available
-    for tool in xcodebuild swift swiftformat swiftlint just pre-commit gh; do
+    for tool in xcodebuild swift swiftformat swiftlint just prek gh; do
         if command -v "$tool" >/dev/null 2>&1; then
             echo "  ✓ $tool"
         else

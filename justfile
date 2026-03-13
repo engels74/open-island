@@ -114,20 +114,20 @@ quality: format-check lint
 
 # ─── Pre-commit ─────────────────────────────────────────────────────────────
 
-# Install pre-commit hooks (pre-commit + pre-push)
+# Install prek hooks (pre-commit + pre-push)
 install-hooks:
-    pre-commit install --hook-type pre-commit --hook-type pre-push
+    prek install --hook-type pre-commit --hook-type pre-push
 
-# Update all pre-commit hook revisions to latest
+# Update all prek hook revisions to latest
 update-hooks:
-    pre-commit autoupdate
+    prek autoupdate
     @echo ""
     @echo "Hook revisions updated. Review changes in .pre-commit-config.yaml"
     @echo "and commit if everything looks good."
 
-# Run pre-commit on all files (manual full check)
+# Run prek on all files (manual full check)
 pre-commit:
-    pre-commit run --all-files
+    prek run --all-files
 
 # ─── Release ─────────────────────────────────────────────────────────────────
 
@@ -184,7 +184,7 @@ check-tools:
     @command -v swiftformat >/dev/null 2>&1 && echo "  ✓ swiftformat" || echo "  ✗ swiftformat (brew install swiftformat)"
     @command -v swiftlint  >/dev/null 2>&1 && echo "  ✓ swiftlint"  || echo "  ✗ swiftlint (brew install swiftlint)"
     @command -v just       >/dev/null 2>&1 && echo "  ✓ just"       || echo "  ✗ just (brew install just)"
-    @command -v pre-commit >/dev/null 2>&1 && echo "  ✓ pre-commit" || echo "  ✗ pre-commit (brew install pre-commit)"
+    @command -v prek       >/dev/null 2>&1 && echo "  ✓ prek"       || echo "  ✗ prek (brew install prek)"
     @command -v gh         >/dev/null 2>&1 && echo "  ✓ gh"         || echo "  ✗ gh (brew install gh)"
     @command -v create-dmg >/dev/null 2>&1 && echo "  ✓ create-dmg" || echo "  ✗ create-dmg (brew install create-dmg) [optional]"
     @echo ""
