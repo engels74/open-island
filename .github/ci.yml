@@ -1,0 +1,152 @@
+name: CI
+
+on:
+  workflow_run:
+    workflows: ["Code Quality"]
+    types: [completed]
+    branches: [main]
+
+# Cancel in-progress runs for the same branch
+concurrency:
+  group: ci-${{ github.event.workflow_run.head_sha || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test
+    runs-on: macos-16
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Resolve SPM dependencies
+        run: make resolve
+
+      - name: Build SPM package independently
+        run: make build-package
+
+      - name: Run tests
+        run: make test-ci
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results
+          path: build/TestResults.xcresult
+          retention-days: 14
+
+  build:
+    name: Build DMG
+    needs: test
+    runs-on: macos-16
+
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Build release
+        run: make build-release
+
+      - name: Install create-dmg
+        run: brew install create-dmg || true
+
+      - name: Setup Sparkle key
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          if [ -n "$SPARKLE_PRIVATE_KEY" ]; then
+            mkdir -p .sparkle-keys
+            echo "$SPARKLE_PRIVATE_KEY" > .sparkle-keys/eddsa_private_key
+            echo "Sparkle key configured."
+          else
+            echo "::warning::SPARKLE_PRIVATE_KEY not set — Sparkle signing will be skipped."
+          fi
+
+      - name: Create DMG
+        run: |
+          SPARKLE_FLAG=""
+          if [ ! -f ".sparkle-keys/eddsa_private_key" ]; then
+            SPARKLE_FLAG="--skip-sparkle"
+          fi
+          ./scripts/create-release.sh --skip-notarization --skip-github --skip-website $SPARKLE_FLAG
+
+      - name: Get version
+        id: version
+        run: |
+          VERSION=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" \
+            "build/export/Open Island.app/Contents/Info.plist")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Built version: $VERSION"
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: open-island-dmg
+          path: releases/OpenIsland-${{ steps.version.outputs.version }}.dmg
+          retention-days: 30
+
+  virustotal-scan:
+    name: VirusTotal Scan
+    needs: build
+    runs-on: ubuntu-latest
+    # Only scan if VT_API_KEY is configured
+    if: ${{ vars.HAS_VT_KEY == 'true' }}
+
+    steps:
+      - name: Download DMG artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: open-island-dmg
+
+      - name: Scan with VirusTotal
+        uses: crazy-max/ghaction-virustotal@v5
+        id: virustotal
+        with:
+          vt_api_key: ${{ secrets.VT_API_KEY }}
+          request_rate: 4
+          files: |
+            *.dmg
+
+      - name: Create scan results summary
+        run: |
+          {
+            echo "## VirusTotal Scan Results"
+            echo ""
+            echo "**Scan completed:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+            echo ""
+            echo "| File | Report |"
+            echo "|------|--------|"
+            IFS=',' read -ra PAIRS <<< "${{ steps.virustotal.outputs.analysis }}"
+            for pair in "${PAIRS[@]}"; do
+              filename="${pair%%=*}"
+              url="${pair#*=}"
+              echo "| \`${filename}\` | [View Report](${url}) |"
+            done
+          } | tee virustotal-results.md >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload scan results
+        uses: actions/upload-artifact@v7
+        with:
+          name: virustotal-results
+          path: virustotal-results.md
+          retention-days: 90
