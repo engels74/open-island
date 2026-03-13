@@ -10,14 +10,14 @@
 ### 0.1 Xcode Project Setup
 
 - Create a new macOS app target in Xcode 17 (Swift 6.2, minimum deployment macOS 16.0)
-  - **Deployment target rationale**: macOS 16.0 (Tahoe, shipped Fall 2025) is Xcode 17's default new-project template target. All Swift 6.2 compile-time features back-deploy freely (swift-dev-pro.md Section 12). Runtime-dependent features used by this project (`@Observable`, `#Predicate`) only require macOS 14+. Targeting macOS 16.0 gives access to any Tahoe-specific AppKit improvements (NSPanel behaviors, window management) and matches the expected audience — developers running CLI coding agents are overwhelmingly on the latest macOS.
+  - **Deployment target rationale**: macOS 16.0 (Tahoe, shipped Fall 2025) is Xcode 17's default new-project template target. All Swift 6.2 compile-time features back-deploy freely (swift-dev-pro.md Section 12). The primary runtime-dependent feature used by this project is `@Observable` (macOS 14+). `#Predicate` and `#Expression` are also available at the deployment target (macOS 14+ and macOS 15+ respectively) if needed for session filtering or dynamic module logic. Targeting macOS 16.0 gives access to any Tahoe-specific AppKit improvements (NSPanel behaviors, window management) and matches the expected audience — developers running CLI coding agents are overwhelmingly on the latest macOS.
 - Set activation policy to `.accessory` (no dock icon)
 - Configure build settings:
   - `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor` (SE-0466)
   - `SWIFT_APPROACHABLE_CONCURRENCY = YES`
   - Swift Language Mode: Swift 6
   - Note: Swift 6 language mode subsumes strict concurrency checking — `SWIFT_STRICT_CONCURRENCY` is not needed. Do not add `SWIFT_STRICT_CONCURRENCY = complete`; it is a Swift 5 migration setting and is a no-op under Swift 6 language mode.
-  - Note: `SWIFT_APPROACHABLE_CONCURRENCY = YES` (Xcode) is the Xcode equivalent of enabling `NonisolatedNonsendingByDefault` + `InferIsolatedConformances` together, applying to the app target. The `.enableUpcomingFeature()` calls in Phase 0.2 Package.swift serve SPM library targets, which don't inherit Xcode build settings. These cover different targets and are not redundant.
+  - Note: `SWIFT_APPROACHABLE_CONCURRENCY = YES` is an **Xcode-only build setting** that applies exclusively to the Xcode-managed app target (`open-island.app`). It is the Xcode equivalent of enabling `NonisolatedNonsendingByDefault` + `InferIsolatedConformances` together. SPM library targets (`OIKit`, `OIProviders`, etc.) do not inherit Xcode build settings and instead receive these features via the `.enableUpcomingFeature()` calls in Phase 0.2's Package.swift. These cover different targets and are not redundant.
 - Add a `Settings { EmptyView() }` scene as the only SwiftUI scene (all UI via custom NSPanel)
 - Set bundle identifier, app icon placeholder, and Info.plist entries (LSUIElement = YES for accessory)
 
@@ -1652,7 +1652,7 @@ Applied throughout all phases:
 
 ### Data-Race Safety
 
-- [ ] `nonisolated` explicit on all model types and their extensions (in library targets this is the default; document it for clarity)
+- [ ] Verify model types and their extensions remain `nonisolated` (the default in library targets) — do not add explicit `nonisolated` annotation as it is redundant; only annotate explicitly when overriding `MainActor` default in the app target
 - [ ] `Sendable` explicitly on all `package`/`public` value types; compiler-synthesized for internal types
 - [ ] `sending` parameter and result annotations (SE-0430) used at actor isolation boundaries where non-Sendable values are transferred. Key sites include `SessionStore.process(_:)`, any actor method accepting ownership of event payloads, and factory functions returning values for cross-isolation consumption. Note: `Task.init` closures use `sending` automatically in Swift 6.
 - [ ] Region-based isolation (SE-0414) leveraged to avoid unnecessary `Sendable` conformances
