@@ -1,1672 +1,676 @@
 ---
-type: "manual"
+type: "agent_requested"
+description: "Modern Swift 6.2.x Coding Guidelines"
 ---
 
-# open-island — Implementation Plan
+# Swift 6.2.x Authoritative Reference for Swift Projects
 
-> A provider-agnostic macOS notch overlay for monitoring CLI/TUI coding agents.
-> Supports Claude Code, Codex, Gemini CLI, OpenCode — and any future provider.
-
----
-
-## Phase 0 — Project Scaffolding & Tooling
-
-### 0.1 Xcode Project Setup
-
-- Create a new macOS app target in Xcode 17 (Swift 6.2, minimum deployment macOS 14.0)
-- Set activation policy to `.accessory` (no dock icon)
-- Configure build settings:
-  - `SWIFT_STRICT_CONCURRENCY = complete`
-  - `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor` (SE-0466)
-  - `SWIFT_APPROACHABLE_CONCURRENCY = YES`
-  - Swift Language Mode: Swift 6
-- Add a `Settings { EmptyView() }` scene as the only SwiftUI scene (all UI via custom NSPanel)
-- Set bundle identifier, app icon placeholder, and Info.plist entries (LSUIElement = YES for accessory)
-
-### 0.2 SPM / Package.swift for Internal Modules
-
-- Create a local Swift package (`OpenIslandKit`) with these initial library targets:
-  - `OICore` — shared models, protocols, utilities
-  - `OIProviders` — provider adapter protocol + concrete implementations
-  - `OIWindow` — notch window system, geometry, shape
-  - `OIModules` — closed-state module system
-  - `OIUI` — SwiftUI views
-  - `OIState` — SessionStore, state machine, event processing
-- Configure `swift-tools-version: 6.2` with `.swiftLanguageMode(.v6)` on all targets
-- Enable upcoming feature flags per target:
-  ```swift
-  .enableUpcomingFeature("NonisolatedNonsendingByDefault"),
-  .enableUpcomingFeature("InferIsolatedConformances"),
-  .enableUpcomingFeature("MemberImportVisibility"),
-  .enableUpcomingFeature("ExistentialAny"),
-  .enableUpcomingFeature("InternalImportsByDefault"),
-  ```
-- Use `package` access level for intra-package APIs instead of `public` where possible
-- With `InternalImportsByDefault` enabled, all `import` statements default to `internal` visibility. Use `public import Foundation` (or `public import AppKit`, etc.) **only** in modules that deliberately re-export those symbols to downstream targets. This prevents transitive dependency leakage across module boundaries.
-
-> **Note on `ExistentialAny`**: Deferred to Swift 7 as a mandatory language change (not required in Swift 6), but enabled here as an upcoming feature flag to enforce `any Protocol` discipline at compile time in a greenfield project. This aligns with the project checklist requirement that `any Protocol` is required for all existential types (SE-0335).
-
-> **Note on `InternalImportsByDefault`**: Also targeting Swift 7 (SE-0409), but enabled here to enforce minimal transitive dependency exposure from day one. Combined with `package` access level, this ensures each module's public surface is deliberate.
-
-### 0.3 Pre-commit & Code Quality Pipeline (`prek`)
-
-Set up the full `prek` (pre-commit) pipeline before writing any application code. This gates every commit.
-
-#### 0.3.1 `.pre-commit-config.yaml`
-
-Adapt the claude-island config with these changes:
-
-- **`exclude` regex**: update project-specific paths — replace `ClaudeIsland` references with `OpenIsland` and `OpenIslandKit` module paths. Add `OpenIslandKit/\.build/.*` for the SPM package build directory.
-- **SwiftFormat hook**: keep `types: [swift]`, ensure `entry: swiftformat` uses the system-installed binary (same as claude-island)
-- **SwiftLint hook**: keep `entry: swiftlint lint --strict`, `types: [swift]`
-- **Ruff hooks** (`ruff-check`, `ruff-format`): update `files:` pattern from `^ClaudeIsland/Resources/.*\.py$` to `^OpenIsland/Resources/Hooks/.*\.py$` — this covers the provider hook scripts (Claude's Python hook, and any future Python-based hooks)
-- **Shellcheck**: update `files:` to `^scripts/.*\.sh$` (same pattern, verify `scripts/` directory exists)
-- **Markdownlint**: keep as-is, update `exclude` if needed for new directory names
-- **Standard hooks**: keep all (`trailing-whitespace`, `end-of-file-fixer`, `check-yaml`, `check-json`, `check-merge-conflict`, `detect-private-key`, `no-commit-to-branch`, `check-added-large-files`)
-- **Bump versions**: check for latest revs of all repos (pre-commit-hooks, SwiftFormat, SwiftLint, shellcheck-py, ruff-pre-commit, markdownlint-cli) at project creation time
-- Keep `ci: skip: [swiftformat, swiftlint]` since CI runners may not have these installed system-wide
-
-Full config:
-
-```yaml
-# Pre-commit configuration for open-island
-# Install: prek install --hook-type pre-commit --hook-type pre-push
-# Run all: prek run --all-files
-
-default_language_version:
-  python: python3
-
-exclude: |
-  (?x)^(
-    .*\.xcodeproj/.*|
-    .*\.xcworkspace/.*|
-    build/.*|
-    DerivedData/.*|
-    \.build/.*|
-    releases/.*|
-    Pods/.*|
-    \.sparkle-keys/.*|
-    .*\.xcuserstate|
-    xcuserdata/.*|
-    OpenIslandKit/\.build/.*
-  )$
-
-repos:
-  # Standard pre-commit hooks
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
-    hooks:
-      - id: trailing-whitespace
-        args: [--markdown-linebreak-ext=md]
-      - id: end-of-file-fixer
-      - id: check-yaml
-      - id: check-json
-      - id: check-merge-conflict
-      - id: detect-private-key
-      - id: no-commit-to-branch
-        args: [--branch, main]
-      - id: check-added-large-files
-        args: [--maxkb=1024]
-
-  # SwiftFormat - Auto-format Swift files
-  - repo: https://github.com/nicklockwood/SwiftFormat
-    rev: 0.55.3
-    hooks:
-      - id: swiftformat
-        name: swiftformat
-        entry: swiftformat
-        language: system
-        types: [swift]
-
-  # SwiftLint - Lint Swift files
-  - repo: https://github.com/realm/SwiftLint
-    rev: 0.57.1
-    hooks:
-      - id: swiftlint
-        name: swiftlint
-        entry: swiftlint lint --strict
-        language: system
-        types: [swift]
-
-  # Shellcheck - Validate shell scripts
-  - repo: https://github.com/shellcheck-py/shellcheck-py
-    rev: v0.10.0.1
-    hooks:
-      - id: shellcheck
-        files: ^scripts/.*\.sh$
-
-  # Ruff - Python linting and formatting for provider hook scripts
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.14.11
-    hooks:
-      - id: ruff-check
-        args: [--fix]
-        files: ^OpenIsland/Resources/Hooks/.*\.py$
-      - id: ruff-format
-        files: ^OpenIsland/Resources/Hooks/.*\.py$
-
-  # Markdownlint - Markdown consistency
-  - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.43.0
-    hooks:
-      - id: markdownlint
-        args: [--fix]
-        files: \.(md|markdown)$
-        exclude: ^(\.augment/|LICENSE\.md)
-
-# Pre-push hooks
-default_stages: [pre-commit]
-
-ci:
-  skip: [swiftformat, swiftlint]
-```
-
-#### 0.3.2 `.swiftformat`
-
-Adapt the claude-island config:
-
-- `--swiftversion 6.2` (already correct)
-- **`--exclude`**: update to `build,DerivedData,.build,Pods,releases,*.xcodeproj,*.xcworkspace,xcuserdata,.sparkle-keys,OpenIslandKit/.build` — remove the claude-island-specific `HookSocketServer.swift` exclusion (start fresh; if the new socket server triggers the same `organizeDeclarations` timeout, exclude it then)
-- **`--acronyms`**: keep all existing (`ID,URL,UUID,HTTP,HTTPS,JSON,API,UI,MCP,PID,JSONL,SSH,TCP,IP,DNS,HTML,XML,CSS,JS,SDK,CLI,TLS,SSL`) — add `OI` (project prefix) for type names
-- **All enabled rules**: keep `acronyms`, `blankLinesBetweenImports`, `blockComments`, `docComments`, `isEmpty`, `markTypes`, `organizeDeclarations`, `sortDeclarations`, `wrapEnumCases`, `wrapSwitchCases`
-- **All disabled rules**: keep `andOperator`, `redundantSendable`, `wrapMultilineStatementBraces`
-- **`redundantSendable` rationale**: Swift 6.2's region-based isolation (SE-0414) means many explicit `Sendable` conformances that look redundant are actually intentional public API contracts — do not auto-remove them
-- **Gotcha from claude-island**: `organizeDeclarations` can strip explicit `nonisolated` on synthesizable conformances (e.g., `Equatable`). Document this in a `CONTRIBUTING.md` note and use `// swiftformat:disable all` / `// swiftformat:enable all` guards around affected declarations
-
-Full config:
-
-```
-# SwiftFormat configuration for open-island
-# Adapted from claude-island — updated for Swift 6.2 / Xcode 17
-
-# Swift version
---swiftversion 6.2
-
-# Indentation
---indent 4
---tabwidth 4
---smarttabs enabled
---indentcase false
---ifdef indent
-
-# Line length
---maxwidth 150
---wraparguments before-first
---wrapparameters before-first
---wrapcollections before-first
---wrapreturntype preserve
---wrapconditions after-first
---closingparen balanced
-
-# Spacing
---operatorfunc spaced
---ranges spaced
---typeattributes prev-line
---funcattributes prev-line
---varattributes same-line
---storedvarattrs same-line
---computedvarattrs same-line
-
-# Braces
---allman false
---elseposition same-line
---guardelse next-line
-
-# Imports
---importgrouping alpha
-
-# Stripping
---stripunusedargs closure-only
---trimwhitespace always
-
-# Semicolons
---semicolons inline
-
-# Redundant
---redundanttype inferred
---self insert
-
-# Other
---commas always
---decimalgrouping 3,6
---binarygrouping 4,8
---octalgrouping 4,8
---hexgrouping 4,8
---hexliteralcase uppercase
---exponentcase lowercase
---exponentgrouping disabled
---fractiongrouping disabled
---fragment false
---conflictmarkers reject
---shortoptionals always
---modifierorder
-
-# Acronyms to preserve
-# Added OI (project prefix) per open-island naming conventions
---acronyms ID,URL,UUID,HTTP,HTTPS,JSON,API,UI,MCP,PID,JSONL,SSH,TCP,IP,DNS,HTML,XML,CSS,JS,SDK,CLI,TLS,SSL,OI
-
-# Exclude directories and files
-# Note: No file-specific exclusions yet — start fresh. If organizeDeclarations
-# causes timeouts on large files (e.g., HookSocketServer.swift), exclude then
-# and document in CONTRIBUTING.md.
---exclude build,DerivedData,.build,Pods,releases,*.xcodeproj,*.xcworkspace,xcuserdata,.sparkle-keys,OpenIslandKit/.build
-
-# Rules to enable
---enable acronyms
---enable blankLinesBetweenImports
---enable blockComments
---enable docComments
---enable isEmpty
---enable markTypes
---enable organizeDeclarations
---enable sortDeclarations
---enable wrapEnumCases
---enable wrapSwitchCases
-
-# Rules to disable
-# - andOperator: project prefers && over comma separation in conditions
-# - redundantSendable: Swift 6.2 region-based isolation (SE-0414) means many
-#   explicit Sendable conformances that look redundant are actually intentional
-#   public API contracts — do not auto-remove them
-# - wrapMultilineStatementBraces: conflicts with project style
---disable andOperator
---disable redundantSendable
---disable wrapMultilineStatementBraces
-```
-
-#### 0.3.3 `.swiftlint.yml`
-
-Adapt the claude-island config:
-
-- **`included:`**: update from `[ClaudeIsland]` to `[OpenIsland, OpenIslandKit]` (main app + SPM package sources)
-- **`excluded:`**: keep `build`, `DerivedData`, `.build`, `Pods`, `releases`, `*.xcodeproj`, `*.xcworkspace`, `xcuserdata`
-- **Opt-in rules**: keep the full list from claude-island with the following changes:
-  - **Remove** `single_test_class` — move to `disabled_rules`. This rule is incompatible with Swift Testing: Swift Testing uses `@Suite` structs (not `XCTestCase` subclasses), multiple `@Suite` structs per file is valid, and global `@Test` functions have no enclosing type at all.
-  - **Add** `private_over_fileprivate` — for clean module boundaries in a greenfield project
-- **Rule configs**: keep all thresholds (line_length 150/200, function_body_length 60/100, file_length 500/1000, type_body_length 300/500, cyclomatic_complexity 15/25, nesting 3/5 type + 5/8 function)
-- **Identifier exclusions**: keep `id, ok, to, x, y, i, j, n` — add `fd` for file descriptors used in `~Copyable` resource types (e.g., `FileHandle` with `fd: Int32`)
-- **Custom `no_print_statements` rule**: keep — use `os.Logger` throughout the project instead of `print()`
-- **Add custom `no_observable_object` rule**: warn on `ObservableObject`, `@Published`, `@StateObject`, `@ObservedObject`, `@EnvironmentObject` — enforces the project's `@Observable`-only convention at lint time instead of relying on developer memory
-- **Add custom `no_combine_import` rule**: warn on `import Combine` — enforces the project's `AsyncStream`-only convention
-
-> **Note on `no_observable_object` `match_kinds`**: SwiftLint's `match_kinds` restricts matches to specific syntax token types. Use `[identifier, attribute.builtin]` to target code tokens and attributes. Test the rule against files containing these terms in comments (e.g., `// We migrated from ObservableObject`) and strings to verify no false positives in documentation. If false positives occur, restrict to `[attribute.builtin]` only and add a separate regex for the protocol name matching `[identifier]` with a negative lookbehind for `//`.
-
-Full config:
-
-```yaml
-# SwiftLint configuration for open-island
-# Adapted from claude-island — updated for Swift 6.2 / Swift Testing
-
-# Lint both the main app target and the SPM package sources
-included:
-  - OpenIsland
-  - OpenIslandKit
-
-# Exclude build artifacts and generated files
-excluded:
-  - build
-  - DerivedData
-  - .build
-  - Pods
-  - releases
-  - "*.xcodeproj"
-  - "*.xcworkspace"
-  - xcuserdata
-
-# Opt-in rules for Swift best practices
-opt_in_rules:
-  - array_init
-  - attributes
-  - closure_end_indentation
-  - closure_spacing
-  - collection_alignment
-  - contains_over_filter_count
-  - contains_over_filter_is_empty
-  - contains_over_first_not_nil
-  - contains_over_range_nil_comparison
-  - discouraged_object_literal
-  - empty_collection_literal
-  - empty_count
-  - empty_string
-  - enum_case_associated_values_count
-  - explicit_init
-  - extension_access_modifier
-  - fallthrough
-  - fatal_error_message
-  - file_name_no_space
-  - first_where
-  - flatmap_over_map_reduce
-  - force_unwrapping
-  - identical_operands
-  - implicitly_unwrapped_optional
-  - joined_default_parameter
-  - last_where
-  - legacy_multiple
-  - literal_expression_end_indentation
-  - lower_acl_than_parent
-  - modifier_order
-  - multiline_function_chains
-  - multiline_literal_brackets
-  - multiline_parameters
-  - operator_usage_whitespace
-  - optional_enum_case_matching
-  - overridden_super_call
-  - prefer_self_in_static_references
-  - prefer_self_type_over_type_of_self
-  - prefer_zero_over_explicit_init
-  - private_action
-  - private_outlet
-  - private_over_fileprivate
-  - prohibited_super_call
-  - reduce_into
-  - redundant_nil_coalescing
-  - redundant_type_annotation
-  - sorted_first_last
-  - sorted_imports
-  - static_operator
-  - toggle_bool
-  - trailing_closure
-  - unavailable_function
-  - unneeded_parentheses_in_closure_argument
-  - unowned_variable_capture
-  - untyped_error_in_catch
-  - vertical_parameter_alignment_on_call
-  - vertical_whitespace_closing_braces
-  - vertical_whitespace_opening_braces
-  - yoda_condition
-
-# Disable rules that are too strict or noisy
-disabled_rules:
-  - todo
-  - trailing_comma
-  # single_test_class: incompatible with Swift Testing — Swift Testing uses
-  # @Suite structs (not XCTestCase subclasses), multiple @Suite structs per
-  # file is valid, and global @Test functions have no enclosing type at all.
-  - single_test_class
-
-# Rule configurations
-line_length:
-  warning: 150
-  error: 200
-  ignores_comments: true
-  ignores_urls: true
-  ignores_function_declarations: false
-  ignores_interpolated_strings: true
-
-function_body_length:
-  warning: 60
-  error: 100
-
-file_length:
-  warning: 500
-  error: 1000
-  ignore_comment_only_lines: true
-
-type_body_length:
-  warning: 300
-  error: 500
-
-cyclomatic_complexity:
-  warning: 15
-  error: 25
-
-nesting:
-  type_level:
-    warning: 3
-    error: 5
-  function_level:
-    warning: 5
-    error: 8
-
-identifier_name:
-  min_length:
-    warning: 2
-    error: 1
-  max_length:
-    warning: 50
-    error: 60
-  excluded:
-    - id
-    - ok
-    - to
-    - x
-    - y
-    - i
-    - j
-    - n
-    # Common in ~Copyable / ownership code
-    - fd
-
-large_tuple:
-  warning: 4
-  error: 5
-
-force_cast: warning
-force_try: warning
-force_unwrapping: warning
-
-# Custom rules
-custom_rules:
-  no_print_statements:
-    name: "No Print Statements"
-    regex: "\\bprint\\s*\\("
-    message: "Use os.Logger instead of print() for logging"
-    severity: warning
-    match_kinds:
-      - identifier
-
-  no_observable_object:
-    name: "No ObservableObject"
-    regex: "\\b(ObservableObject|@Published|@StateObject|@ObservedObject|@EnvironmentObject)\\b"
-    message: "Use @Observable / @Bindable / @State / @Environment instead (Swift 6.2 Observation)"
-    severity: warning
-    match_kinds:
-      - identifier
-      - attribute.builtin
-
-  no_combine_import:
-    name: "No Combine Import"
-    regex: "^import Combine$"
-    message: "Use AsyncStream instead of Combine (project convention)"
-    severity: warning
-```
-
-#### 0.3.4 `Makefile` / `justfile`
-
-Create a `Makefile` (or `justfile` if preferred) with these targets:
-
-```makefile
-format:          ## Run SwiftFormat on all Swift files
-lint:            ## Run SwiftLint in strict mode
-test:            ## Run all Swift Testing suites
-build:           ## Build all targets (debug)
-build-release:   ## Build all targets (release)
-pre-commit:      ## Run prek on all files (manual full check)
-clean:           ## Remove build artifacts and DerivedData
-install-hooks:   ## Install prek hooks (pre-commit + pre-push)
-```
-
-#### 0.3.5 Verify Pipeline End-to-End
-
-- Run `prek install --hook-type pre-commit --hook-type pre-push`
-- Create a test Swift file with intentional formatting issues
-- Commit → verify SwiftFormat auto-fixes, SwiftLint catches violations
-- Create a test Python file in `Resources/Hooks/` → verify Ruff catches issues
-- Confirm `prek run --all-files` passes cleanly on the empty project skeleton
-- Verify the `no_observable_object` custom rule fires on `@Published var test = ""` in a test file, and does **not** fire on `// We migrated from ObservableObject` in a comment
-- Verify the `no_combine_import` custom rule fires on `import Combine` in a test file
-- Clean up test files after verification
-
-### 0.4 Testing Infrastructure
-
-- Add a `OICoreTests` target using Swift Testing (`import Testing`)
-- Add a `OIStateTests` target for state machine and SessionStore tests
-- Add a `OIProvidersTests` target for provider adapter tests
-- Configure all test suites as `@Suite` structs (not classes)
-- Establish parameterized test patterns for multi-provider scenarios
-- Note: `single_test_class` SwiftLint rule is disabled — multiple `@Suite` structs per file and global `@Test` functions are valid Swift Testing patterns
-
-### 0.5 Git & CI Foundations
-
-- Initialize repo with `.gitignore` (Xcode, SPM, DerivedData, build artifacts)
-- Set up branch protection on `main`
-- Add a basic GitHub Actions workflow: build + test on macOS runner
-- Install pre-commit hooks
-
-### 0.6 Approachable Concurrency Strategy (Swift 6.2)
-
-This is a **deliberate architectural decision**, not just build flags. Swift 6.2's Approachable Concurrency has three pillars — all three must be configured consistently across the project.
-
-#### 0.6.1 Pillar 1 — MainActor by Default ("single-threaded by default")
-
-- **App target** (`OpenIsland`): enable `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor` (SE-0466). This means every type, function, and property in the app target is `@MainActor`-isolated unless explicitly opted out.
-- **SPM library targets** (`OICore`, `OIProviders`, etc.): keep `nonisolated` as the default. Libraries should not assume main-thread execution — they are consumed by the app target, which decides isolation.
-- **Implication**: all model types, utility functions, and protocol definitions in SPM targets must be explicitly `nonisolated` (which they are by default in those targets). When used from the app target, the compiler handles the isolation boundary correctly.
-- In `Package.swift`, only the app-facing target gets `.defaultIsolation(MainActor.self)`. In Xcode, set the build setting on the app target only.
-
-#### 0.6.2 Pillar 2 — Nonisolated Nonsending by Default ("intuitive async functions")
-
-- Enable `.enableUpcomingFeature("NonisolatedNonsendingByDefault")` (SE-0461) on **all targets**.
-- **What this changes**: nonisolated `async` functions no longer hop to the global concurrent executor. They run in the caller's execution context. This means calling an `async` function from the main actor keeps you on the main actor — no implicit thread hop.
-- **Practical impact**: most `async` functions in the app "just work" without data-race issues. You can write `async` methods on classes without needing `@Sendable` closures or actor isolation annotations everywhere.
-- **Where this matters most**: `ConversationParser`, `ClaudeAPIService`, and other actors already serialize access. But helper `async` functions that don't need their own isolation domain (e.g., file reading utilities, JSON parsing) will stay on the caller's actor instead of bouncing to a background thread.
-
-#### 0.6.3 Pillar 3 — Explicit `@concurrent` for Parallelism ("opting into concurrency")
-
-- Use `@concurrent` (SE-0461) **only** on functions that genuinely need to run off the calling actor — CPU-heavy computation, blocking I/O that shouldn't freeze the main thread, or work that benefits from parallelism.
-- Examples in `open-island`:
-  - `@concurrent func parseJSONLChunk(_ data: Data) async -> [ChatMessage]` — parsing large JSONL chunks should not block the main actor
-  - `@concurrent func detectPythonRuntime() async -> PythonRuntime?` — spawns subprocesses, should not block UI
-  - `@concurrent func buildProcessTree() async -> [Int32: Int32]` — enumerates all PIDs, CPU-bound
-- **Rule**: if a function doesn't need to run in parallel, don't mark it `@concurrent`. The default (run on caller's actor) is safer and simpler.
-
-#### 0.6.4 Configuration Summary
-
-| Target | Default Isolation | NonisolatedNonsending | `@concurrent` Usage |
-|---|---|---|---|
-| `OpenIsland` (app) | `MainActor` | Yes (upcoming feature) | Sparingly — heavy computation only |
-| `OICore` | `nonisolated` | Yes (upcoming feature) | On CPU-bound utilities |
-| `OIProviders` | `nonisolated` | Yes (upcoming feature) | On file I/O, process spawning |
-| `OIState` | `nonisolated` | Yes (upcoming feature) | Rarely — actors serialize already |
-| `OIWindow` | `nonisolated` | Yes (upcoming feature) | Never — all UI work |
-| `OIUI` | `nonisolated` | Yes (upcoming feature) | Never — all UI work |
-| `OIModules` | `nonisolated` | Yes (upcoming feature) | Never — all UI work |
-
-#### 0.6.5 Document the Concurrency Contract
-
-Create `CONCURRENCY.md` in the repo root explaining:
-
-- Why `MainActor` is the default for the app target (safety, simplicity, matches Xcode 17's default template)
-- Why library targets stay `nonisolated` (reusability, no main-thread assumption)
-- When to use `@concurrent` (include the 3 examples above as canonical patterns)
-- When to use `actor` (shared mutable state accessed from multiple isolation domains)
-- When to use `Mutex<T>` (protecting state in `Sendable` classes, GCD-bridging code)
-- When **not** to mark functions `@concurrent` (most of the time — the default is correct)
-- When `InlineArray` (SE-0452) may be a fit for fixed-size buffers with trivially-copyable elements (e.g., small `ProviderID` → color lookup tables) — note as a future optimization opportunity, but **not** suitable for collections of complex types like `SessionEvent` (see Phase 2.1 note)
-- When to use `@preconcurrency import` for legacy frameworks (see Phase 0.7)
-- **Forward-scan trailing closures** (SE-0286): Swift 6 changed trailing closure matching from backward-scan to forward-scan. When designing APIs with multiple closure parameters, the first trailing closure label is dropped. Use labeled trailing closures for all subsequent closure parameters. Avoid trailing closure syntax in `guard` conditions. Document this in `CONTRIBUTING.md` as well so contributors from Swift 5 habits are aware.
-
-### 0.7 Legacy Framework Import Strategy
-
-Several system frameworks predate Swift concurrency and may produce Sendable diagnostics in strict Swift 6 mode. Use `@preconcurrency import` to suppress warnings from frameworks the project cannot control:
-
-- **`@preconcurrency import Dispatch`** — required in `ClaudeHookSocketServer.swift` (Phase 3.1) and anywhere using `DispatchSource`, `DispatchQueue`, or GCD primitives
-- **`@preconcurrency import AppKit`** — may be needed in `NotchPanel.swift`, `WindowManager.swift`, and other AppKit-bridging code where `NSWindow`, `NSEvent`, or `NSScreen` types cross isolation boundaries
-- **`@preconcurrency import CoreGraphics`** — if `CGWindowListCopyWindowInfo` results trigger Sendable warnings in `TerminalVisibilityDetector.swift`
-
-**Preferred approach — `OIAppKitBridge` module**: rather than scattering `@preconcurrency import AppKit` across multiple files, consider creating a thin `OIAppKitBridge` internal module that encapsulates all AppKit interactions behind `@MainActor`-isolated `Sendable` wrappers. This confines `@preconcurrency` to one module's source files and gives the rest of the codebase clean, compiler-verified types to work with. Evaluate feasibility in Phase 4; if the bridging surface is small enough, a single module is cleaner than per-file annotations.
-
-**Rule**: if the `OIAppKitBridge` approach is not feasible, use `@preconcurrency import` only on the specific files that need it, not as a blanket project-wide practice. Each usage should include a comment explaining which types cause the diagnostic. Treat these as temporary — remove them when Apple ships Sendable-annotated framework headers.
-
-Document these in `CONCURRENCY.md` under a "Legacy Framework Imports" section.
+**Swift 6.2** (shipped September 2025 with Xcode 17, latest patch 6.2.4) represents a mature language with **complete data-race safety**, an "Approachable Concurrency" paradigm, safe systems programming primitives (`Span`, `InlineArray`), and first-class cross-platform support including WebAssembly and Android. This document provides prescriptive, directive-style guidance for every major language feature area. All SE proposals cited are accepted and implemented unless noted otherwise.
 
 ---
 
-## Phase 1 — Core Models & Provider Protocol
+## 1. Strict Concurrency Model (complete)
 
-### 1.1 Define `ProviderID` and `ProviderMetadata`
+Swift 6 makes data-race safety a **compile-time guarantee**. Concurrency violations that were warnings in Swift 5 are errors in Swift 6 language mode. Swift 6.2's "Approachable Concurrency" pivot (SE-0461, SE-0466) dramatically simplifies adoption by making nonisolated async functions run on the caller's actor by default and offering **`MainActor` default isolation** for app targets.
 
-```
-OICore/Provider/ProviderID.swift
-OICore/Provider/ProviderMetadata.swift
-```
+### Sendable conformance
 
-- `ProviderID` — a `RawRepresentable<String>`, `Sendable`, `Hashable` enum with cases: `.claude`, `.codex`, `.geminiCLI`, `.openCode`
-- `ProviderMetadata` — struct holding display name, icon name (SF Symbol or bundled), accent color, CLI binary name(s)
-- Both must be `Sendable` value types
-- **Note**: `ProviderID` has `String` raw values. `String` is a reference-counted, heap-allocated type and is **not** `BitwiseCopyable`. Do not mark `ProviderID` as `BitwiseCopyable` — the compiler would reject this conformance. `BitwiseCopyable` (SE-0426) is reserved for types whose stored properties are all trivially copyable via `memcpy` (e.g., enums with `Int` raw values and no associated values containing reference types).
-
-### 1.2 Define Universal Event Types
-
-```
-OICore/Events/ProviderEvent.swift
-OICore/Events/SessionEvent.swift
-```
-
-- `ProviderEvent` — the normalized event enum that all providers emit:
-  - `.sessionStarted(SessionID, cwd: String, pid: Int32?)`
-  - `.sessionEnded(SessionID)`
-  - `.userPromptSubmitted(SessionID)`
-  - `.processingStarted(SessionID)`
-  - `.toolStarted(SessionID, ToolEvent)`
-  - `.toolCompleted(SessionID, ToolEvent, ToolResult?)`
-  - `.permissionRequested(SessionID, PermissionRequest)`
-  - `.waitingForInput(SessionID)`
-  - `.compacting(SessionID)`
-  - `.notification(SessionID, message: String)`
-  - `.chatUpdated(SessionID, [ChatHistoryItem])`
-- `SessionEvent` — internal event for the `SessionStore` (superset of ProviderEvent + UI events like `.permissionApproved`, `.archiveSession`, etc.)
-- All payloads are `Sendable` structs/enums — explicitly marked `Sendable` since they are `package`-visible and cross module boundaries
-
-### 1.3 Define Session Models
-
-```
-OICore/Models/SessionState.swift
-OICore/Models/SessionPhase.swift
-OICore/Models/PermissionContext.swift
-OICore/Models/ToolCallItem.swift
-OICore/Models/ChatHistoryItem.swift
-```
-
-- `SessionPhase` — state machine enum: `.idle`, `.processing`, `.waitingForInput`, `.waitingForApproval(PermissionContext)`, `.compacting`, `.ended`
-  - Include `canTransition(to:) -> Bool` with the validated transition table from claude-island
-  - Validated transitions, invalid ones logged and ignored
-  - Explicitly marked `Sendable` — the `.waitingForApproval(PermissionContext)` associated value requires `PermissionContext` to also be `Sendable`
-  - Use `guard let` shorthand (SE-0345) in transition validation methods:
-    ```swift
-    func validate(event: SessionEvent) -> SessionPhase? {
-        guard let targetPhase = event.targetPhase else { return nil }
-        guard canTransition(to: targetPhase) else { return nil }
-        return targetPhase
-    }
-    ```
-- `SessionState` — complete snapshot struct:
-  - `id: String` (session ID)
-  - `providerID: ProviderID`
-  - `phase: SessionPhase`
-  - `projectName: String`
-  - `cwd: String`
-  - `pid: Int32?`
-  - `chatItems: [ChatHistoryItem]`
-  - `toolTracker: ToolTracker`
-  - `createdAt: Date`
-  - `lastActivityAt: Date`
-  - Explicitly marked `Sendable` — all stored properties must be `Sendable`
-- `PermissionContext` — tool use ID, name, input, timestamp, `displaySummary` computed property. Explicitly `Sendable`.
-- `ChatHistoryItem` — ID, timestamp, type enum (`.user`, `.assistant`, `.toolCall`, `.thinking`, `.interrupted`). Explicitly `Sendable`.
-- `ToolCallItem` — name, input, status (`.running`, `.success`, `.error`, `.interrupted`), result, nested subagent tools. Explicitly `Sendable`.
-- Simple leaf enums with no reference types (`PermissionDecision`, `ModuleSide`, `ToolStatus`) should be marked `BitwiseCopyable` (SE-0426) — these contain only trivial cases (no `String` associated values, no reference-type payloads) and explicit conformance on `package`-visible types enables more efficient generic code paths.
-
-### 1.4 Define `JSONValue` Type
-
-```
-OICore/Models/JSONValue.swift
-```
-
-- Recursive enum: `.string`, `.int`, `.double`, `.bool`, `.null`, `.array([JSONValue])`, `.object([String: JSONValue])`
-- `Sendable`, `Equatable`, `Codable`
-- Replaces `AnyCodable` / `@unchecked Sendable` dictionary patterns
-- Include subscript accessors for ergonomic nested access
-
-### 1.5 Provider Adapter Protocol
-
-```
-OIProviders/ProviderAdapter.swift
-```
-
-- Protocol definition:
-  ```swift
-  package protocol ProviderAdapter: Sendable {
-      var providerID: ProviderID { get }
-      var metadata: ProviderMetadata { get }
-
-      func start() async throws(ProviderStartupError)
-      func stop() async
-
-      /// Stream of normalized events from this provider
-      func events() -> AsyncStream<ProviderEvent>
-
-      /// Respond to a permission request.
-      /// Uses plain `throws` intentionally — failure modes are provider-specific
-      /// and not a closed domain (network errors, timeout, provider-specific
-      /// protocol failures, etc.).
-      func respondToPermission(
-          _ request: PermissionRequest,
-          decision: PermissionDecision
-      ) async throws
-
-      /// Check if a session is still alive
-      func isSessionAlive(_ sessionID: String) -> Bool
-  }
-  ```
-- `PermissionDecision` — enum: `.allow`, `.deny(reason: String?)`
-- Each provider implementation is a concrete actor conforming to this protocol
-
-#### Typed throws candidates
-
-Use `throws(ErrorType)` (SE-0413) in these closed error domains:
-
-- **`ProviderAdapter.start()`** → `throws(ProviderStartupError)`:
-  ```swift
-  package enum ProviderStartupError: Error, Sendable {
-      case binaryNotFound(String)
-      case hookInstallationFailed(String)
-      case socketBindFailed(path: String, errno: Int32)
-      case permissionDenied(String)
-  }
-  ```
-  This is a closed domain — all startup failure modes are known. Callers can exhaustively match without a generic `catch`.
-
-- **`ClaudeEventNormalizer.normalize()`** → `throws(EventNormalizationError)`:
-  ```swift
-  package enum EventNormalizationError: Error, Sendable {
-      case unknownEventType(String)
-      case malformedPayload(field: String)
-      case missingRequiredField(String)
-  }
-  ```
-
-- **`ClaudeHookInstaller.install()`** → `throws(HookInstallError)`:
-  ```swift
-  package enum HookInstallError: Error, Sendable {
-      case pythonNotFound
-      case settingsFileCorrupted(path: String)
-      case writePermissionDenied(path: String)
-      case hookAlreadyInstalled
-  }
-  ```
-
-**Rule**: default to plain `throws` for most functions. Use typed throws only where the error domain is closed and exhaustive `catch` handling adds real value — primarily at module boundaries and in provider startup/installation flows.
-
-### 1.6 Provider Registry
-
-```
-OIProviders/ProviderRegistry.swift
-```
-
-- `ProviderRegistry` — actor that:
-  - Holds registered `[ProviderID: any ProviderAdapter]` — `any` is correct here for runtime heterogeneity across provider types
-  - Starts/stops all adapters
-  - Merges all provider event streams into a single `AsyncStream<ProviderEvent>`
-  - Provides lookup by ID
-- Use `withTaskGroup` to start all adapters concurrently
-- Use **`withThrowingDiscardingTaskGroup`** (SE-0381) to merge event streams — this is a long-running event loop that runs for the app's lifetime and doesn't collect results. `withDiscardingTaskGroup` prevents memory leaks from accumulated child task results:
-  ```swift
-  func mergedEvents() -> AsyncStream<ProviderEvent> {
-      let (stream, continuation) = AsyncStream<ProviderEvent>.makeStream(
-          bufferingPolicy: .bufferingNewest(64)
-      )
-      continuation.onTermination = { _ in /* cleanup */ }
-      Task {
-          try await withThrowingDiscardingTaskGroup { group in
-              for adapter in adapters.values {
-                  group.addTask {
-                      for await event in adapter.events() {
-                          continuation.yield(event)
-                      }
-                  }
-              }
-          }
-          continuation.finish()
-      }
-      return stream
-  }
-  ```
-- Always set `onTermination` on the merged stream's continuation to cancel child tasks on consumer disconnect
-
-**`any` vs `some` guidance for provider references**: The registry stores `any ProviderAdapter` because it holds a heterogeneous collection of different concrete adapter types. However, within provider-specific code (e.g., inside `ClaudeProviderAdapter`), always use concrete types or `some ProviderAdapter` — reserve `any` for the registry's heterogeneous collection. Start concrete → move to `some` → resort to `any` only when necessary.
-
-### 1.7 Write Core Model Tests
-
-- Test `SessionPhase` transitions: valid, invalid, terminal state, same-state no-op
-- Test `JSONValue` encoding/decoding round-trips
-- Test `PermissionContext.displaySummary` for various tool inputs
-- Test `ChatHistoryItem` construction and deduplication
-- Use parameterized tests (`@Test(arguments:)`) for transition matrix
-
----
-
-## Phase 2 — State Management Layer
-
-### 2.1 SessionStore Actor
-
-```
-OIState/SessionStore.swift
-```
-
-- Swift `actor` — the single source of truth for all session state
-- Single entry point: `func process(_ event: sending SessionEvent) async` — the `sending` annotation (SE-0430) documents at the type level that the event's ownership is transferred into the actor's isolation domain. This is the canonical boundary where events cross from provider actors into the `SessionStore` actor. Even though `SessionEvent` is currently `Sendable`, `sending` makes the ownership transfer explicit and future-proofs for potential non-Sendable provider extension payloads.
-- Internal state: `private var sessions: [String: SessionState]`
-- Event audit trail: circular buffer array of last 100 events for debugging, using a simple index-wrapping array implementation. **Do not use `InlineArray<100, SessionEvent>`** — `InlineArray` (SE-0452) requires its element type to be stack-allocatable for real benefit, and `SessionEvent` carries `String`s, `Array`s, and nested structs that are heap-allocated. Reserve `InlineArray` for genuinely fixed-size, trivially-copyable element buffers (e.g., small `ProviderID` lookup tables).
-- On each state change, call `publishState()` to broadcast to all subscribers
-
-### 2.2 Multi-Subscriber Broadcast
-
-```
-OIState/SessionStore+Streaming.swift
-```
-
-- UUID-keyed `AsyncStream` continuations pattern (from claude-island):
-  ```swift
-  private var continuations: [UUID: AsyncStream<[SessionState]>.Continuation]
-  ```
-- `func sessionsStream() -> AsyncStream<[SessionState]>` — registers a new subscriber, immediately yields current state
-- `.bufferingNewest(1)` policy — correct for "latest snapshot" semantics where consumers only need the most recent state
-- `onTermination` set synchronously before the registration Task to avoid race conditions — **always set `onTermination`** on all `AsyncStream` continuations to clean up the UUID entry from the `continuations` dictionary, preventing memory leaks from accumulated dead continuations
-- `publishState()` iterates all continuations, yields sorted sessions
-
-### 2.3 Session Phase Validation & Transitions
-
-```
-OIState/SessionStore+Transitions.swift
-```
-
-- Map `ProviderEvent` to `SessionPhase` transitions
-- Validate via `canTransition(to:)` before applying
-- Log invalid transitions with the audit trail
-- Handle edge cases: permission during processing, compacting during any state, ended from any state
-
-### 2.4 Tool Tracking
-
-```
-OIState/ToolTracker.swift
-OIState/ToolEventProcessor.swift
-```
-
-- `ToolTracker` struct: `inProgress: [String: ToolInProgress]`, `seenIDs: Set<String>`
-- `ToolEventProcessor` — static methods processing tool start/complete events
-- Track tool durations, statuses, nested subagent tools
-- Subagent state machine: active tasks stack, attribute nested tools to parent Task
-
-### 2.5 Periodic Health Check
-
-```
-OIState/SessionStore+HealthCheck.swift
-```
-
-- Every 3 seconds, iterate sessions and call provider adapter's `isSessionAlive()`
-- Transition zombie sessions to `.ended`
-- Use a **regular `Task`** (not `Task.detached`) launched from within the `SessionStore` actor — it inherits the actor's isolation, which is exactly what we want for iterating sessions:
-  ```swift
-  func startHealthCheck() {
-      healthCheckTask = Task {
-          while !Task.isCancelled {
-              try? await Task.sleep(for: .seconds(3))
-              guard !Task.isCancelled else { break }
-              await checkZombieSessions()
-          }
-      }
-  }
-  ```
-  Per the guidelines: "Use `Task.detached` only when you must shed all inherited context." The health check needs actor isolation to read sessions — `Task.detached` would be incorrect.
-- Store the `Task` handle for cancellation support on `stop()`
-
-### 2.6 SessionStore Tests
-
-- Test event processing for each `SessionEvent` case
-- Test multi-subscriber broadcast: 2+ consumers see same state
-- Test zombie session cleanup
-- Test audit trail ring buffer behavior
-- Test concurrent event processing (use `withTaskGroup` to fire events simultaneously)
-- Use `confirmation` from Swift Testing for async event verification
-
----
-
-## Phase 3 — Claude Code Provider Adapter
-
-> Build the first concrete provider to validate the architecture end-to-end.
-
-### 3.1 Hook Socket Server
-
-```
-OIProviders/Claude/ClaudeHookSocketServer.swift
-```
-
-- Port `HookSocketServer` from claude-island
-- GCD-based Unix domain socket server at `/tmp/open-island-claude.sock`
-- Non-blocking accept via `DispatchSource.makeReadSource`
-- **`@preconcurrency import Dispatch`** at the top of this file — GCD types predate Swift concurrency and will trigger Sendable diagnostics in strict mode. Add a comment: `// @preconcurrency: DispatchSource, DispatchQueue predate Sendable annotations`
-- `Mutex<PermissionsState>` for permission tracking (Sendable-safe)
-- Permission socket lifecycle: keep client socket open for `PermissionRequest`, 5-minute timeout
-- Emit raw `ClaudeHookEvent` structs to a callback
-- **Always set `onTermination`** on any `AsyncStream` continuations used to bridge GCD callbacks → async streams, to ensure socket cleanup on consumer disconnect
-- **Buffering policy**: use `.bufferingOldest(128)` for the event stream from the socket — events are sequential and order-matters, so dropping the oldest events silently would cause incorrect state reconstruction. `.bufferingOldest` with a generous capacity preserves event ordering under load while bounded memory. Log a warning if the buffer fills (indicates consumer is too slow).
-
-#### `~Copyable` socket file descriptor wrapper
-
-The Unix domain socket file descriptor (`Int32`) held by the socket server is a unique resource that must be closed exactly once. Wrap it in a `~Copyable` struct to make double-close or use-after-close a **compile-time error**:
+Use `Sendable` on value types whose stored properties are all Sendable — the compiler synthesizes conformance implicitly for internal types. Explicitly declare `Sendable` on `public` types. Use `Sendable` on `final class` types only when all stored properties are immutable `let` constants that are themselves `Sendable`. Prefer `Mutex<T>` (from the `Synchronization` framework, Swift 6+) to protect mutable class state, which lets the class conform to `Sendable` without `@unchecked`:
 
 ```swift
-struct SocketFD: ~Copyable {
-    private let fd: Int32
+import Synchronization
+final class ThreadSafeCache: Sendable {
+    private let store = Mutex<[String: Data]>([:])
+    func get(_ key: String) -> Data? { store.withLock { $0[key] } }
+    func set(_ key: String, _ val: Data) { store.withLock { $0[key] = val } }
+}
+```
 
-    init(_ fd: Int32) { self.fd = fd }
+Use `@unchecked Sendable` only for legacy types using locks or dispatch queues the compiler cannot verify. Treat it as a temporary migration tool. Avoid marking types `Sendable` when **region-based isolation** (SE-0414) proves safety automatically — many non-Sendable values can safely cross isolation boundaries without conformance.
 
-    borrowing func read(into buffer: UnsafeMutableRawBufferPointer) -> Int {
-        Darwin.read(fd, buffer.baseAddress!, buffer.count)
-    }
+### Actor isolation rules
 
-    borrowing func write(_ data: UnsafeRawBufferPointer) -> Int {
-        Darwin.write(fd, data.baseAddress!, data.count)
-    }
+Declare `actor` for types with mutable state accessed from multiple isolation domains. All instance members are actor-isolated by default; cross-actor access requires `await`. Use `@MainActor` to isolate code to the main thread — mandatory for UI mutations. Use custom global actors (`@globalActor`) sparingly for domain-specific serialization (e.g., `@DatabaseActor`).
 
-    consuming func close() {
-        Darwin.close(fd)
-        discard self  // suppress deinit — cleanup done explicitly
-    }
+Mark members `nonisolated` to opt out of the enclosing actor's isolation. Use `nonisolated(unsafe)` (SE-0412) only as a **temporary escape hatch** for global/static storage where you accept full responsibility for thread safety. Use `@preconcurrency import` to suppress Sendable diagnostics from legacy modules, and `@preconcurrency` on declarations to maintain backward compatibility with Swift 5 callers.
 
-    deinit {
-        Darwin.close(fd)
+**Swift 6.2 changes** — `nonisolated(nonsending)` (SE-0461): nonisolated `async` functions now run on the **caller's actor** by default instead of hopping to the global concurrent executor. Use `@concurrent` to explicitly opt a function into background execution:
+
+```swift
+// Runs on caller's actor (Swift 6.2 default)
+nonisolated func fetchData() async -> Data { ... }
+// Explicitly runs off-actor
+@concurrent func heavyComputation() async -> Result { ... }
+```
+
+**Default actor isolation** (SE-0466): set `MainActor` as the default for an entire target via `.defaultIsolation(MainActor.self)` in `Package.swift` or the Xcode "Default Actor Isolation" build setting. Use this for **app targets**; keep `nonisolated` default for libraries.
+
+### Region-based isolation and transfer analysis
+
+SE-0414 (Swift 6.0) introduced **region-based isolation**: the compiler performs data-flow analysis tracking "isolation regions" — groups of values that may alias each other. When a non-Sendable value is sent across an isolation boundary, the compiler verifies the value and everything in its region is **never used afterward** in the original domain. This eliminates thousands of false-positive Sendable requirements compared to Swift 5.10's conservative analysis.
+
+```swift
+func example() async {
+    let value = NonSendableObject()
+    await useOnMainActor(value) // ✅ value created here, transferred, never reused
+    // value.doSomething()      // ❌ ERROR: use after transfer
+}
+```
+
+### `sending` parameter and result annotations
+
+SE-0430 introduced `sending` — a value-level annotation (unlike `Sendable` which is type-level) requiring the value be "disconnected" at the function boundary. Use `sending` when your API accepts non-Sendable values that will be transferred to another isolation domain. `Task.init`'s closure changed from `@Sendable` to `sending` in Swift 6.
+
+```swift
+actor Storage {
+    var item: NonSendable?
+    func store(_ obj: sending NonSendable) { item = obj }
+}
+```
+
+**Rule of thumb**: `Sendable` = every instance is forever safe across boundaries. `sending` = this *specific* value is safe because ownership is transferred.
+
+### Task groups
+
+Use `withTaskGroup(of:returning:body:)` to collect results from parallel child tasks. Use `withThrowingTaskGroup` when child tasks can throw. Use **`withDiscardingTaskGroup`** (SE-0381) for long-running fire-and-forget workloads (servers, event loops) — child task results are automatically discarded, preventing memory leaks:
+
+```swift
+try await withThrowingDiscardingTaskGroup { group in
+    while let conn = try await server.accept() {
+        group.addTask { try await handle(conn) }
     }
 }
 ```
 
-Use `consuming` methods for operations that terminate the socket (e.g., responding to a permission request and closing the held-open connection). Use `borrowing` for read/write operations that don't transfer ownership. This validates the project's `~Copyable` toolchain and lint pipeline early, before the architecture solidifies.
+Limit concurrency by seeding a fixed number of initial tasks and adding new ones as existing tasks complete via `group.next()`.
 
-Similarly, the permission socket's held-open client connection (5-minute timeout lifecycle) should be wrapped in a `~Copyable` type — transferring ownership via `consuming` enforces that the connection can't be used after the response is sent.
+### Structured vs. unstructured concurrency
 
-### 3.2 Claude Hook Event Parsing
+**Default to structured concurrency** (`async let`, task groups) — it provides automatic cancellation propagation, priority inheritance, and guaranteed child completion. Use `Task { }` only to bridge synchronous → async contexts (e.g., SwiftUI button handlers); it inherits actor isolation and priority. Use `Task.detached` only when you must shed all inherited context — prefer a `nonisolated` function with a regular `Task` instead.
 
-```
-OIProviders/Claude/ClaudeHookEvent.swift
-OIProviders/Claude/ClaudeEventNormalizer.swift
-```
+### AsyncSequence, AsyncStream, and primary associated types
 
-- `ClaudeHookEvent` — raw struct matching the Python script's JSON payload (session_id, cwd, event, status, pid, tty, tool, tool_input, tool_use_id)
-- `ClaudeEventNormalizer` — maps `ClaudeHookEvent` → `ProviderEvent`
-  - Uses `throws(EventNormalizationError)` for closed error domain (see Phase 1.5)
-- Handle all Claude-specific event types: `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PermissionRequest`, `Notification`, `Stop`, `SessionStart`, `SessionEnd`, `PreCompact`, `SubagentStop`
+SE-0421 (Swift 6.0) added a `Failure` associated type and primary associated types to `AsyncSequence`, enabling `some AsyncSequence<Int, Never>` syntax. Use `AsyncStream.makeStream()` (SE-0388) as the preferred factory — it cleanly separates producer and consumer:
 
-### 3.3 Python Hook Script
-
-```
-Resources/Hooks/Claude/open-island-claude-hook.py
+```swift
+let (stream, continuation) = AsyncStream<Event>.makeStream()
+continuation.yield(.loaded(data))
+continuation.finish()
+for await event in stream { handle(event) }
 ```
 
-- Port `claude-island-state.py` with updated socket path (`/tmp/open-island-claude.sock`)
-- Keep the same protocol: JSON over Unix socket, blocking for permission responses
-- Update the hook event names to match `open-island` naming
+Always set `onTermination` on continuations to clean up resources.
 
-### 3.4 Hook Installer
+### Concurrency migration for greenfield projects
 
-```
-OIProviders/Claude/ClaudeHookInstaller.swift
-```
+For **app targets** (Swift 6.2 / Xcode 17): enable `MainActor` default isolation plus the Approachable Concurrency suite of flags. For **library/SPM packages**: keep `nonisolated` default. Always set Swift 6 language mode:
 
-- Port `HookInstaller` logic:
-  - Copy bundled Python script to `~/.claude/hooks/`
-  - Detect Python runtime via `PythonRuntimeDetector`
-  - Update `~/.claude/settings.json` with hook config for all event types
-- Handle deduplication, legacy format migration, uninstallation
-- Make this async with cancellation support
-- Uses `throws(HookInstallError)` for closed error domain (see Phase 1.5)
-
-### 3.5 Claude Conversation Parser
-
-```
-OIProviders/Claude/ClaudeConversationParser.swift
+```swift
+// swift-tools-version: 6.2
+.target(name: "MyApp", swiftSettings: [
+    .swiftLanguageMode(.v6),
+    .defaultIsolation(MainActor.self),
+    .enableUpcomingFeature("NonisolatedNonsendingByDefault"),
+    .enableUpcomingFeature("InferIsolatedConformances"),
+])
 ```
 
-- Actor that reads Claude Code's JSONL conversation files incrementally
-- Track `lastFileOffset` per session, detect file truncation
-- Parse user messages, assistant messages (text, tool_use, thinking blocks), tool results
-- Handle `/clear` detection
-- Emit parsed `[ChatHistoryItem]` via `ProviderEvent.chatUpdated`
-- Large file handling: tail-based parsing for files > 10MB
-- The file handle used for incremental reading is another candidate for a `~Copyable` wrapper (see Phase 3.1 pattern) — evaluate whether the ownership model adds value here or if the actor's isolation is sufficient
-
-### 3.6 Claude Provider Adapter (Composition)
-
-```
-OIProviders/Claude/ClaudeProviderAdapter.swift
-```
-
-- Actor conforming to `ProviderAdapter`
-- Composes: `ClaudeHookSocketServer` + `ClaudeHookInstaller` + `ClaudeConversationParser`
-- `start()`: install hooks, start socket server, begin file watching. Uses `throws(ProviderStartupError)`.
-- `stop()`: stop socket server, cancel file watchers
-- `events()`: merge socket events + file change events into single `AsyncStream<ProviderEvent>` — **always set `onTermination`** on the merged stream's continuation to cancel internal tasks and close the socket listener when consumers disconnect. Use `.bufferingOldest(128)` to preserve event ordering (same rationale as Phase 3.1).
-- `respondToPermission()`: delegate to socket server's held-open connection
-- `isSessionAlive()`: check PID via `kill(pid, 0)`
-
-### 3.7 Integration Test: Claude Adapter End-to-End
-
-- Mock socket client sending Claude hook events
-- Verify `ProviderEvent` stream emits correct normalized events
-- Test permission flow: request → response → socket write
-- Test conversation parsing with sample JSONL fixtures
+> **Changed from Swift 5.x**: Concurrency checking escalated from opt-in warnings to mandatory errors. Region-based isolation (SE-0414) and `sending` (SE-0430) are new in Swift 6.0. Swift 6.2's Approachable Concurrency (SE-0461, SE-0466) inverts the default — async functions now stay on the caller's actor unless explicitly marked `@concurrent`, and app targets can default to `@MainActor`. `Task.init` closures changed from `@Sendable` to `sending`.
 
 ---
 
-## Phase 4 — Window System & Notch Geometry
+## 2. Ownership, Borrowing & Noncopyable Types
 
-### 4.1 NotchPanel (NSPanel Subclass)
+### ~Copyable types
 
-```
-OIUI/Window/NotchPanel.swift
-```
+Suppress the implicit `Copyable` conformance with `~Copyable`. Noncopyable structs and enums get value-type semantics with unique ownership and **`deinit`** support — previously class-only. Assignment is a move; the original variable becomes invalid.
 
-- Borderless, non-activating, transparent floating panel
-- Configuration: `.nonactivatingPanel`, `isOpaque = false`, `backgroundColor = .clear`, `hasShadow = false`
-- `canJoinAllSpaces`, `.stationary`, `.fullScreenAuxiliary`, `.ignoresCycle`
-- Level set above menu bar
-- `becomesKeyOnlyIfNeeded = true`
-- If the `OIAppKitBridge` module from Phase 0.7 is feasible, this class lives there with `@preconcurrency import AppKit` confined to that module. Otherwise, use **`@preconcurrency import AppKit`** on this file with a comment: `// @preconcurrency: NSPanel, NSWindow predate Sendable annotations`
-
-### 4.2 PassThroughHostingView
-
-```
-OIUI/Window/PassThroughHostingView.swift
+```swift
+struct FileHandle: ~Copyable {
+    private let fd: Int32
+    init(path: String) throws { fd = open(path, O_RDONLY); guard fd >= 0 else { throw Err.open } }
+    borrowing func read(_ n: Int) -> Data { /* ... */ }
+    consuming func close() { Darwin.close(fd); discard self }
+    deinit { Darwin.close(fd) }
+}
 ```
 
-- `NSHostingView` subclass overriding `hitTest(_:)`
-- Closed state: returns `nil` for all points (pass-through to menu bar)
-- Opened state: returns `nil` for points outside the panel bounds
-- Dynamic hit rect computed from `NotchViewModel.status`
+Use `borrowing` for read-only access, `consuming` when taking ownership (invalidates caller's copy), and `mutating` for exclusive mutable access. Use `discard self` in consuming methods to suppress `deinit` when cleanup was done explicitly. SE-0427 (Swift 6.0) extended noncopyable types into the generics system, enabling `Optional<T: ~Copyable>`.
 
-### 4.3 NotchWindowController
+### ~Escapable types and lifetime dependencies
 
-```
-OIUI/Window/NotchWindowController.swift
-```
+SE-0446 (Swift 6.2) introduced `~Escapable` types — values that cannot outlive their scope, generalizing non-escaping closure semantics to all types. `Span<T>` is the canonical `~Escapable` type. Lifetime dependency annotations (`@lifetime(borrow self)`, `@lifetime(copy self)`) specify which parent object's lifetime a `~Escapable` value depends on. **Note**: `@lifetime` is available as an experimental feature in Swift 6.2 (`-enable-experimental-feature LifetimeDependence`) — the formal SE proposal is still in progress.
 
-- `NSWindowController` managing panel lifecycle
-- Subscribe to `NotchViewModel.makeStatusStream()` to toggle `ignoresMouseEvents`
-- Opened by notification → don't steal focus (`NSApp.activate` skipped)
+### Extracting values from noncopyable containers
 
-### 4.4 NotchGeometry
+SE-0437 (Swift 6.0) generalized `Optional`, `Result`, and `UnsafePointer` for noncopyable wrapped types. Use a `take()` pattern with `consume self` to forward ownership of the payload while writing `nil` back:
 
-```
-OIWindow/NotchGeometry.swift
-```
-
-- Pure struct with geometry calculations:
-  - `deviceNotchRect` — hardware notch rect in window coordinates
-  - `screenRect`, `windowHeight` (fixed 750px)
-  - `isPointInNotch(_:)` with ±10px/±5px padding
-  - `isPointOutsidePanel(_:, size:)` for click-outside dismiss
-- `NSScreen` extensions: `notchSize`, `hasPhysicalNotch`, `isBuiltinDisplay`, `builtin`
-
-### 4.5 NotchShape (Custom SwiftUI Shape)
-
-```
-OIWindow/NotchShape.swift
+```swift
+extension Optional where Wrapped: ~Copyable {
+    mutating func take() -> Wrapped? {
+        switch consume self {
+        case .some(let val): self = nil; return val
+        case .none: self = nil; return nil
+        }
+    }
+}
 ```
 
-- Quadratic Bézier curve path drawing the notch outline
-- Animatable `topCornerRadius` and `bottomCornerRadius` via `AnimatablePair`
-- Closed radii: top 6, bottom 14
-- Opened radii: top 19, bottom 24
+### Practical patterns
 
-### 4.6 WindowManager & ScreenObserver
+Use `~Copyable` structs for **unique file handles, database connections, and tokens** — single-owner semantics with automatic `deinit` cleanup. Use `~Copyable` enums with `consume self` in `mutating` methods for **compile-time state machines** — the compiler forces `self` reassignment on every path, catching missing transitions.
 
-```
-OIUI/Window/WindowManager.swift
-OIUI/Window/ScreenObserver.swift
-```
+### Decision tree
 
-- `WindowManager`: creates `NotchWindowController` attached to selected screen
-- `ScreenObserver`: monitors `didChangeScreenParametersNotification` with 500ms debounce
-- `ScreenSelector`: automatic (built-in display) or user-selected screen, persisted as `ScreenIdentifier`
+Use `~Copyable struct` for unique resources with exclusive ownership. Use `actor` for shared mutable state across concurrent contexts. Use regular `class` when you need shared identity with inheritance. Use `~Copyable enum` for typestate patterns. Use `~Escapable struct` for borrowed views into another container's memory.
 
-### 4.7 Window System Tests
-
-- Test `NotchGeometry` hit testing with known coordinates
-- Test `NotchShape` path generation (snapshot or bounds checking)
-- Test screen selector fallback logic
+> **Changed from Swift 5.x**: `~Copyable` introduced in Swift 5.9 (SE-0390). Swift 6.0 added noncopyable generics (SE-0427), noncopyable stdlib primitives (SE-0437), and pattern matching (SE-0432). Swift 6.2 added `~Escapable` (SE-0446). Classes and actors cannot be `~Copyable`.
 
 ---
 
-## Phase 5 — NotchViewModel & Core UI
+## 3. Typed Throws & Error Handling
 
-### 5.1 NotchViewModel
+### `throws(ErrorType)` syntax
 
-```
-OIUI/ViewModels/NotchViewModel.swift
-```
+SE-0413 (Swift 6.0) allows functions to declare a concrete error type. Only instances of that type can be thrown, and `catch` blocks receive the concrete type — no more type-erased `any Error`:
 
-- `@Observable` class managing:
-  - `status: NotchStatus` (`.closed`, `.opened`, `.popping`)
-  - `contentType: NotchContentType` (`.instances`, `.chat(SessionState)`, `.menu`)
-  - `openReason: NotchOpenReason` (`.hover`, `.notification`, `.boot`, `.unknown`)
-  - `geometry: NotchGeometry`
-  - `layoutEngine: ModuleLayoutEngine`
-- Computed `openedSize` varying by content type
-- `makeStatusStream()` for window controller subscription
-- Methods: `notchOpen(reason:)`, `notchClose()`, `switchContent(_:)`
-
-### 5.2 Event Monitors
-
-```
-OIUI/Events/EventMonitor.swift
-OIUI/Events/EventMonitors.swift
+```swift
+enum ParseError: Error { case invalidFormat, missingField(String) }
+func parse(_ data: Data) throws(ParseError) -> Config {
+    guard isValid(data) else { throw .invalidFormat }
+    return Config(data)
+}
 ```
 
-- `NSEvent` global monitor wrapper
-- Mouse position tracking for hover detection
-- Click-outside detection for dismissal
-- Keyboard shortcut handling
+`throws(any Error)` is equivalent to plain `throws`; `throws(Never)` is equivalent to non-throwing. Only **one** error type per function. In `do` blocks, if all `try` calls throw the same typed error, exhaustive pattern matching eliminates the need for a general `catch`.
 
-### 5.3 NotchView (Root SwiftUI View)
+### Interaction with rethrows, Result, and Task
 
-```
-OIUI/Views/NotchView.swift
-```
+Typed throws with a generic error parameter **subsumes `rethrows`** — when `E` is inferred as `Never` (non-throwing closure), the outer function becomes non-throwing automatically:
 
-- Root `ZStack` with `NotchShape` clip mask and shadow
-- Header row (always visible): left modules + notch spacer + right modules
-- Content view (when opened): switches on `contentType`
-- Reactive states: `isVisible`, `isHovering`, `isBouncing`
-- Animations:
-  - Open: `.spring(response: 0.42, dampingFraction: 0.8)`
-  - Close: `.spring(response: 0.45, dampingFraction: 1.0)`
-  - Content transitions: `.scale.combined(with: .opacity)`
-- Boot animation: open briefly after 0.3s delay, close after 1.0s
-
-### 5.4 NotchHeaderView
-
-```
-OIUI/Views/NotchHeaderView.swift
+```swift
+func count<E>(where pred: (Element) throws(E) -> Bool) throws(E) -> Int
 ```
 
-- Gear icon → settings
-- Mascot icon (provider-aware — show relevant icon based on active sessions)
-- Activity spinner with `matchedGeometryEffect` between closed/opened states
-- Title text adapting to content type
-- Close button (animated chevron)
+`Result { try typedThrowingFunction() }` preserves the concrete error type. `Task<Success, Failure>` already has typed `Failure`, bridging naturally with typed throws.
 
-### 5.5 Basic Instances View (Placeholder)
+### Guidelines
 
-```
-OIUI/Views/InstancesView.swift
-```
+**Default to plain `throws`** — it is better for most scenarios per the proposal authors. Use `throws(MyError)` only when the error domain is closed and exhaustive handling is valuable. Use `throws(E)` generics for higher-order functions replacing `rethrows`. Use `Result<T, E>` for storing results or callback-based APIs.
 
-- List of active sessions from `SessionMonitor`
-- Each row shows: provider icon, project name, phase indicator, elapsed time
-- Tap to open chat view for that session
-- Empty state when no sessions active
-
-### 5.6 SessionMonitor (UI Bridge)
-
-```
-OIUI/ViewModels/SessionMonitor.swift
-```
-
-- `@Observable` class on MainActor
-- Subscribes to `SessionStore.sessionsStream()`
-- Updates `instances: [SessionState]` array (filters out ended sessions)
-- Convenience methods: `approvePermission()`, `denyPermission()`, `archiveSession()`
-- Bridges provider registry for permission responses
+> **Changed from Swift 5.x**: Typed throws is entirely new in Swift 6.0. Previously all thrown errors were type-erased to `any Error`. `rethrows` still works but typed throws generics are the modern replacement.
 
 ---
 
-## Phase 6 — Closed-State Module System
+## 4. Type System & Generics
 
-### 6.1 NotchModule Protocol
+### Parameter packs
 
-```
-OIModules/NotchModule.swift
-```
+SE-0393 (Swift 5.9) introduced variadic generics. Declare type parameter packs with `each T` and expand with `repeat each`. SE-0408 (Swift 6.0) added pack iteration via `for-in`:
 
-- Protocol with associated `ID == String`:
-  - `defaultSide: ModuleSide` (`.left`, `.right`)
-  - `defaultOrder: Int`
-  - `showInExpandedHeader: Bool`
-  - `func isVisible(context: ModuleVisibilityContext) -> Bool`
-  - `func preferredWidth() -> CGFloat`
-  - `@ViewBuilder func makeBody(context: ModuleRenderContext) -> some View`
-- `ModuleVisibilityContext` — struct with `isProcessing`, `hasPendingPermission`, `hasWaitingForInput`, provider info
-- `ModuleRenderContext` — struct with animation namespace, color settings, etc.
-
-> **Design note on `makeBody` return type**: The protocol uses `some View` with `@ViewBuilder` rather than `AnyView`. Since modules are stored heterogeneously in the registry, the `ModuleRegistry` uses `any NotchModule` for the collection. When `makeBody` is called through `any NotchModule`, the return type becomes an opaque type opened from an existential — this works in Swift 6 thanks to SE-0352 (implicitly opened existentials), but **only** if the call site can handle the opened type (e.g., inside a `@ViewBuilder` context in `NotchHeaderView`).
->
-> **Validate early**: in Phase 6's first implementation pass, confirm that calling `module.makeBody(context:)` on an `any NotchModule` reference compiles within a `@ViewBuilder` closure. If the compiler cannot open the existential in that context (e.g., because `some View` is used as a return type that escapes the immediate scope), fall back to requiring `makeBody` to return `AnyView` on the protocol, with concrete implementations using a helper method that returns `some View` internally. Document the decision and rationale in the protocol's DocC comment.
-
-### 6.2 ModuleLayoutEngine
-
-```
-OIModules/ModuleLayoutEngine.swift
+```swift
+func allSatisfy<each T: Equatable>(_ value: repeat each T, _ other: repeat each T) -> Bool {
+    for pair in repeat (each value, each other) {
+        guard pair.0 == pair.1 else { return false }
+    }
+    return true
+}
 ```
 
-- Computes closed-state layout from registered modules
-- Filters visible modules per side
-- Computes symmetric side widths (max of left/right)
-- Total expansion width = `symmetricSideWidth × 2`
-- Inter-module spacing: 8px, outer edge inset: 6px
+**Limitations**: no head/tail destructuring, cannot enforce minimum element count, stored properties cannot directly be pack expansion types (nest in tuples).
 
-### 6.3 ModuleRegistry
+### Opaque return types (`some`) vs. boxed existentials (`any`)
 
-```
-OIModules/ModuleRegistry.swift
-```
+**Require `any`** when using a protocol as an existential type in Swift 6 language mode — bare protocol names are errors. Decision tree: use `some Protocol` (or explicit generics `<T: Protocol>`) when a single concrete type suffices — it gives **static dispatch** and preserves type identity. Use `any Protocol` only when you need **runtime heterogeneity** (e.g., `[any Shape]` holding mixed types). Start concrete → move to `some` → resort to `any` only when necessary.
 
-- `@Observable` singleton holding all registered modules
-- Dynamic registration — providers can add custom modules at runtime
-- Updates session-dependent modules (e.g., session dots) when state changes
+### Primary associated types and constrained existentials
 
-### 6.4 Built-in Modules
+SE-0346 (Swift 5.7) allows protocols to declare primary associated types in angle brackets, enabling `any Collection<Int>` and `some Collection<String>` syntax:
 
-```
-OIModules/BuiltIn/MascotModule.swift          — left, order 0, always visible
-OIModules/BuiltIn/PermissionIndicatorModule.swift — left, order 1
-OIModules/BuiltIn/ActivitySpinnerModule.swift  — right, order 0
-OIModules/BuiltIn/ReadyCheckmarkModule.swift   — right, order 1
-OIModules/BuiltIn/SessionDotsModule.swift      — right, order 2
-OIModules/BuiltIn/TimerModule.swift            — right, order 3
+```swift
+var items: any Collection<Int> = [1, 2, 3]
+func process(_ c: some Collection<String>) { /* ... */ }
 ```
 
-- `MascotModule` replaces `ClawdModule` — shows provider-appropriate icon (crab for Claude, diamond for Codex, etc.), or a generic icon when multi-provider sessions are active
-- Each module is a small struct conforming to `NotchModule`
+Standard library protocols adopted this: `Sequence<Element>`, `Collection<Element>`, `Identifiable<ID>`, etc. (SE-0358). Limit to **one** primary associated type per protocol in most cases.
 
-### 6.5 Module Layout Persistence
+### `@retroactive` conformances
 
+SE-0364 warns when both type and protocol come from external modules. Use `@retroactive` to acknowledge the risk:
+
+```swift
+extension ExternalType: @retroactive ExternalProtocol { ... }
 ```
-OIModules/ModuleLayoutConfig.swift
-```
 
-- `Codable` struct persisted to `UserDefaults`
-- Stores per-module: side, order overrides
-- Allows user customization of module arrangement
+Prefer wrapper types or upstream contributions over retroactive conformances.
 
-### 6.6 Module System Tests
+### Synthesized conformances and BitwiseCopyable
 
-- Test layout engine with various module visibility combinations
-- Test symmetric width calculation
-- Test config persistence round-trip
+**Equatable/Hashable** (SE-0185): auto-synthesized for structs with all-conforming stored properties and enums with all-conforming associated values. **Codable** (SE-0166, SE-0295): auto-synthesized including enums with associated values (Swift 5.5+). **BitwiseCopyable** (SE-0426, Swift 6.0): marker protocol for types copyable via `memcpy`. Auto-inferred for internal structs/enums; must be explicit for `public` types. Enables more efficient code generation for low-level and generic operations.
+
+> **Changed from Swift 5.x**: Parameter packs (SE-0393) new in 5.9, pack iteration (SE-0408) in 6.0. `any` keyword required in Swift 6 (SE-0335 enforcement). `@retroactive` required for cross-module conformances. `BitwiseCopyable` new in Swift 6.0. Note: `ExistentialAny` was **deferred to Swift 7** — it remains an upcoming feature flag, not mandatory in Swift 6.
 
 ---
 
-## Phase 7 — Chat View & Markdown Rendering
+## 5. Macros
 
-### 7.1 ChatView
+### Macro roles
 
-```
-OIUI/Views/ChatView.swift
-```
+Swift macros span **8 roles** across two categories:
 
-- Scrollable chat history for a single session
-- Provider-aware styling (accent colors, icon)
-- Message types: user bubbles, assistant text, tool calls (expandable), thinking (collapsible), interrupted markers
-- Auto-scroll to bottom on new messages
-- Approval bar at bottom when session is `.waitingForApproval`
+- **Freestanding**: `@freestanding(expression)` (SE-0382) produces a value; `@freestanding(declaration)` (SE-0397) produces declarations. At most one freestanding role per macro.
+- **Attached**: `@attached(peer)`, `@attached(accessor)`, `@attached(member)`, `@attached(memberAttribute)` (all SE-0389); `@attached(extension)` (SE-0402, replaced `@attached(conformance)`); `@attached(body)` (SE-0415, Swift 6.0) synthesizes/replaces function bodies. Attached roles can be freely composed on a single macro.
 
-### 7.2 Approval Bar
+SE-0407 extended `@attached(member)` with a `conformances:` parameter for protocol-aware member generation.
 
-```
-OIUI/Views/ApprovalBarView.swift
-```
+### Built-in macros
 
-- Shows tool name and summary from `PermissionContext.displaySummary`
-- Three buttons: Approve, Deny, Always Allow
-- Slide-in animation from bottom
-- Calls `SessionMonitor.approvePermission()` / `denyPermission()`
+`#Predicate` (Foundation, iOS 17+): type-safe compile-time predicate builder replacing `NSPredicate`. `#Expression` (iOS 18+): generalized `#Predicate` returning any type. `#Preview`: replaces `PreviewProvider` protocol for Xcode previews. `@Observable` (SE-0395): multi-role macro transforming classes into observable types with per-property tracking. `@ObservationTracked` is auto-applied to stored properties; `@ObservationIgnored` opts properties out.
 
-### 7.3 ToolResultViews
+### Custom macros vs. alternatives
 
-```
-OIUI/Views/ToolResultViews.swift
-```
+Prefer macros when generating multiple declarations, enforcing compile-time validation, or transforming type structure across properties. Prefer property wrappers for single-property runtime behavior (clamping, lazy init). Prefer protocol conformance when the standard library already provides synthesis. **Macros expand visibly in Xcode** — transparency is a design advantage over opaque runtime abstractions.
 
-- Expandable tool call cards showing:
-  - Tool name + status icon (spinner, checkmark, X)
-  - Input summary (file path, command, etc.)
-  - Expandable result content (truncated by default)
-  - Duration badge
-- Nested subagent tools displayed indented under parent Task
+### Macro testing
 
-### 7.4 Markdown Renderer
+Use `assertMacroExpansion` from `SwiftSyntaxMacrosTestSupport` for string-comparison expansion tests. For improved ergonomics, Point-Free's `swift-macro-testing` library provides snapshot-based testing with inline diagnostic rendering, compatible with Swift Testing:
 
-```
-OIUI/Components/MarkdownText.swift
+```swift
+import MacroTesting
+@Suite(.macros([StringifyMacro.self]))
+struct Tests {
+    @Test func expansion() {
+        assertMacro { "#stringify(a + b)" }
+        expansion: { "(a + b, \"a + b\")" }
+    }
+}
 ```
 
-- Uses Apple's `swift-markdown` library (pure Swift package — no OS runtime dependency, back-deploys freely)
-- Document cache (keyed by text hash) to avoid re-parsing
-- Inline renderer: bold, italic, code spans, links, strikethrough
-- Block renderer: paragraphs, headings, code blocks (monospace bg), block quotes, lists, thematic breaks
-- Code blocks with syntax-aware monospace styling
-
-### 7.5 Chat View Tests
-
-- Test `ChatHistoryItem` rendering for each type
-- Test approval bar visibility tied to session phase
-- Test tool result expansion/collapse
+> **Changed from Swift 5.x**: Macros are entirely new in Swift 5.9. `@attached(conformance)` was replaced by `@attached(extension)` (SE-0402). `@attached(body)` added in Swift 6.0 (SE-0415). No macro system existed prior to Swift 5.9.
 
 ---
 
-## Phase 8 — Additional Provider Adapters
+## 6. Data Flow & Observation (SwiftUI Context)
 
-### 8.1 Codex Provider Adapter
+### @Observable as the default
 
-```
-OIProviders/Codex/CodexProviderAdapter.swift
-OIProviders/Codex/CodexEventSource.swift
-OIProviders/Codex/CodexEventNormalizer.swift
-```
+SE-0395's `@Observable` macro (Swift 5.9 / iOS 17+) replaces the `ObservableObject` / `@Published` stack. Key advantages: **per-property tracking** (only views reading changed properties re-render), automatic observation of computed properties, no manual `@Published` annotations, and internal thread safety via `Mutex`-backed registrar.
 
-- Research Codex CLI's event/hook mechanism (file-based, API, or stdout parsing)
-- Implement appropriate event source (file watcher, socket, or log tailer)
-- Normalize Codex-specific events → `ProviderEvent`
-- Implement `respondToPermission()` via Codex's approval mechanism
-- Register in `ProviderRegistry`
-
-### 8.2 Gemini CLI Provider Adapter
-
-```
-OIProviders/GeminiCLI/GeminiCLIProviderAdapter.swift
-OIProviders/GeminiCLI/GeminiCLIEventSource.swift
-OIProviders/GeminiCLI/GeminiCLIEventNormalizer.swift
+```swift
+@Observable final class UserModel {
+    var name = ""       // automatically tracked
+    var score = 0       // automatically tracked
+    @ObservationIgnored var id = UUID()  // opted out
+}
 ```
 
-- Research Gemini CLI's monitoring capabilities
-- Implement event source appropriate to Gemini CLI's architecture
-- Normalize events → `ProviderEvent`
-- Handle permission model (if applicable)
+### Property wrappers in the Observation world
 
-### 8.3 OpenCode Provider Adapter
+The wrapper landscape simplifies dramatically. Pass `@Observable` objects as plain properties for read-only access — SwiftUI auto-tracks. Use `@State` when the view **owns** the object's lifetime (replaces `@StateObject`). Use `@Bindable` for `$` bindings to `@Observable` properties (replaces `@ObservedObject`). Use `@Environment` for injection through the view hierarchy (replaces `@EnvironmentObject`):
 
+```swift
+struct EditorView: View {
+    @Bindable var settings: Settings  // for $bindings
+    var body: some View {
+        Slider(value: $settings.fontSize, in: 8...32)
+    }
+}
 ```
-OIProviders/OpenCode/OpenCodeProviderAdapter.swift
-OIProviders/OpenCode/OpenCodeEventSource.swift
-OIProviders/OpenCode/OpenCodeEventNormalizer.swift
+
+### When @ObservationTracked / @ObservationIgnored matter
+
+`@ObservationTracked` is applied automatically by `@Observable` — you never write it manually. Use `@ObservationIgnored` for: properties that should not trigger UI updates (IDs, caches), properties using custom property wrappers (since `@Observable` converts stored properties to computed), and high-frequency properties where observation overhead matters.
+
+### SwiftData model patterns
+
+`@Model` automatically includes `Observable` conformance — **do not also add `@Observable`**. Use `@Query` for declarative fetching and `#Predicate` for type-safe filtering:
+
+```swift
+@Model final class Book {
+    var title: String
+    var author: String
+    init(title: String, author: String) { self.title = title; self.author = author }
+}
+struct LibraryView: View {
+    @Query(sort: \Book.title) var books: [Book]
+    var body: some View { List(books) { book in Text(book.title) } }
+}
 ```
 
-- Research OpenCode's hook/event system
-- Implement event source
-- Normalize events → `ProviderEvent`
-- Handle permissions
-
-### 8.4 Provider Adapter Test Suite
-
-- Shared conformance tests that run against ALL provider adapters
-- Use parameterized tests:
-  ```swift
-  @Test("Provider emits session start", arguments: ProviderID.allCases)
-  func sessionStart(provider: ProviderID) async { ... }
-  ```
-- Mock event sources for deterministic testing
-- Test permission round-trips per provider
+> **Changed from Swift 5.x**: `@Observable` replaces `ObservableObject`/`@Published`. `@State` replaces `@StateObject`, `@Bindable` replaces `@ObservedObject`, `@Environment` replaces `@EnvironmentObject`. Observation is per-property (not whole-object). SwiftData replaces Core Data's `NSManagedObject` + `.xcdatamodeld` with pure Swift `@Model` classes.
 
 ---
 
-## Phase 9 — Settings, Preferences & Sound
+## 7. Swift Testing Framework
 
-### 9.1 AppSettings
+### import Testing vs. legacy XCTest
 
-```
-OICore/Settings/AppSettings.swift
-```
+Use `import Testing` for **all new unit tests** in Swift 6.x. It uses `@Test` functions (can be struct methods or global functions), `#expect`/`#require` macros, and runs tests in **parallel by default**. Use `XCTest` only for UI testing and performance testing (Swift Testing has no support for these). Both frameworks coexist in the same target but assertions cannot cross frameworks.
 
-- **`Sendable` struct with static computed properties** backed by `UserDefaults`:
-  - `notificationSound: NotificationSound`
-  - `soundSuppression: SoundSuppression`
-  - `mascotColor: Color`
-  - `mascotAlwaysVisible: Bool`
-  - `notchAutoExpand: Bool`
-  - `enabledProviders: Set<ProviderID>`
-  - `verboseMode: Bool`
-- Per-provider settings namespace (e.g., `claude.hookPath`, `codex.logDirectory`)
-- Thread safety note: `UserDefaults` is inherently thread-safe, so static computed properties reading/writing `UserDefaults` are safe across isolation domains without additional synchronization. Do not use static stored properties (which would require `nonisolated(unsafe)` or actor isolation). **Add a code comment** explaining why `Mutex` is not needed here (unlike most shared state) to prevent a well-meaning contributor from "fixing" it:
-  ```swift
-  // UserDefaults is documented as thread-safe by Apple. Static computed
-  // properties here delegate directly to UserDefaults — no Mutex needed.
-  // Do NOT add Mutex wrapping or actor isolation to these accessors.
-  ```
-
-### 9.2 Settings Menu View
-
-```
-OIUI/Views/SettingsMenuView.swift
+```swift
+import Testing
+struct MathTests {
+    @Test("Addition is commutative")
+    func commutativity() { #expect(2 + 3 == 3 + 2) }
+}
 ```
 
-- Expandable picker rows for: sound, suppression mode, screen selection, mascot color
-- Provider toggles section — enable/disable each provider
-- Per-provider configuration (expandable sub-sections)
-- Module layout customization
-- About / version info
+### @Test, @Suite, and traits
 
-### 9.3 Sound System
+Mark any function with `@Test`. Group tests with `@Suite` on structs (preferred), classes, or actors. Traits propagate from suites to contained tests:
 
+- `.disabled("reason")` — skip with explanation
+- `.enabled(if: condition)` — conditional execution
+- `.tags(.networking)` — categorization for filtering (define as `extension Tag { @Tag static var networking: Self }`)
+- `.bug(id: "FB12345")` — link to bug tracker
+- `.timeLimit(.minutes(1))` — per-test timeout
+- `.serialized` — run suite tests sequentially
+
+### Parameterized tests
+
+Use `@Test(arguments:)` to run a single test function with multiple inputs, each as an independent parallel test case:
+
+```swift
+@Test("Even values", arguments: [2, 8, 50])
+func even(value: Int) { #expect(value.isMultiple(of: 2)) }
+
+@Test(arguments: zip([18, 30], [77.0, 73.0]))
+func heartRate(age: Int, bpm: Double) { #expect(bpm < 100) }
 ```
-OICore/Sound/SoundManager.swift
+
+Use arrays/ranges/`.allCases` for arguments. Argument types must be `Sendable`. For cross-product of multiple arguments, pass separate collections.
+
+### #expect, #require, withKnownIssue, confirmation
+
+`#expect` records failure but continues (soft assertion). `#require` throws on failure, halting the test — use `try` (hard assertion, also unwraps optionals). `withKnownIssue` suppresses expected failures and notifies when fixed. `confirmation` replaces `XCTestExpectation` for event-counting:
+
+```swift
+@Test func eventFires() async {
+    await confirmation("callback", expectedCount: 1) { confirm in
+        sut.onComplete = { confirm() }
+        await sut.run()
+    }
+}
 ```
 
-- Play `NSSound` when session enters `.waitingForInput`
-- Suppression modes: `.never`, `.whenFocused`, `.whenVisible`
-- Terminal visibility detection integration (see Phase 10)
+### Organization
 
-### 9.4 Notification Coordinator
+Prefer structs over classes for suites (value semantics, no shared state). Use `init` for setup. Group by feature in suites; use tags for cross-cutting concerns. Name files descriptively: `UserServiceTests.swift`. Custom traits (Swift 6.1+) via `TestTrait` + `TestScoping` provide reusable setup/teardown.
 
-```
-OIUI/ViewModels/NotchActivityCoordinator.swift
-```
-
-- `@Observable` singleton managing expanding activity state
-- Auto-expand on permission requests (when enabled + terminal not visible)
-- Bounce animation when session needs attention
+> **Changed from Swift 5.x**: Swift Testing is entirely new (Swift 6.0 / Xcode 16). Replaces `XCTestCase` subclassing, `test` method prefix convention, 40+ `XCTAssert*` functions, and `XCTestExpectation`. Tests run in parallel by default. Exit testing and attachments added in Swift 6.2.
 
 ---
 
-## Phase 10 — Terminal Detection & Process Management
+## 8. Package & Module Structure
 
-### 10.1 TerminalAppRegistry
+### Package.swift conventions (tools-version 6.0+)
 
-```
-OICore/Terminal/TerminalAppRegistry.swift
-```
+`swift-tools-version: 6.0` enables **Swift 6 language mode for all targets by default** — concurrency violations are errors. Override per-target with `.swiftLanguageMode(.v5)` for incremental migration. The old `swiftLanguageVersions` is renamed to `swiftLanguageModes`.
 
-- Static registry of known terminal bundle IDs and names
-- Include: Terminal, iTerm2, Ghostty, Alacritty, kitty, Warp, WezTerm, Hyper
-- Also include editors: VS Code, Cursor, Windsurf, Zed
-- Provider-extensible — adapters can register additional relevant apps
-
-### 10.2 TerminalVisibilityDetector
-
-```
-OICore/Terminal/TerminalVisibilityDetector.swift
-```
-
-- `CGWindowListCopyWindowInfo` queries for:
-  - `isTerminalVisibleOnCurrentSpace()`
-  - `isTerminalFrontmost()`
-  - `isSessionTerminalVisible(sessionPID:)` — ≥50% visibility check
-- May require **`@preconcurrency import CoreGraphics`** if `CGWindowListCopyWindowInfo` result types trigger Sendable diagnostics. If using the `OIAppKitBridge` module (Phase 0.7), route these queries through it instead.
-
-### 10.3 ProcessTreeBuilder
-
-```
-OICore/Terminal/ProcessTreeBuilder.swift
+```swift
+// swift-tools-version: 6.2
+import PackageDescription
+let package = Package(
+    name: "MyApp",
+    targets: [
+        .target(name: "Core"),  // Swift 6 mode
+        .target(name: "Legacy", swiftSettings: [.swiftLanguageMode(.v5)]),
+    ]
+)
 ```
 
-- Build PID → parent PID tree using `proc_listallpids` / `proc_pidinfo`
-- Map CLI process PID → parent terminal PID
-- Detect tmux sessions
+### Upcoming feature flags
 
-### 10.4 TerminalFocuser
+Enable future-mode behavior incrementally with `.enableUpcomingFeature()`. Key flags not yet mandatory in Swift 6 (targeting Swift 7):
 
-```
-OICore/Terminal/TerminalFocuser.swift
-```
+- `ExistentialAny` (SE-0335) — require `any` for all existentials
+- `InternalImportsByDefault` (SE-0409) — imports default to `internal` visibility
+- `MemberImportVisibility` (SE-0444) — members only visible from directly imported modules
+- `InferIsolatedConformances` (SE-0470) — infer isolated conformances
+- `NonisolatedNonsendingByDefault` (SE-0461) — nonisolated async functions are nonsending
 
-- Find terminal window by PID → process tree → terminal app
-- `NSRunningApplication.activate()` to bring forward
-- Tmux support: `tmux select-window` / `tmux select-pane` for correct pane focusing
+Use `#if hasFeature(ExistentialAny)` for conditional compilation when supporting multiple language modes.
 
-### 10.5 Accessibility Permission Manager
+### Access control: `package` access level and internal imports
 
-```
-OICore/Permissions/AccessibilityPermissionManager.swift
-```
+SE-0386 (Swift 5.9) introduced `package` — visible to all modules within the same SwiftPM package but invisible externally. Use `package` instead of `public` for intra-package APIs. SE-0409 adds access-level modifiers to imports: `public import Foundation` exposes Foundation to downstream clients; plain `import` becomes `internal` when `InternalImportsByDefault` is enabled. This reduces transitive dependency leakage.
 
-- Check `AXIsProcessTrusted()` on launch
-- Show alert if missing
-- Periodic monitoring for permission grants
+### Module splitting
+
+Split into multiple modules when: build time suffers (only changed modules recompile), teams need independent workstreams, or code is shared across app targets (widgets, extensions). Prefer a **wide, shallow** dependency graph. Start with 3–5 modules and split as needed — over-modularization creates overhead. Use interface/implementation splits for maximum build parallelism.
+
+### SwiftPM plugins
+
+**Build tool plugins** (SE-0303) run automatically during builds for code generation (protobuf, SwiftGen, OpenAPI). **Command plugins** (SE-0332) are invoked manually via `swift package <verb>` for formatting, linting, and documentation. Popular examples: SwiftLint, swift-docc-plugin, swift-openapi-generator.
+
+> **Changed from Swift 5.x**: `swift-tools-version: 6.0` defaults to Swift 6 language mode (errors, not warnings). `package` access level new in 5.9. `InternalImportsByDefault` and `MemberImportVisibility` target Swift 7 as mandatory. Per-target warning control added in Swift 6.2 (SE-0480).
 
 ---
 
-## Phase 11 — Auto-Update & Distribution
+## 9. Memory Safety & Pointer Guidelines
 
-### 11.1 Sparkle Integration
+### Temporary pointer lifetimes
 
-- Add Sparkle framework dependency
-- Create `NotchUserDriver` for in-notch update UI
-- Configure `SPUUpdater` with hourly check interval
-- Set up appcast XML endpoint
-- Note: if Sparkle types need `Sendable` conformance for crossing isolation boundaries, use `@retroactive Sendable` with `@unchecked` only as a last resort, and prefer wrapper types where possible (per SE-0364 guidance on retroactive conformances)
+Pointers from `withUnsafeBufferPointer`, `withUnsafeBytes`, or implicit pointer conversions are **valid only for the closure's duration**. Never store, return, or escape them. Keep unsafe pointer usage within the smallest possible scope.
 
-### 11.2 Release Pipeline
-
-- GitHub Actions workflow: build → sign → notarize → create DMG
-- Generate appcast XML from GitHub Releases
-- Version bumping script
-
-### 11.3 Single-Instance Check
-
-```
-OICore/App/SingleInstanceGuard.swift
+```swift
+// ✅ Correct: use within closure
+let sum = array.withUnsafeBufferPointer { buf in buf.reduce(0, +) }
+// ❌ Never escape
+var saved: UnsafeBufferPointer<Int>?
+array.withUnsafeBufferPointer { saved = $0 } // Undefined behavior
 ```
 
-- Check `NSWorkspace.shared.runningApplications` for existing instance
-- Activate existing instance and exit if found
+### Span and RawSpan migration
+
+`Span<T>` (SE-0447, Swift 6.2) is a **non-owning, non-escapable, bounds-checked** view into contiguous memory — Swift's safe replacement for `UnsafeBufferPointer`. `RawSpan` provides the untyped equivalent for binary parsing. SE-0456 added `.span` computed properties to `Array`, `String`, `Data`, and other stdlib types:
+
+```swift
+let array = [1, 2, 3, 4, 5]
+let s: Span<Int> = array.span  // safe, bounds-checked, lifetime-dependent
+print(s[0])
+```
+
+`MutableSpan` (SE-0467) delegates safe mutations. **Caveat**: full use in user-defined APIs requires `@lifetime` annotations, which remain an **experimental feature** in Swift 6.2. Prefer `Span` over `UnsafeBufferPointer` for all new read-only contiguous access.
+
+### C/C++ interoperability
+
+C++ interop (enabled via `.interoperabilityMode(.Cxx)`) is stable since Swift 5.9. Swift 6.2 adds a **safe interop mode**: annotate C++ view types with `SWIFT_NONESCAPABLE` (imports as `~Escapable`), annotate functions with `__lifetimebound` for lifetime tracking, and `std::span<const T>` automatically bridges to Swift `Span<T>`. C APIs with `__counted_by(N)` annotations get safe `Span` overloads. Never let C++ exceptions propagate into Swift frames.
+
+> **Changed from Swift 5.x**: `Span`/`RawSpan` entirely new in Swift 6.2. C++ interop introduced in 5.9, safe interop mode new in 6.2 with `SWIFT_NONESCAPABLE`/`__lifetimebound` annotations. Opt-in strict memory safety mode available in 6.2 for security-critical projects.
 
 ---
 
-## Phase 12 — Polish, Edge Cases & Performance
+## 10. Naming, Style & Idiom
 
-### 12.1 Interrupt Detection
+### API Design Guidelines
 
-- Per-provider interrupt detection strategy
-- Claude: `JSONLInterruptWatcher` monitoring for `^C` patterns
-- Others: provider-specific mechanisms
-- Fire `.interruptDetected` through `SessionStore`
+The official swift.org API Design Guidelines remain unchanged since Swift 3 (SE-0023). **Clarity at the point of use** is the primary goal. Types and protocols use UpperCamelCase; everything else uses lowerCamelCase. Boolean properties read as assertions (`isEmpty`, `isValid`). Mutating/nonmutating pairs follow `sort()`/`sorted()` convention.
 
-### 12.2 Context Compaction Handling
+### Trailing closure disambiguation
 
-- Handle `.compacting` phase transitions per provider
-- UI indicator during compaction
-- Resume to correct phase after compaction completes
+SE-0286 (Swift 6.0) changed trailing closure matching from backward-scan to **forward-scan**. Design APIs assuming the first trailing closure label is dropped. Use labeled trailing closures for all subsequent closure parameters. Avoid trailing closure syntax in `guard` conditions.
 
-### 12.3 Subagent / Nested Tool Support
+### if/switch expressions
 
-- Full subagent state tracking: `SubagentState` with active tasks stack
-- Attribute nested tool calls to parent Task
-- UI: nested tool display in chat view
-- Agent file watcher for subagent directory changes
+SE-0380 (Swift 5.9) allows `if` and `switch` as value-producing expressions. Prefer these over ternary for multi-line or complex conditions:
 
-### 12.4 Token Tracking (Optional)
-
-```
-OICore/TokenTracking/TokenTrackingManager.swift
-OICore/TokenTracking/QuotaService.swift
+```swift
+let label = if score > 500 { "Pass" } else { "Fail" }
+let tier = switch level {
+    case .free: "Basic"
+    case .pro: "Professional"
+    case .enterprise: "Enterprise"
+}
 ```
 
-- `QuotaService` protocol — provider-specific quota API adapters
-- `TokenTrackingManager` — periodic refresh, session + weekly utilization
-- `TokenRingsModule` for closed state, `TokenRingsOverlay` for opened state
-- Only for providers that expose quota APIs
+Both `else` and `default` are required for exhaustiveness. Each branch is type-checked independently (no cross-branch coercion like ternary).
 
-### 12.5 Performance Audit
+### guard vs. if let vs. Optional.map
 
-- Profile with Instruments: check for unnecessary SwiftUI re-renders
-- Verify incremental JSONL parsing efficiency for large files
-- Audit `AsyncStream` buffering policies — confirm every stream uses an explicit policy:
-  - State snapshot streams: `.bufferingNewest(1)` (latest-value semantics)
-  - Event streams: `.bufferingOldest(N)` (order-preserving, bounded memory)
-  - Document the rationale for each policy choice at the call site
-- Ensure `Mutex` usage doesn't create contention under high event rates
-- Memory leak check: verify **all** `AsyncStream` continuations have `onTermination` handlers and are properly cleaned up on subscriber removal — audit every `AsyncStream.makeStream()` call site across the project
-- Verify no `Task.detached` usage exists unless explicitly justified — grep for `Task.detached` and document each instance's rationale
+Use `guard let` at function tops for precondition validation with early exit — the unwrapped value stays in scope. Use `if let` when both nil and non-nil branches need handling. Use `Optional.map` for concise functional transformations: `username.map { "@\($0)" } ?? "Anonymous"`. Use shorthand `guard let name else { return }` (SE-0345, Swift 5.7).
 
-### 12.6 Accessibility
+### consume keyword style
 
-- VoiceOver labels on all interactive elements
-- Dynamic Type support in chat view
-- Reduced Motion respect for animations
-- High Contrast mode support
+`consume` (SE-0366, Swift 5.9) ends a variable's lifetime early. Use it in performance-critical paths, noncopyable type APIs, and to document ownership transfer intent. Do not sprinkle it everywhere — the optimizer handles most cases.
+
+### Naming conventions for new constructs
+
+**Actors**: UpperCamelCase nouns (`ImageLoader`). **Global actors**: UpperCamelCase used as `@Attribute` (`@DatabaseActor`). **Macros**: attached macros use UpperCamelCase (`@Observable`); freestanding expression macros use `#PascalCase` (`#Predicate`) or `#lowerCamelCase` (`#stringify`). **Noncopyable types**: same naming as regular structs/enums; `~Copyable` is a constraint, not part of the name. One primary type per file: `ImageLoader.swift`; extensions: `ImageLoader+Caching.swift`.
+
+> **Changed from Swift 5.x**: Forward-scan trailing closures (SE-0286) is a source-breaking change in Swift 6. `if`/`switch` expressions new in Swift 5.9. `guard let x` shorthand new in Swift 5.7. `consume` keyword new in Swift 5.9.
 
 ---
 
-## Phase 13 — Documentation & Developer Experience
+## 11. Performance Annotations & Tuning
 
-### 13.1 Architecture Documentation
+### @inlinable, @usableFromInline, @frozen, package
 
-- `ARCHITECTURE.md` — high-level system overview (modeled on the claude-island reference doc)
-- Provider adapter development guide: how to add a new provider
-- Module development guide: how to create custom closed-state modules
+`@inlinable` exports a function body into the module interface for cross-module inlining — the body becomes **ABI-permanent**. `@usableFromInline` makes `internal` declarations available to `@inlinable` code. `@frozen` publishes struct layout / enum cases — enables direct field access but prevents adding/removing/reordering stored properties. `package` (SE-0386) provides intra-package visibility without ABI commitments.
 
-### 13.2 Inline Documentation
+**Directive for library authors**: only mark functions `@inlinable` if they are stable, small (<10 lines), and on hot paths with benchmark evidence. Only `@frozen` types whose layout is truly permanent. Without library evolution mode, these annotations carry no ABI constraints. Use `package` instead of `public` for multi-module package APIs.
 
-- DocC comments on all `public` and `package` protocol requirements
-- DocC comments on all `SessionEvent` cases
-- DocC comments on `SessionPhase` transition rules
+### Copy-on-write and noncopyable types
 
-### 13.3 Example Provider Skeleton
+Standard CoW types (`Array`, `Dictionary`, `String`) copy storage on mutation. Noncopyable types **eliminate CoW overhead entirely** — single owner, no reference counting. For large value types representing unique resources, `~Copyable` is often more efficient than CoW. For large value types shared widely, implement manual CoW with `isKnownUniquelyReferenced`.
 
-```
-OIProviders/Example/ExampleProviderAdapter.swift
-```
+### borrowing/consuming guidance for library authors
 
-- Minimal working provider adapter that emits fake events on a timer
-- Serves as a template and integration test fixture
-- Documented line-by-line for onboarding new contributors
+For **copyable types**: ownership annotations (SE-0377) are optional and strictly for optimization. Don't annotate unless benchmarks show measurable improvement. For **noncopyable types**: ownership annotations are **mandatory** — the compiler cannot insert copies. Changing between `consuming` and `borrowing` is **ABI-breaking** for library-evolution builds.
 
-### 13.4 README & Contributing Guide
-
-- `README.md` — project overview, screenshots, install instructions
-- `CONTRIBUTING.md` — development setup, PR process, testing expectations:
-  - Note about `organizeDeclarations` + `nonisolated` gotcha and `// swiftformat:disable all` guards
-  - Note about forward-scan trailing closure matching (SE-0286) — the first trailing closure label is dropped in Swift 6; use labeled trailing closures for all subsequent closure parameters; avoid trailing closure syntax in `guard` conditions
-  - Note about `AsyncStream` buffering policy conventions (state snapshots → `.bufferingNewest(1)`, event streams → `.bufferingOldest(N)`)
-- `PROVIDERS.md` — status matrix of supported providers and their capabilities
+> **Changed from Swift 5.x**: `@frozen` was introduced in Swift 5.1. `borrowing`/`consuming` new in Swift 5.9. `package` access level new in Swift 5.9. `@abi` attribute (SE-0476) new in Swift 6.2, decoupling ABI name from source name for library evolution.
 
 ---
 
-## Dependency Summary
+## 12. Platform & Ecosystem Context
 
-| Dependency | Purpose | Phase |
-|---|---|---|
-| swift-markdown (Apple) | Markdown rendering in chat view (pure Swift, no OS runtime dependency) | 7 |
-| Sparkle | Auto-update framework (note: may need `@retroactive` conformances for Sendable bridging) | 11 |
-| swift-syntax (Apple) | If adding macro-based features | Future |
+### Compiler-level features (back-deploy to any OS)
 
-> **Design principle**: minimize external dependencies. Use Foundation, SwiftUI, AppKit, and system frameworks wherever possible. No Combine — use `AsyncStream` throughout.
+These features have **no OS runtime dependency**: `if`/`switch` expressions, macros, parameter packs, `consume` / `borrowing` / `consuming`, noncopyable types, `package` access level, strict concurrency checking, `InlineArray`, `Span`, Swift Testing, trailing closure forward scan, typed throws, `BitwiseCopyable`.
+
+### Runtime-dependent features (require minimum OS)
+
+**Concurrency (async/await, actors)**: iOS 13+/macOS 10.15+ via back-deployment library; natively iOS 15+/macOS 12+. **Observation (`@Observable`)**: **iOS 17+ / macOS 14+**. **SwiftData**: **iOS 17+ / macOS 14+**. **`#Predicate`**: iOS 17+. **`#Expression`**: iOS 18+.
+
+### Cross-platform and ecosystem status
+
+**Server-side Swift** is production-mature — Apple's Password Monitoring Service migrated Java → Swift with **40% performance improvement** and 85% code reduction. Vapor, gRPC Swift 2, and a unified Foundation implementation across Linux and Apple platforms are stable. **Linux** has first-class support with Foundation parity. **Windows** is maturing with official VS Code extension support. **Android** has an official Swift SDK (early preview, daily snapshot builds). **WebAssembly** gained first-class support in Swift 6.2. **Embedded Swift** targets Swift 6.3 for major maturation.
+
+Swift 6.2's Approachable Concurrency significantly lowers the adoption barrier. NSA/CISA recommend Swift alongside Rust as a **memory-safe language**. Xcode 17's default project template enables MainActor isolation and the full Approachable Concurrency suite.
+
+> **Changed from Swift 5.x**: WebAssembly and Android are new platform targets. Server-side Swift moved from experimental to production-proven. Observation framework requires iOS 17+ (no back-deployment). Swift 6.2's compile-time features (concurrency defaults, Span, InlineArray) back-deploy freely.
 
 ---
 
-## Swift 6.2 Patterns Checklist
+## Reference List
 
-Applied throughout all phases:
+### Swift Evolution Proposals
 
-### Approachable Concurrency (Phase 0.6 — the three pillars)
+| Proposal | Title |
+|----------|-------|
+| SE-0185 | Synthesizing Equatable and Hashable conformance |
+| SE-0244 | Opaque Result Types |
+| SE-0274 | Concise Magic File Names |
+| SE-0279 | Multiple Trailing Closures |
+| SE-0286 | Forward-scan Matching for Trailing Closures |
+| SE-0295 | Codable Synthesis for Enums with Associated Values |
+| SE-0298 | Async/Await Sequences |
+| SE-0302 | Sendable and @Sendable Closures |
+| SE-0303 | Package Manager Build Tool Plugins |
+| SE-0304 | Structured Concurrency |
+| SE-0306 | Actors |
+| SE-0313 | Improved Control over Actor Isolation |
+| SE-0314 | AsyncStream and AsyncThrowingStream |
+| SE-0316 | Global Actors |
+| SE-0325 | Additional Package Plugin APIs |
+| SE-0332 | Package Manager Command Plugins |
+| SE-0335 | Introduce Existential `any` |
+| SE-0337 | Incremental Migration to Concurrency Checking |
+| SE-0341 | Opaque Parameter Declarations |
+| SE-0345 | `if let` Shorthand for Shadowing an Existing Optional Variable |
+| SE-0346 | Lightweight Same-type Requirements for Primary Associated Types |
+| SE-0352 | Implicitly Opened Existentials |
+| SE-0354 | Regex Literals |
+| SE-0358 | Primary Associated Types in the Standard Library |
+| SE-0362 | Piecemeal Adoption of Upcoming Language Improvements |
+| SE-0364 | Warning for Retroactive Conformances of External Types |
+| SE-0366 | `consume` Operator to End the Lifetime of a Variable Binding |
+| SE-0376 | Function Back Deployment |
+| SE-0377 | `borrowing` and `consuming` Parameter Ownership Modifiers |
+| SE-0380 | `if` and `switch` Expressions |
+| SE-0381 | DiscardingTaskGroups |
+| SE-0382 | Expression Macros |
+| SE-0383 | Deprecate @UIApplicationMain and @NSApplicationMain |
+| SE-0386 | New Access Modifier: `package` |
+| SE-0388 | Convenience Async[Throwing]Stream.makeStream Methods |
+| SE-0389 | Attached Macros |
+| SE-0390 | Noncopyable Structs and Enums |
+| SE-0393 | Value and Type Parameter Packs |
+| SE-0395 | Observation |
+| SE-0397 | Freestanding Declaration Macros |
+| SE-0398 | Allow Generic Types to Abstract Over Packs |
+| SE-0399 | Tuple of Value Pack Expansion |
+| SE-0401 | Remove Actor Isolation Inference Caused by Property Wrappers |
+| SE-0402 | Extension Macros |
+| SE-0407 | Member Macro Conformances |
+| SE-0408 | Pack Iteration |
+| SE-0409 | Access-level Modifiers on Import Declarations |
+| SE-0411 | Isolated Default Value Expressions |
+| SE-0412 | Strict Concurrency for Global Variables |
+| SE-0413 | Typed Throws |
+| SE-0414 | Region Based Isolation |
+| SE-0415 | Function Body Macros |
+| SE-0418 | Inferring Sendable for Methods and Key Path Literals |
+| SE-0421 | Generalize Effect Polymorphism for AsyncSequence and AsyncIteratorProtocol |
+| SE-0423 | Dynamic Actor Isolation Enforcement from Non-strict-concurrency Contexts |
+| SE-0426 | BitwiseCopyable |
+| SE-0427 | Noncopyable Generics |
+| SE-0430 | `sending` Parameter and Result Values |
+| SE-0431 | `@isolated(any)` Function Types |
+| SE-0432 | Borrowing and Consuming Pattern Matching for Noncopyable Types |
+| SE-0434 | Usability of Global-Actor-Isolated Types |
+| SE-0437 | Noncopyable Standard Library Primitives |
+| SE-0441 | Swift Language Version Naming |
+| SE-0443 | Fine-Grained Diagnostic Control |
+| SE-0444 | Member Import Visibility |
+| SE-0446 | Nonescapable Types |
+| SE-0447 | Span: Safe Access to Contiguous Storage |
+| SE-0449 | Allow Nonisolated to Prevent Global Actor Inference |
+| SE-0450 | Package Traits |
+| SE-0452 | Integer Generic Parameters |
+| SE-0456 | Span-Providing Properties on Standard Library Types |
+| SE-0461 | Nonisolated Nonsending By Default |
+| SE-0465 | Nonescapable Standard Library Primitives |
+| SE-0466 | Default Actor Isolation |
+| SE-0467 | MutableSpan and MutableRawSpan |
+| SE-0470 | Infer Isolated Conformances |
+| SE-0474 | Yielding Accessors |
+| SE-0476 | `@abi` Attribute |
+| SE-0480 | Per-Target Warning Control in SwiftPM |
 
-- [ ] **Pillar 1**: `MainActor` default isolation for app target only; `nonisolated` default for library targets (SE-0466)
-- [ ] **Pillar 2**: `NonisolatedNonsendingByDefault` upcoming feature enabled on all targets — async functions stay on caller's actor (SE-0461)
-- [ ] **Pillar 3**: `@concurrent` used only on functions that genuinely need off-actor execution — CPU-bound work, blocking I/O, subprocess spawning (SE-0461)
-- [ ] `CONCURRENCY.md` documenting the project's concurrency contract, including forward-scan trailing closure guidance (SE-0286)
+### WWDC Sessions
 
-### Data-Race Safety
+| Session | Year | Title |
+|---------|------|-------|
+| WWDC24 | 2024 | What's New in Swift |
+| WWDC24 | 2024 | Migrate Your App to Swift 6 |
+| WWDC24 | 2024 | A Swift Tour: Explore Swift's Features and Design |
+| WWDC24 | 2024 | Meet Swift Testing |
+| WWDC25 | 2025 | What's New in Swift (Session 245) |
+| WWDC25 | 2025 | Embracing Swift Concurrency |
 
-- [ ] `nonisolated` explicit on all model types and their extensions (in library targets this is the default; document it for clarity)
-- [ ] `Sendable` explicitly on all `package`/`public` value types; compiler-synthesized for internal types
-- [ ] `sending` parameter annotation on key isolation boundary crossing points — specifically `SessionStore.process(_:)` and any function accepting events that transfer ownership across actor boundaries (SE-0430)
-- [ ] Region-based isolation (SE-0414) leveraged to avoid unnecessary `Sendable` conformances
-- [ ] `Mutex<T>` from Synchronization framework for shared mutable class state
-- [ ] `actor` for serialized state management (`SessionStore`, parsers, API services)
-- [ ] No `Task.detached` unless explicitly justified — prefer regular `Task` from within actors
-- [ ] `@preconcurrency import` used only on specific files needing it for legacy frameworks (Dispatch, AppKit, CoreGraphics), with comments documenting which types cause the diagnostic — prefer `OIAppKitBridge` module if feasible (Phase 0.7)
+### Key URLs
 
-### Ownership & Noncopyable Types
-
-- [ ] `~Copyable` struct for unique resource wrappers — `SocketFD` for Unix domain socket file descriptors (Phase 3.1), permission socket connections
-- [ ] `consuming` methods for operations that transfer ownership or terminate a resource
-- [ ] `borrowing` methods for read-only access to `~Copyable` resources
-- [ ] `discard self` in consuming methods that perform explicit cleanup (suppresses `deinit`)
-- [ ] `~Copyable` patterns validated early (Phase 3) to confirm toolchain and lint pipeline compatibility
-
-### Async Patterns
-
-- [ ] `AsyncStream.makeStream()` factory for all producer/consumer patterns (SE-0388)
-- [ ] `onTermination` set on **every** `AsyncStream` continuation to clean up resources and prevent memory leaks
-- [ ] Explicit buffering policy on every `AsyncStream.makeStream()` call: `.bufferingNewest(1)` for state snapshots, `.bufferingOldest(N)` for ordered event streams — no implicit defaults
-- [ ] `withDiscardingTaskGroup` / `withThrowingDiscardingTaskGroup` for long-running event loops (SE-0381) — specifically the `ProviderRegistry` event merge loop
-- [ ] No Combine anywhere — `AsyncStream` throughout
-
-### Type System & Access Control
-
-- [ ] `package` access level for intra-package APIs (SE-0386)
-- [ ] `any Protocol` required for existential types; `some Protocol` preferred (SE-0335) — `any` reserved for heterogeneous collections (e.g., `ProviderRegistry`); concrete types or `some` used within provider-specific code
-- [ ] `ExistentialAny` upcoming feature flag enabled on all targets (compile-time enforcement)
-- [ ] `InternalImportsByDefault` upcoming feature flag enabled on all targets (SE-0409) — `public import` only where deliberately re-exporting
-- [ ] `if`/`switch` expressions for value-producing conditionals (SE-0380)
-- [ ] `throws(ErrorType)` for closed error domains: `ProviderStartupError`, `EventNormalizationError`, `HookInstallError` (SE-0413). Plain `throws` intentionally used for open error domains (e.g., `respondToPermission()`)
-- [ ] `guard let x` shorthand (SE-0345) for optional unwrapping throughout
-- [ ] `BitwiseCopyable` on simple `package`/`public` leaf enums with no reference types — `PermissionDecision`, `ModuleSide`, `ToolStatus` (SE-0426). **Not** on `ProviderID` (has `String` raw values, which are not `BitwiseCopyable`)
-- [ ] `@retroactive` conformances documented and minimized — prefer wrapper types (SE-0364)
-
-### Observation & UI
-
-- [ ] `@Observable` for all view models (SE-0395)
-- [ ] `@Bindable` for `$` bindings, `@State` for view-owned objects, `@Environment` for injection
-- [ ] No `ObservableObject` / `@Published` / `@StateObject` / `@EnvironmentObject` anywhere
-
-### Testing
-
-- [ ] Swift Testing (`import Testing`, `@Test`, `@Suite`, `#expect`, `#require`) for all new tests
-- [ ] Parameterized tests (`@Test(arguments:)`) for multi-provider scenarios
-- [ ] `confirmation` for async event verification
-- [ ] `single_test_class` SwiftLint rule disabled (incompatible with Swift Testing)
-
-### Compile-Time Enforcement (Phase 0.3 — lint rules)
-
-- [ ] `no_observable_object` custom SwiftLint rule active — prevents legacy `ObservableObject` / `@Published` / `@StateObject` / `@ObservedObject` / `@EnvironmentObject` usage. Verified against comment/string false positives (Phase 0.3.5).
-- [ ] `no_combine_import` custom SwiftLint rule active — prevents `import Combine` (AsyncStream throughout)
-- [ ] `private_over_fileprivate` SwiftLint rule enabled for clean module boundaries
-- [ ] `redundantSendable` SwiftFormat rule disabled — explicit `Sendable` on public types is intentional (SE-0414 region-based isolation)
-
-### Code Quality (Phase 0.3 — `prek` pipeline)
-
-- [ ] `.pre-commit-config.yaml` configured and `prek install` run
-- [ ] `.swiftformat` adapted with correct `--exclude` paths, `--swiftversion 6.2`, `OI` in `--acronyms`
-- [ ] `.swiftlint.yml` adapted with correct `included:` paths, `single_test_class` disabled, custom rules added and verified for false positives
-- [ ] `prek run --all-files` passes cleanly on initial project skeleton (including custom rule verification)
-- [ ] `Makefile` with `format`, `lint`, `test`, `build`, `clean`, `install-hooks` targets
+| Resource | URL |
+|----------|-----|
+| Swift Blog | https://www.swift.org/blog/ |
+| Swift 6.0 Announcement | https://www.swift.org/blog/announcing-swift-6/ |
+| Swift 6.1 Release | https://www.swift.org/blog/swift-6.1-released/ |
+| Swift 6.2 Release | https://www.swift.org/blog/swift-6.2-released/ |
+| Swift Evolution Dashboard | https://www.swift.org/swift-evolution/ |
+| Swift Migration Guide | https://www.swift.org/migration/documentation/swift-6-concurrency-migration-guide/ |
+| API Design Guidelines | https://www.swift.org/documentation/api-design-guidelines/ |
+| Apple: Adopting Swift 6 | https://developer.apple.com/documentation/swift/adoptingswift6 |
+| Apple: What's New in Swift | https://developer.apple.com/swift/whats-new/ |
+| Swift Evolution GitHub | https://github.com/swiftlang/swift-evolution |
+| Upcoming Feature Flags Cheatsheet | https://github.com/treastrain/swift-upcomingfeatureflags-cheatsheet |
