@@ -9,17 +9,17 @@
 
 ### 0.1 Xcode Project Setup
 
-- [ ] Create a new macOS app target in Xcode 17 (Swift 6.2, minimum deployment macOS 16.0)
-  - [ ] **Deployment target rationale**: macOS 16.0 (Tahoe, shipped Fall 2025) is Xcode 17's default new-project template target. All Swift 6.2 compile-time features back-deploy freely (swift-dev-pro.md Section 12). The primary runtime-dependent feature used by this project is `@Observable` (macOS 14+). `#Predicate` (requires macOS 14+) and `#Expression` (requires macOS 15+) are both available at our macOS 16.0 deployment target if needed for session filtering or dynamic module logic. Targeting macOS 16.0 gives access to any Tahoe-specific AppKit improvements (NSPanel behaviors, window management) and matches the expected audience — developers running CLI coding agents are overwhelmingly on the latest macOS.
-- [ ] Set activation policy to `.accessory` (no dock icon)
-- [ ] Configure build settings:
-  - [ ] `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor` (SE-0466)
-  - [ ] `SWIFT_APPROACHABLE_CONCURRENCY = YES`
-  - [ ] Swift Language Mode: Swift 6
-  - [ ] Note: Swift 6 language mode subsumes strict concurrency checking — `SWIFT_STRICT_CONCURRENCY` is not needed. Do not add `SWIFT_STRICT_CONCURRENCY = complete`; it is a Swift 5 migration setting and is a no-op under Swift 6 language mode.
-  - [ ] Note: `SWIFT_APPROACHABLE_CONCURRENCY = YES` is an **Xcode-only build setting** that applies exclusively to the Xcode-managed app target (`open-island.app`). It is the Xcode equivalent of enabling `NonisolatedNonsendingByDefault` + `InferIsolatedConformances` together. SPM library targets (`OIKit`, `OIProviders`, etc.) do not inherit Xcode build settings and instead receive these features via the `.enableUpcomingFeature()` calls in Phase 0.2's Package.swift. These cover different targets and are not redundant.
-- [ ] Add a `Settings { EmptyView() }` scene as the only SwiftUI scene (all UI via custom NSPanel)
-- [ ] Set bundle identifier, app icon placeholder, and Info.plist entries (LSUIElement = YES for accessory)
+- [x] Create a new macOS app target in Xcode 17 (Swift 6.2, minimum deployment macOS 16.0)
+  - [x] **Deployment target rationale**: macOS 16.0 (Tahoe, shipped Fall 2025) is Xcode 17's default new-project template target. All Swift 6.2 compile-time features back-deploy freely (swift-dev-pro.md Section 12). The primary runtime-dependent feature used by this project is `@Observable` (macOS 14+). `#Predicate` (requires macOS 14+) and `#Expression` (requires macOS 15+) are both available at our macOS 16.0 deployment target if needed for session filtering or dynamic module logic. Targeting macOS 16.0 gives access to any Tahoe-specific AppKit improvements (NSPanel behaviors, window management) and matches the expected audience — developers running CLI coding agents are overwhelmingly on the latest macOS.
+- [x] Set activation policy to `.accessory` (no dock icon)
+- [x] Configure build settings:
+  - [x] `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor` (SE-0466)
+  - [x] `SWIFT_APPROACHABLE_CONCURRENCY = YES`
+  - [x] Swift Language Mode: Swift 6
+  - [x] Note: Swift 6 language mode subsumes strict concurrency checking — `SWIFT_STRICT_CONCURRENCY` is not needed. Do not add `SWIFT_STRICT_CONCURRENCY = complete`; it is a Swift 5 migration setting and is a no-op under Swift 6 language mode.
+  - [x] Note: `SWIFT_APPROACHABLE_CONCURRENCY = YES` is an **Xcode-only build setting** that applies exclusively to the Xcode-managed app target (`open-island.app`). It is the Xcode equivalent of enabling `NonisolatedNonsendingByDefault` + `InferIsolatedConformances` together. SPM library targets (`OIKit`, `OIProviders`, etc.) do not inherit Xcode build settings and instead receive these features via the `.enableUpcomingFeature()` calls in Phase 0.2's Package.swift. These cover different targets and are not redundant.
+- [x] Add a `Settings { EmptyView() }` scene as the only SwiftUI scene (all UI via custom NSPanel)
+- [x] Set bundle identifier, app icon placeholder, and Info.plist entries (LSUIElement = YES for accessory)
 
 ### 0.2 SPM / Package.swift for Internal Modules
 
