@@ -9,8 +9,8 @@
 
 ### 0.1 Xcode Project Setup
 
-- Create a new macOS app target in Xcode 17 (Swift 6.2, minimum deployment macOS 15.0)
-  - **Deployment target rationale**: macOS 15.0 (Sequoia) provides all required APIs (`@Observable` needs macOS 14+, `#Predicate` needs macOS 14+). Consider bumping to **macOS 16.0** (Tahoe, shipped Fall 2025) if any macOS 16-specific APIs benefit the notch overlay use case (newer `NSPanel` behaviors, window management improvements). Verify against Xcode 17's default new project template and make a deliberate choice.
+- Create a new macOS app target in Xcode 17 (Swift 6.2, minimum deployment macOS 16.0)
+  - **Deployment target rationale**: macOS 16.0 (Tahoe, shipped Fall 2025) is Xcode 17's default new-project template target. All Swift 6.2 compile-time features back-deploy freely (swift-dev-pro.md Section 12). Runtime-dependent features used by this project (`@Observable`, `#Predicate`) only require macOS 14+. Targeting macOS 16.0 gives access to any Tahoe-specific AppKit improvements (NSPanel behaviors, window management) and matches the expected audience — developers running CLI coding agents are overwhelmingly on the latest macOS.
 - Set activation policy to `.accessory` (no dock icon)
 - Configure build settings:
   - `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor` (SE-0466)
@@ -43,6 +43,7 @@
 - `.defaultIsolation(MainActor.self)` is intentionally absent from Package.swift — the SPM package contains only library targets, which keep `nonisolated` default per project guidelines. The app target receives MainActor default isolation via Xcode build setting (Phase 0.1).
 - Since `OpenIslandKit` is an internal package (no library evolution mode), `@inlinable`, `@usableFromInline`, and `@frozen` are unnecessary. Don't add unless benchmarks show measurable improvement.
 - With `InternalImportsByDefault` enabled, all `import` statements default to `internal` visibility. Use `public import Foundation` (or `public import AppKit`, etc.) **only** in modules that deliberately re-export those symbols to downstream targets. This prevents transitive dependency leakage across module boundaries.
+- **Per-target warning control** (SE-0480, Swift 6.2): use `.swiftSettings([.warningLevel(.error, for: .deprecation)])` on production targets to promote deprecation warnings to errors. Keep default warning levels on test targets where mock/fixture code may use deprecated APIs intentionally. Evaluate need during Phase 12.5 performance audit; add only if specific warning categories prove problematic.
 
 > **Note on `ExistentialAny`**: Deferred to Swift 7 as a mandatory language change (not required in Swift 6), but enabled here as an upcoming feature flag to enforce `any Protocol` discipline at compile time in a greenfield project. This aligns with the project checklist requirement that `any Protocol` is required for all existential types (SE-0335).
 
@@ -492,6 +493,8 @@ clean:           ## Remove build artifacts and DerivedData
 install-hooks:   ## Install prek hooks (pre-commit + pre-push)
 ```
 
+- **Optional**: Consider adding SwiftLint and SwiftFormat as SwiftPM command plugins (SE-0332) for IDE-integrated linting via `swift package plugin swiftlint`. This complements the `prek` pre-commit hooks by enabling linting from any context without hook installation. Evaluate if team workflow benefits from this during Phase 13.
+
 #### 0.3.5 Verify Pipeline End-to-End
 
 - Run `prek install --hook-type pre-commit --hook-type pre-push`
@@ -578,7 +581,7 @@ Create `CONCURRENCY.md` in the repo root explaining:
 - Why library targets stay `nonisolated` (reusability, no main-thread assumption)
 - When to use `@concurrent` (include the 3 examples above as canonical patterns)
 - When to use `actor` (shared mutable state accessed from multiple isolation domains)
-- When to use `Mutex<T>` (protecting state in `Sendable` classes, GCD-bridging code)
+- When to use `Mutex<T>` (protecting state in `Sendable` classes, GCD-bridging code). **`Mutex<T>` requires `import Synchronization`** (Swift 6.0+) — add this import wherever `Mutex` is used. The `Synchronization` framework is a compiler-level module with no OS runtime dependency (back-deploys freely).
 - When **not** to mark functions `@concurrent` (most of the time — the default is correct)
 - When `InlineArray` (SE-0452) may be a fit for fixed-size buffers with trivially-copyable elements (e.g., small `ProviderID` → color lookup tables) — note as a future optimization opportunity, but **not** suitable for collections of complex types like `SessionEvent` (see Phase 2.1 note)
 - When to use `@preconcurrency import` for legacy frameworks (see Phase 0.7)
@@ -1688,6 +1691,7 @@ Applied throughout all phases:
 - [ ] `throws(ErrorType)` for closed error domains: `ProviderStartupError`, `EventNormalizationError`, `HookInstallError` (SE-0413). Plain `throws` intentionally used for open error domains (e.g., `respondToPermission()`)
 - [ ] `guard let x` shorthand (SE-0345) for optional unwrapping throughout
 - [ ] `BitwiseCopyable` on simple `package`/`public` leaf enums with no reference types — `PermissionDecision`, `ModuleSide`, `ToolStatus` (SE-0426). **Not** on `ProviderID` (has `String` raw values, which are not `BitwiseCopyable`)
+- [ ] `#Expression` (macOS 15+, swift-dev-pro.md Section 5) available for type-safe expression building beyond `#Predicate` — evaluate for dynamic module filtering or settings logic if needed
 - [ ] `@retroactive` conformances documented and minimized — prefer wrapper types (SE-0364)
 
 ### Observation & UI
