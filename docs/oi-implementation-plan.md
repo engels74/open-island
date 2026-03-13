@@ -10,7 +10,7 @@
 ### 0.1 Xcode Project Setup
 
 - Create a new macOS app target in Xcode 17 (Swift 6.2, minimum deployment macOS 16.0)
-  - **Deployment target rationale**: macOS 16.0 (Tahoe, shipped Fall 2025) is Xcode 17's default new-project template target. All Swift 6.2 compile-time features back-deploy freely (swift-dev-pro.md Section 12). The primary runtime-dependent feature used by this project is `@Observable` (macOS 14+). `#Predicate` and `#Expression` are also available at the deployment target (macOS 14+ and macOS 15+ respectively) if needed for session filtering or dynamic module logic. Targeting macOS 16.0 gives access to any Tahoe-specific AppKit improvements (NSPanel behaviors, window management) and matches the expected audience — developers running CLI coding agents are overwhelmingly on the latest macOS.
+  - **Deployment target rationale**: macOS 16.0 (Tahoe, shipped Fall 2025) is Xcode 17's default new-project template target. All Swift 6.2 compile-time features back-deploy freely (swift-dev-pro.md Section 12). The primary runtime-dependent feature used by this project is `@Observable` (macOS 14+). `#Predicate` (requires macOS 14+) and `#Expression` (requires macOS 15+) are both available at our macOS 16.0 deployment target if needed for session filtering or dynamic module logic. Targeting macOS 16.0 gives access to any Tahoe-specific AppKit improvements (NSPanel behaviors, window management) and matches the expected audience — developers running CLI coding agents are overwhelmingly on the latest macOS.
 - Set activation policy to `.accessory` (no dock icon)
 - Configure build settings:
   - `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor` (SE-0466)
