@@ -10,6 +10,7 @@
 ### 0.1 Xcode Project Setup
 
 - Create a new macOS app target in Xcode 17 (Swift 6.2, minimum deployment macOS 15.0)
+  - **Deployment target rationale**: macOS 15.0 (Sequoia) provides all required APIs (`@Observable` needs macOS 14+, `#Predicate` needs macOS 14+). Consider bumping to **macOS 16.0** (Tahoe, shipped Fall 2025) if any macOS 16-specific APIs benefit the notch overlay use case (newer `NSPanel` behaviors, window management improvements). Verify against Xcode 17's default new project template and make a deliberate choice.
 - Set activation policy to `.accessory` (no dock icon)
 - Configure build settings:
   - `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor` (SE-0466)
@@ -29,7 +30,7 @@
   - `OIModules` — closed-state module system
   - `OIUI` — SwiftUI views
   - `OIState` — SessionStore, state machine, event processing
-- Configure `swift-tools-version: 6.2` (Swift 6 language mode is enabled by default for all targets with `swift-tools-version: 6.0+` — do not add `.swiftLanguageMode(.v6)` on targets, as it is redundant)
+- Configure `swift-tools-version: 6.2` (Swift 6 language mode is enabled by default for all targets with `swift-tools-version: 6.0+` — do not add `.swiftLanguageMode(.v6)` on targets, as it is redundant. Note: swift-dev-pro.md Section 1 example includes `.swiftLanguageMode(.v6)` explicitly for clarity, but it is a no-op with `swift-tools-version: 6.2`.)
 - Enable upcoming feature flags per target:
   ```swift
   .enableUpcomingFeature("NonisolatedNonsendingByDefault"),
@@ -458,7 +459,7 @@ custom_rules:
     name: "No ObservableObject"
     regex: "\\b(ObservableObject|@Published|@StateObject|@ObservedObject|@EnvironmentObject)\\b"
     message: "Use @Observable / @Bindable / @State / @Environment instead (Swift 6.2 Observation)"
-    severity: warning
+    severity: error
     match_kinds:
       - identifier
       - attribute.builtin
@@ -467,7 +468,7 @@ custom_rules:
     name: "No Combine Import"
     regex: "^import Combine$"
     message: "Use AsyncStream instead of Combine (project convention)"
-    severity: warning
+    severity: error
 
   no_nonisolated_unsafe:
     name: "No nonisolated(unsafe)"
@@ -540,28 +541,36 @@ This is a **deliberate architectural decision**, not just build flags. Swift 6.2
 - **Practical impact**: most `async` functions in the app "just work" without data-race issues. You can write `async` methods on classes without needing `@Sendable` closures or actor isolation annotations everywhere.
 - **Where this matters most**: `ConversationParser`, `ClaudeAPIService`, and other actors already serialize access. But helper `async` functions that don't need their own isolation domain (e.g., file reading utilities, JSON parsing) will stay on the caller's actor instead of bouncing to a background thread.
 
-#### 0.6.3 Pillar 3 — Explicit `@concurrent` for Parallelism ("opting into concurrency")
+#### 0.6.3 Pillar 3 — Infer Isolated Conformances ("less boilerplate")
 
-- Use `@concurrent` (SE-0461) **only** on functions that genuinely need to run off the calling actor — CPU-heavy computation, blocking I/O that shouldn't freeze the main thread, or work that benefits from parallelism.
+- Enable `.enableUpcomingFeature("InferIsolatedConformances")` (SE-0470) on **all targets**.
+- **What this changes**: when a type is isolated to an actor (e.g., MainActor-isolated in the app target), its protocol conformances are automatically inferred as isolated too. Without this flag, conforming to a protocol like `Hashable` from a MainActor-isolated type requires explicitly marking `hash(into:)` as `nonisolated` or `@MainActor`.
+- **Practical impact**: `@Observable` view models in the app target can conform to protocols without boilerplate isolation annotations. Model types in library targets (which default to `nonisolated`) are unaffected.
+- **Example**: With this flag enabled, a MainActor-isolated type conforming to `Equatable` gets its `==` method inferred as MainActor-isolated automatically, instead of requiring explicit annotation.
+
+#### 0.6.4 `@concurrent` Usage Guidelines ("opting into concurrency")
+
+- `@concurrent` is a usage pattern within SE-0461 (Pillar 2), not a separate pillar. It is the explicit opt-in for off-actor execution when the default (run on caller's actor) is not appropriate.
+- Use `@concurrent` **only** on functions that genuinely need to run off the calling actor — CPU-heavy computation, blocking I/O that shouldn't freeze the main thread, or work that benefits from parallelism.
 - Examples in `open-island`:
   - `@concurrent func parseJSONLChunk(_ data: Data) async -> [ChatMessage]` — parsing large JSONL chunks should not block the main actor
   - `@concurrent func detectPythonRuntime() async -> PythonRuntime?` — spawns subprocesses, should not block UI
   - `@concurrent func buildProcessTree() async -> [Int32: Int32]` — enumerates all PIDs, CPU-bound
 - **Rule**: if a function doesn't need to run in parallel, don't mark it `@concurrent`. The default (run on caller's actor) is safer and simpler.
 
-#### 0.6.4 Configuration Summary
+#### 0.6.5 Configuration Summary
 
-| Target | Default Isolation | NonisolatedNonsending | `@concurrent` Usage |
-|---|---|---|---|
-| `OpenIsland` (app) | `MainActor` | Yes (upcoming feature) | Sparingly — heavy computation only |
-| `OICore` | `nonisolated` | Yes (upcoming feature) | On CPU-bound utilities |
-| `OIProviders` | `nonisolated` | Yes (upcoming feature) | On file I/O, process spawning |
-| `OIState` | `nonisolated` | Yes (upcoming feature) | Rarely — actors serialize already |
-| `OIWindow` | `nonisolated` | Yes (upcoming feature) | Never — all UI work |
-| `OIUI` | `nonisolated` | Yes (upcoming feature) | Never — all UI work |
-| `OIModules` | `nonisolated` | Yes (upcoming feature) | Never — all UI work |
+| Target | Default Isolation | NonisolatedNonsending | InferIsolatedConformances | `@concurrent` Usage |
+|---|---|---|---|---|
+| `OpenIsland` (app) | `MainActor` | Yes (upcoming feature) | Yes (upcoming feature) | Sparingly — heavy computation only |
+| `OICore` | `nonisolated` | Yes (upcoming feature) | Yes (upcoming feature) | On CPU-bound utilities |
+| `OIProviders` | `nonisolated` | Yes (upcoming feature) | Yes (upcoming feature) | On file I/O, process spawning |
+| `OIState` | `nonisolated` | Yes (upcoming feature) | Yes (upcoming feature) | Rarely — actors serialize already |
+| `OIWindow` | `nonisolated` | Yes (upcoming feature) | Yes (upcoming feature) | Never — all UI work |
+| `OIUI` | `nonisolated` | Yes (upcoming feature) | Yes (upcoming feature) | Never — all UI work |
+| `OIModules` | `nonisolated` | Yes (upcoming feature) | Yes (upcoming feature) | Never — all UI work |
 
-#### 0.6.5 Document the Concurrency Contract
+#### 0.6.6 Document the Concurrency Contract
 
 Create `CONCURRENCY.md` in the repo root explaining:
 
@@ -776,8 +785,10 @@ OIProviders/ProviderRegistry.swift
 - Use **`withThrowingDiscardingTaskGroup`** (SE-0381) to merge event streams — this is a long-running event loop that runs for the app's lifetime and doesn't collect results. `withDiscardingTaskGroup` prevents memory leaks from accumulated child task results:
   ```swift
   func mergedEvents() -> AsyncStream<ProviderEvent> {
+      // .bufferingOldest: provider events are ordered (session start precedes tool events, etc.)
+      // — dropping oldest events silently causes incorrect state reconstruction (see Phase 3.1)
       let (stream, continuation) = AsyncStream<ProviderEvent>.makeStream(
-          bufferingPolicy: .bufferingNewest(64)
+          bufferingPolicy: .bufferingOldest(128)
       )
       let task = Task {
           try await withThrowingDiscardingTaskGroup { group in
@@ -1632,7 +1643,8 @@ Applied throughout all phases:
 
 - [ ] **Pillar 1**: `MainActor` default isolation for app target only; `nonisolated` default for library targets (SE-0466)
 - [ ] **Pillar 2**: `NonisolatedNonsendingByDefault` upcoming feature enabled on all targets — async functions stay on caller's actor (SE-0461)
-- [ ] **Pillar 3**: `@concurrent` used only on functions that genuinely need off-actor execution — CPU-bound work, blocking I/O, subprocess spawning (SE-0461)
+- [ ] **Pillar 3**: `InferIsolatedConformances` upcoming feature enabled on all targets — protocol conformances in isolated contexts are automatically inferred as isolated (SE-0470)
+- [ ] `@concurrent` used only on functions that genuinely need off-actor execution — CPU-bound work, blocking I/O, subprocess spawning (SE-0461 usage guideline, not a separate pillar)
 - [ ] `CONCURRENCY.md` documenting the project's concurrency contract, including forward-scan trailing closure guidance (SE-0286)
 
 ### Data-Race Safety
@@ -1671,6 +1683,7 @@ Applied throughout all phases:
 - [ ] `any Protocol` required for existential types; `some Protocol` preferred (SE-0335) — `any` reserved for heterogeneous collections (e.g., `ProviderRegistry`); concrete types or `some` used within provider-specific code
 - [ ] `ExistentialAny` upcoming feature flag enabled on all targets (compile-time enforcement)
 - [ ] `InternalImportsByDefault` upcoming feature flag enabled on all targets (SE-0409) — `public import` only where deliberately re-exporting
+- [ ] `MemberImportVisibility` upcoming feature flag enabled on all targets (SE-0444) — members only visible from directly imported modules, preventing transitive dependency leakage
 - [ ] `if`/`switch` expressions for value-producing conditionals (SE-0380)
 - [ ] `throws(ErrorType)` for closed error domains: `ProviderStartupError`, `EventNormalizationError`, `HookInstallError` (SE-0413). Plain `throws` intentionally used for open error domains (e.g., `respondToPermission()`)
 - [ ] `guard let x` shorthand (SE-0345) for optional unwrapping throughout
