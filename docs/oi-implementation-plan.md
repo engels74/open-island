@@ -32,6 +32,7 @@
   - [x] `OIState` — SessionStore, state machine, event processing
 - [x] Configure `swift-tools-version: 6.2` (Swift 6 language mode is enabled by default for all targets with `swift-tools-version: 6.0+` — do not add `.swiftLanguageMode(.v6)` on targets, as it is redundant. Note: swift-dev-pro.md Section 1 example includes `.swiftLanguageMode(.v6)` explicitly for clarity, but it is a no-op with `swift-tools-version: 6.2`.)
 - [x] Enable upcoming feature flags per target:
+
   ```swift
   .enableUpcomingFeature("NonisolatedNonsendingByDefault"),
   .enableUpcomingFeature("InferIsolatedConformances"),
@@ -39,6 +40,7 @@
   .enableUpcomingFeature("ExistentialAny"),
   .enableUpcomingFeature("InternalImportsByDefault"),
   ```
+
 - [x] Use `package` access level for intra-package APIs instead of `public` where possible
 - [x] `.defaultIsolation(MainActor.self)` is intentionally absent from Package.swift — the SPM package contains only library targets, which keep `nonisolated` default per project guidelines. The app target receives MainActor default isolation via Xcode build setting (Phase 0.1).
 - [x] Since `OpenIslandKit` is an internal package (no library evolution mode), `@inlinable`, `@usableFromInline`, and `@frozen` are unnecessary. Don't add unless benchmarks show measurable improvement.
@@ -57,15 +59,15 @@ Set up the full `prek` (pre-commit) pipeline before writing any application code
 
 Adapt the claude-island config with these changes:
 
-- [ ] **`exclude` regex**: update project-specific paths — replace `ClaudeIsland` references with `OpenIsland` and `OpenIslandKit` module paths. Add `OpenIslandKit/\.build/.*` for the SPM package build directory.
-- [ ] **SwiftFormat hook**: keep `types: [swift]`, ensure `entry: swiftformat` uses the system-installed binary (same as claude-island)
-- [ ] **SwiftLint hook**: keep `entry: swiftlint lint --strict`, `types: [swift]`
-- [ ] **Ruff hooks** (`ruff-check`, `ruff-format`): update `files:` pattern from `^ClaudeIsland/Resources/.*\.py$` to `^OpenIsland/Resources/Hooks/.*\.py$` — this covers the provider hook scripts (Claude's Python hook, and any future Python-based hooks)
-- [ ] **Shellcheck**: update `files:` to `^scripts/.*\.sh$` (same pattern, verify `scripts/` directory exists)
-- [ ] **Markdownlint**: keep as-is, update `exclude` if needed for new directory names
-- [ ] **Standard hooks**: keep all (`trailing-whitespace`, `end-of-file-fixer`, `check-yaml`, `check-json`, `check-merge-conflict`, `detect-private-key`, `no-commit-to-branch`, `check-added-large-files`)
-- [ ] **Bump versions**: check for latest revs of all repos (pre-commit-hooks, SwiftFormat, SwiftLint, shellcheck-py, ruff-pre-commit, markdownlint-cli) at project creation time
-- [ ] Keep `ci: skip: [swiftformat, swiftlint]` since CI runners may not have these installed system-wide
+- [x] **`exclude` regex**: update project-specific paths — replace `ClaudeIsland` references with `OpenIsland` and `OpenIslandKit` module paths. Add `OpenIslandKit/\.build/.*` for the SPM package build directory.
+- [x] **SwiftFormat hook**: keep `types: [swift]`, ensure `entry: swiftformat` uses the system-installed binary (same as claude-island)
+- [x] **SwiftLint hook**: keep `entry: swiftlint lint --strict`, `types: [swift]`
+- [x] **Ruff hooks** (`ruff-check`, `ruff-format`): update `files:` pattern from `^ClaudeIsland/Resources/.*\.py$` to `^OpenIsland/Resources/Hooks/.*\.py$` — this covers the provider hook scripts (Claude's Python hook, and any future Python-based hooks)
+- [x] **Shellcheck**: update `files:` to `^scripts/.*\.sh$` (same pattern, verify `scripts/` directory exists)
+- [x] **Markdownlint**: keep as-is, update `exclude` if needed for new directory names
+- [x] **Standard hooks**: keep all (`trailing-whitespace`, `end-of-file-fixer`, `check-yaml`, `check-json`, `check-merge-conflict`, `detect-private-key`, `no-commit-to-branch`, `check-added-large-files`)
+- [x] **Bump versions**: check for latest revs of all repos (pre-commit-hooks, SwiftFormat, SwiftLint, shellcheck-py, ruff-pre-commit, markdownlint-cli) at project creation time
+- [x] Keep `ci: skip: [swiftformat, swiftlint]` since CI runners may not have these installed system-wide
 
 Full config:
 
@@ -166,13 +168,13 @@ ci:
 
 Adapt the claude-island config:
 
-- [ ] `--swiftversion 6.2` (already correct)
-- [ ] **`--exclude`**: update to `build,DerivedData,.build,Pods,releases,*.xcodeproj,*.xcworkspace,xcuserdata,.sparkle-keys,OpenIslandKit/.build` — remove the claude-island-specific `HookSocketServer.swift` exclusion (start fresh; if the new socket server triggers the same `organizeDeclarations` timeout, exclude it then)
-- [ ] **`--acronyms`**: keep all existing (`ID,URL,UUID,HTTP,HTTPS,JSON,API,UI,MCP,PID,JSONL,SSH,TCP,IP,DNS,HTML,XML,CSS,JS,SDK,CLI,TLS,SSL`) — add `OI` (project prefix) for type names
-- [ ] **All enabled rules**: keep `acronyms`, `blankLinesBetweenImports`, `blockComments`, `docComments`, `isEmpty`, `markTypes`, `organizeDeclarations`, `sortDeclarations`, `wrapEnumCases`, `wrapSwitchCases`
-- [ ] **All disabled rules**: keep `andOperator`, `redundantSendable`, `wrapMultilineStatementBraces`
-- [ ] **`redundantSendable` rationale**: Swift 6.2's region-based isolation (SE-0414) means many explicit `Sendable` conformances that look redundant are actually intentional public API contracts — do not auto-remove them
-- [ ] **Gotcha from claude-island**: `organizeDeclarations` can strip explicit `nonisolated` on synthesizable conformances (e.g., `Equatable`). Document this in a `CONTRIBUTING.md` note and use `// swiftformat:disable all` / `// swiftformat:enable all` guards around affected declarations
+- [x] `--swiftversion 6.2` (already correct)
+- [x] **`--exclude`**: update to `build,DerivedData,.build,Pods,releases,*.xcodeproj,*.xcworkspace,xcuserdata,.sparkle-keys,OpenIslandKit/.build` — remove the claude-island-specific `HookSocketServer.swift` exclusion (start fresh; if the new socket server triggers the same `organizeDeclarations` timeout, exclude it then)
+- [x] **`--acronyms`**: keep all existing (`ID,URL,UUID,HTTP,HTTPS,JSON,API,UI,MCP,PID,JSONL,SSH,TCP,IP,DNS,HTML,XML,CSS,JS,SDK,CLI,TLS,SSL`) — add `OI` (project prefix) for type names
+- [x] **All enabled rules**: keep `acronyms`, `blankLinesBetweenImports`, `blockComments`, `docComments`, `isEmpty`, `markTypes`, `organizeDeclarations`, `sortDeclarations`, `wrapEnumCases`, `wrapSwitchCases`
+- [x] **All disabled rules**: keep `andOperator`, `redundantSendable`, `wrapMultilineStatementBraces`
+- [x] **`redundantSendable` rationale**: Swift 6.2's region-based isolation (SE-0414) means many explicit `Sendable` conformances that look redundant are actually intentional public API contracts — do not auto-remove them
+- [x] **Gotcha from claude-island**: `organizeDeclarations` can strip explicit `nonisolated` on synthesizable conformances (e.g., `Equatable`). Document this in a `CONTRIBUTING.md` note and use `// swiftformat:disable all` / `// swiftformat:enable all` guards around affected declarations
 
 Full config:
 
@@ -279,16 +281,16 @@ Full config:
 
 Adapt the claude-island config:
 
-- [ ] **`included:`**: update from `[ClaudeIsland]` to `[OpenIsland, OpenIslandKit]` (main app + SPM package sources)
-- [ ] **`excluded:`**: keep `build`, `DerivedData`, `.build`, `Pods`, `releases`, `*.xcodeproj`, `*.xcworkspace`, `xcuserdata`
-- [ ] **Opt-in rules**: keep the full list from claude-island with the following changes:
-  - [ ] **Remove** `single_test_class` — move to `disabled_rules`. This rule is incompatible with Swift Testing: Swift Testing uses `@Suite` structs (not `XCTestCase` subclasses), multiple `@Suite` structs per file is valid, and global `@Test` functions have no enclosing type at all.
-  - [ ] **Add** `private_over_fileprivate` — for clean module boundaries in a greenfield project
-- [ ] **Rule configs**: keep all thresholds (line_length 150/200, function_body_length 60/100, file_length 500/1000, type_body_length 300/500, cyclomatic_complexity 15/25, nesting 3/5 type + 5/8 function)
-- [ ] **Identifier exclusions**: keep `id, ok, to, x, y, i, j, n` — add `fd` for file descriptors used in `~Copyable` resource types (e.g., `FileHandle` with `fd: Int32`)
-- [ ] **Custom `no_print_statements` rule**: keep — use `os.Logger` throughout the project instead of `print()`
-- [ ] **Add custom `no_observable_object` rule**: warn on `ObservableObject`, `@Published`, `@StateObject`, `@ObservedObject`, `@EnvironmentObject` — enforces the project's `@Observable`-only convention at lint time instead of relying on developer memory
-- [ ] **Add custom `no_combine_import` rule**: warn on `import Combine` — enforces the project's `AsyncStream`-only convention
+- [x] **`included:`**: update from `[ClaudeIsland]` to `[OpenIsland, OpenIslandKit]` (main app + SPM package sources)
+- [x] **`excluded:`**: keep `build`, `DerivedData`, `.build`, `Pods`, `releases`, `*.xcodeproj`, `*.xcworkspace`, `xcuserdata`
+- [x] **Opt-in rules**: keep the full list from claude-island with the following changes:
+  - [x] **Remove** `single_test_class` — move to `disabled_rules`. This rule is incompatible with Swift Testing: Swift Testing uses `@Suite` structs (not `XCTestCase` subclasses), multiple `@Suite` structs per file is valid, and global `@Test` functions have no enclosing type at all.
+  - [x] **Add** `private_over_fileprivate` — for clean module boundaries in a greenfield project
+- [x] **Rule configs**: keep all thresholds (line_length 150/200, function_body_length 60/100, file_length 500/1000, type_body_length 300/500, cyclomatic_complexity 15/25, nesting 3/5 type + 5/8 function)
+- [x] **Identifier exclusions**: keep `id, ok, to, x, y, i, j, n` — add `fd` for file descriptors used in `~Copyable` resource types (e.g., `FileHandle` with `fd: Int32`)
+- [x] **Custom `no_print_statements` rule**: keep — use `os.Logger` throughout the project instead of `print()`
+- [x] **Add custom `no_observable_object` rule**: warn on `ObservableObject`, `@Published`, `@StateObject`, `@ObservedObject`, `@EnvironmentObject` — enforces the project's `@Observable`-only convention at lint time instead of relying on developer memory
+- [x] **Add custom `no_combine_import` rule**: warn on `import Combine` — enforces the project's `AsyncStream`-only convention
 
 > **Note on `no_observable_object` `match_kinds`**: SwiftLint's `match_kinds` restricts matches to specific syntax token types. Use `[identifier, attribute.builtin]` to target code tokens and attributes. Test the rule against files containing these terms in comments (e.g., `// We migrated from ObservableObject`) and strings to verify no false positives in documentation. If false positives occur, restrict to `[attribute.builtin]` only and add a separate regex for the protocol name matching `[identifier]` with a negative lookbehind for `//`.
 
@@ -493,18 +495,18 @@ clean:           ## Remove build artifacts and DerivedData
 install-hooks:   ## Install prek hooks (pre-commit + pre-push)
 ```
 
-- [ ] **Optional**: Consider adding SwiftLint and SwiftFormat as SwiftPM command plugins (SE-0332) for IDE-integrated linting via `swift package plugin swiftlint`. This complements the `prek` pre-commit hooks by enabling linting from any context without hook installation. Evaluate if team workflow benefits from this during Phase 13.
+- [x] **Optional**: Consider adding SwiftLint and SwiftFormat as SwiftPM command plugins (SE-0332) for IDE-integrated linting via `swift package plugin swiftlint`. This complements the `prek` pre-commit hooks by enabling linting from any context without hook installation. Evaluate if team workflow benefits from this during Phase 13.
 
 #### 0.3.5 Verify Pipeline End-to-End
 
-- [ ] Run `prek install --hook-type pre-commit --hook-type pre-push`
-- [ ] Create a test Swift file with intentional formatting issues
-- [ ] Commit → verify SwiftFormat auto-fixes, SwiftLint catches violations
-- [ ] Create a test Python file in `Resources/Hooks/` → verify Ruff catches issues
-- [ ] Confirm `prek run --all-files` passes cleanly on the empty project skeleton
-- [ ] Verify the `no_observable_object` custom rule fires on `@Published var test = ""` in a test file, and does **not** fire on `// We migrated from ObservableObject` in a comment
-- [ ] Verify the `no_combine_import` custom rule fires on `import Combine` in a test file
-- [ ] Clean up test files after verification
+- [x] Run `prek install --hook-type pre-commit --hook-type pre-push`
+- [x] Create a test Swift file with intentional formatting issues
+- [x] Commit → verify SwiftFormat auto-fixes, SwiftLint catches violations
+- [x] Create a test Python file in `Resources/Hooks/` → verify Ruff catches issues
+- [x] Confirm `prek run --all-files` passes cleanly on the empty project skeleton
+- [x] Verify the `no_observable_object` custom rule fires on `@Published var test = ""` in a test file, and does **not** fire on `// We migrated from ObservableObject` in a comment
+- [x] Verify the `no_combine_import` custom rule fires on `import Combine` in a test file
+- [x] Clean up test files after verification
 
 ### 0.4 Testing Infrastructure
 
@@ -587,6 +589,7 @@ Create `CONCURRENCY.md` in the repo root explaining:
 - [ ] When to use `@preconcurrency import` for legacy frameworks (see Phase 0.7)
 - [ ] **`nonisolated(unsafe)` — never use in this project.** Prefer `Mutex<T>`, `actor`, or `@preconcurrency import`. A SwiftLint custom rule (`no_nonisolated_unsafe`) enforces this at compile time (Phase 0.3.3).
 - [ ] **`async let` for structured concurrency**: use `async let` for fixed-count parallel operations; task groups for dynamic counts. Example:
+
   ```swift
   // Phase 3.6 — starting independent subsystems
   async let hooks = installer.install()
@@ -594,6 +597,7 @@ Create `CONCURRENCY.md` in the repo root explaining:
   async let watcher = conversationParser.startWatching()
   try await (hooks, socket, watcher)
   ```
+
 - [ ] **`Task.init` closures use `sending` semantics (not `@Sendable`)**: In Swift 6, `Task { }` closures use `sending` semantics. Captured values need only be disconnected from their current isolation region, not fully `Sendable`. Don't reflexively add `Sendable` conformance just because a type is captured in a `Task { }` closure.
 - [ ] **`Span<T>` for safe contiguous access**: Prefer `Span<T>` (SE-0447) over `UnsafeBufferPointer` for read-only contiguous access. Full adoption requires `@lifetime` annotations (experimental in 6.2). Adopt incrementally as annotations stabilize.
 - [ ] **Forward-scan trailing closures** (SE-0286): Swift 6 changed trailing closure matching from backward-scan to forward-scan. When designing APIs with multiple closure parameters, the first trailing closure label is dropped. Use labeled trailing closures for all subsequent closure parameters. Avoid trailing closure syntax in `guard` conditions. Document this in `CONTRIBUTING.md` as well so contributors from Swift 5 habits are aware.
@@ -657,6 +661,7 @@ workflow YAML. This ensures local development and CI always run the same command
 #### Why `just` over `make`
 
 `just` is a modern command runner purpose-built for project task automation:
+
 - **Clean syntax**: no tab-sensitivity, no `.PHONY` boilerplate, built-in argument handling
 - **Built-in `--list`**: `just --list` shows all recipes with descriptions — no grep hacks
 - **Native arguments**: `just set-version 1.2.3` instead of `make set-version V=1.2.3`
@@ -723,22 +728,26 @@ The project does not use any of Make's actual build-system features (dependency 
 **Decision: `agvtool` as primary, `sed` as fallback.**
 
 `agvtool` is Apple's official tool for managing Xcode project versions. It modifies `project.pbxproj` directly and correctly handles:
+
 - Multiple build configurations (Debug, Release)
 - Multiple targets in the project
 - The modern `$(MARKETING_VERSION)` variable-reference pattern in Info.plist
 
 The `sed`-based approach from claude-island's release workflow (`sed -i '' "s/MARKETING_VERSION = .*;/..."`) is fragile because:
+
 - It does a global replacement across the entire pbxproj
 - It can match in unexpected places if there are multiple targets or configurations
 - It doesn't understand the pbxproj structure
 
 **Approach in CI** (release.yml):
+
 1. Use `agvtool new-marketing-version $VERSION` to set the version
 2. Use `agvtool new-version -all $BUILD_NUMBER` to set the build number
 3. Verify with `agvtool what-marketing-version -terse1`
 4. If verification fails, fall back to `sed` with a `::error::` annotation
 
 **Approach locally**:
+
 - `just set-version 1.2.3` wraps `agvtool new-marketing-version`
 - `just bump-build` wraps `agvtool new-version -all` with timestamp
 - `just version` shows current version
@@ -838,6 +847,7 @@ The `.pre-commit-config.yaml` in Phase 0.3.1 pins specific `rev` values for all 
 - [ ] **Local development**: developers run `brew upgrade swiftformat swiftlint` periodically. The pre-commit hooks use `language: system` so they automatically pick up the system-installed version.
 
 - [ ] **No version-pinning comments**: remove any version-specific comments from `.pre-commit-config.yaml` that might discourage updates. Add a header comment:
+
   ```yaml
   # Hook revisions — update with: just update-hooks (runs pre-commit autoupdate)
   # SwiftFormat and SwiftLint use language: system — the rev pins the hook
@@ -868,6 +878,7 @@ Phase 0.4 establishes the testing infrastructure. This section specifies how tes
 
 - [ ] Make all scripts executable: `chmod +x scripts/*.sh`
 - [ ] Verify `.gitignore` includes:
+
   ```
   build/
   DerivedData/
@@ -877,6 +888,7 @@ Phase 0.4 establishes the testing infrastructure. This section specifies how tes
   *.xcuserstate
   xcuserdata/
   ```
+
 - [ ] Verify `scripts/` directory is tracked in git (not ignored)
 - [ ] Run `just check-tools` to verify development environment
 - [ ] Run `just install-hooks` to set up pre-commit hooks
@@ -889,14 +901,17 @@ Phase 0.4 establishes the testing infrastructure. This section specifies how tes
 Configure these in GitHub repository settings (`Settings → Secrets and variables → Actions`):
 
 **Secrets** (required for full pipeline):
+
 - [ ] `SPARKLE_PRIVATE_KEY` — EdDSA private key from `just generate-keys` (required for Sparkle auto-update signing)
 - [ ] `VT_API_KEY` — VirusTotal API key (required for malware scanning)
 - [ ] `WEBSITE_PAT` — GitHub Personal Access Token with repo scope on `engels74/open-island-web` (required for website appcast updates)
 
 **Variables**:
+
 - [ ] `HAS_VT_KEY` — set to `true` if `VT_API_KEY` is configured (controls conditional VirusTotal scan job in `ci.yml`)
 
 **Branch protection** on `main`:
+
 - [ ] Require `Code Quality / Lint & Format` to pass before merge
 - [ ] Require PR reviews (optional but recommended)
 - [ ] Allow `github-actions[bot]` to push version bump commits (bypass branch protection for bot)
@@ -976,6 +991,7 @@ The `.pre-commit-config.yaml` in Phase 0.3.1 pins specific `rev` values for all 
 - [ ] **Local development**: developers run `brew upgrade swiftformat swiftlint` periodically. The pre-commit hooks use `language: system` so they automatically pick up the system-installed version.
 
 - [ ] **No version-pinning comments**: remove any version-specific comments from `.pre-commit-config.yaml` that might discourage updates. Add a header comment:
+
   ```yaml
   # Hook revisions — update with: make update-hooks (runs pre-commit autoupdate)
   # SwiftFormat and SwiftLint use language: system — the rev pins the hook
@@ -1006,6 +1022,7 @@ Phase 0.4 establishes the testing infrastructure. This section specifies how tes
 
 - [ ] Make all scripts executable: `chmod +x scripts/*.sh`
 - [ ] Verify `.gitignore` includes:
+
   ```
   build/
   DerivedData/
@@ -1015,6 +1032,7 @@ Phase 0.4 establishes the testing infrastructure. This section specifies how tes
   *.xcuserstate
   xcuserdata/
   ```
+
 - [ ] Verify `scripts/` directory is tracked in git (not ignored)
 - [ ] Run `make check-tools` to verify development environment
 - [ ] Run `make install-hooks` to set up pre-commit hooks
@@ -1027,18 +1045,20 @@ Phase 0.4 establishes the testing infrastructure. This section specifies how tes
 Configure these in GitHub repository settings (`Settings → Secrets and variables → Actions`):
 
 **Secrets** (required for full pipeline):
+
 - [ ] `SPARKLE_PRIVATE_KEY` — EdDSA private key from `make generate-keys` (required for Sparkle auto-update signing)
 - [ ] `VT_API_KEY` — VirusTotal API key (required for malware scanning)
 - [ ] `WEBSITE_PAT` — GitHub Personal Access Token with repo scope on `engels74/open-island-web` (required for website appcast updates)
 
 **Variables**:
+
 - [ ] `HAS_VT_KEY` — set to `true` if `VT_API_KEY` is configured (controls conditional VirusTotal scan job in `ci.yml`)
 
 **Branch protection** on `main`:
+
 - [ ] Require `Code Quality / Lint & Format` to pass before merge
 - [ ] Require PR reviews (optional but recommended)
 - [ ] Allow `github-actions[bot]` to push version bump commits (bypass branch protection for bot)
-
 
 ---
 
@@ -1093,6 +1113,7 @@ OICore/Models/ChatHistoryItem.swift
   - [ ] Validated transitions, invalid ones logged and ignored
   - [ ] Explicitly marked `Sendable` — the `.waitingForApproval(PermissionContext)` associated value requires `PermissionContext` to also be `Sendable`
   - [ ] Use `guard let` shorthand (SE-0345) in transition validation methods:
+
     ```swift
     func validate(event: SessionEvent) -> SessionPhase? {
         guard let targetPhase = event.targetPhase else { return nil }
@@ -1100,6 +1121,7 @@ OICore/Models/ChatHistoryItem.swift
         return targetPhase
     }
     ```
+
 - [ ] `SessionState` — complete snapshot struct:
   - [ ] `id: String` (session ID)
   - [ ] `providerID: ProviderID`
@@ -1136,6 +1158,7 @@ OIProviders/ProviderAdapter.swift
 ```
 
 - [ ] Protocol definition:
+
   ```swift
   package protocol ProviderAdapter: Sendable {
       var providerID: ProviderID { get }
@@ -1160,6 +1183,7 @@ OIProviders/ProviderAdapter.swift
       func isSessionAlive(_ sessionID: String) -> Bool
   }
   ```
+
 - [ ] `PermissionDecision` — enum: `.allow`, `.deny(reason: String?)`
 - [ ] Each provider implementation is a concrete actor conforming to this protocol
 
@@ -1168,6 +1192,7 @@ OIProviders/ProviderAdapter.swift
 Use `throws(ErrorType)` (SE-0413) in these closed error domains:
 
 - [ ] **`ProviderAdapter.start()`** → `throws(ProviderStartupError)`:
+
   ```swift
   package enum ProviderStartupError: Error, Sendable {
       case binaryNotFound(String)
@@ -1176,9 +1201,11 @@ Use `throws(ErrorType)` (SE-0413) in these closed error domains:
       case permissionDenied(String)
   }
   ```
+
   This is a closed domain — all startup failure modes are known. Callers can exhaustively match without a generic `catch`.
 
 - [ ] **`ClaudeEventNormalizer.normalize()`** → `throws(EventNormalizationError)`:
+
   ```swift
   package enum EventNormalizationError: Error, Sendable {
       case unknownEventType(String)
@@ -1188,6 +1215,7 @@ Use `throws(ErrorType)` (SE-0413) in these closed error domains:
   ```
 
 - [ ] **`ClaudeHookInstaller.install()`** → `throws(HookInstallError)`:
+
   ```swift
   package enum HookInstallError: Error, Sendable {
       case pythonNotFound
@@ -1214,6 +1242,7 @@ OIProviders/ProviderRegistry.swift
   - [ ] Provides lookup by ID
 - [ ] Use `withTaskGroup` to start all adapters concurrently
 - [ ] Use **`withThrowingDiscardingTaskGroup`** (SE-0381) to merge event streams — this is a long-running event loop that runs for the app's lifetime and doesn't collect results. `withDiscardingTaskGroup` prevents memory leaks from accumulated child task results:
+
   ```swift
   func mergedEvents() -> AsyncStream<ProviderEvent> {
       // .bufferingOldest: provider events are ordered (session start precedes tool events, etc.)
@@ -1237,6 +1266,7 @@ OIProviders/ProviderRegistry.swift
       return stream
   }
   ```
+
 - [ ] Always set `onTermination` on the merged stream's continuation to cancel child tasks on consumer disconnect
 
 **`any` vs `some` guidance for provider references**: The registry stores `any ProviderAdapter` because it holds a heterogeneous collection of different concrete adapter types. However, within provider-specific code (e.g., inside `ClaudeProviderAdapter`), always use concrete types or `some ProviderAdapter` — reserve `any` for the registry's heterogeneous collection. Start concrete → move to `some` → resort to `any` only when necessary.
@@ -1273,9 +1303,11 @@ OIState/SessionStore+Streaming.swift
 ```
 
 - [ ] UUID-keyed `AsyncStream` continuations pattern (from claude-island):
+
   ```swift
   private var continuations: [UUID: AsyncStream<[SessionState]>.Continuation]
   ```
+
 - [ ] `func sessionsStream() -> AsyncStream<[SessionState]>` — registers a new subscriber, immediately yields current state
 - [ ] `.bufferingNewest(1)` policy — correct for "latest snapshot" semantics where consumers only need the most recent state
 - [ ] `onTermination` set synchronously before the registration Task to avoid race conditions — **always set `onTermination`** on all `AsyncStream` continuations to clean up the UUID entry from the `continuations` dictionary, preventing memory leaks from accumulated dead continuations
@@ -1313,6 +1345,7 @@ OIState/SessionStore+HealthCheck.swift
 - [ ] Every 3 seconds, iterate sessions and call provider adapter's `isSessionAlive()`
 - [ ] Transition zombie sessions to `.ended`
 - [ ] Use a **regular `Task`** (not `Task.detached`) launched from within the `SessionStore` actor — it inherits the actor's isolation, which is exactly what we want for iterating sessions:
+
   ```swift
   func startHealthCheck() {
       healthCheckTask = Task {
@@ -1324,6 +1357,7 @@ OIState/SessionStore+HealthCheck.swift
       }
   }
   ```
+
   Per the guidelines: "Use `Task.detached` only when you must shed all inherited context." The health check needs actor isolation to read sessions — `Task.detached` would be incorrect.
 - [ ] Store the `Task` handle for cancellation support on `stop()`
 
@@ -1812,10 +1846,12 @@ OIProviders/OpenCode/OpenCodeEventNormalizer.swift
 
 - [ ] Shared conformance tests that run against ALL provider adapters
 - [ ] Use parameterized tests:
+
   ```swift
   @Test("Provider emits session start", arguments: ProviderID.allCases)
   func sessionStart(provider: ProviderID) async { ... }
   ```
+
 - [ ] Mock event sources for deterministic testing
 - [ ] Test permission round-trips per provider
 
@@ -1839,6 +1875,7 @@ OICore/Settings/AppSettings.swift
   - [ ] `verboseMode: Bool`
 - [ ] Per-provider settings namespace (e.g., `claude.hookPath`, `codex.logDirectory`)
 - [ ] Thread safety note: `UserDefaults` is inherently thread-safe, so static computed properties reading/writing `UserDefaults` are safe across isolation domains without additional synchronization. Do not use static stored properties (which would require `nonisolated(unsafe)` or actor isolation). **Add a code comment** explaining why `Mutex` is not needed here (unlike most shared state) to prevent a well-meaning contributor from "fixing" it:
+
   ```swift
   // UserDefaults is documented as thread-safe by Apple. Static computed
   // properties here delegate directly to UserDefaults — no Mutex needed.
