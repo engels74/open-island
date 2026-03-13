@@ -70,6 +70,12 @@
 			);
 			name = OpenIsland;
 			packageProductDependencies = (
+				A1000000000000000000C001 /* OICore */,
+				A1000000000000000000C002 /* OIProviders */,
+				A1000000000000000000C003 /* OIWindow */,
+				A1000000000000000000C004 /* OIModules */,
+				A1000000000000000000C005 /* OIState */,
+				A1000000000000000000C006 /* OIUI */,
 			);
 			productName = OpenIsland;
 			productReference = A10000000000000000000001 /* OpenIsland.app */;
@@ -103,6 +109,9 @@
 			productRefGroup = A10000000000000000000031 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
+			packageReferences = (
+				A1000000000000000000D001 /* XCLocalSwiftPackageReference "OpenIslandKit" */,
+			);
 			targets = (
 				A10000000000000000000040 /* OpenIsland */,
 			);
@@ -183,7 +192,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 16.0;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -240,7 +249,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 16.0;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = macosx;
@@ -261,7 +270,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Open Island";
 				INFOPLIST_KEY_LSUIElement = YES;
-				MACOSX_DEPLOYMENT_TARGET = 16.0;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.openisland.app;
 				PRODUCT_NAME = "Open Island";
@@ -285,7 +294,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Open Island";
 				INFOPLIST_KEY_LSUIElement = YES;
-				MACOSX_DEPLOYMENT_TARGET = 16.0;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.openisland.app;
 				PRODUCT_NAME = "Open Island";
@@ -318,6 +327,40 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		A1000000000000000000D001 /* XCLocalSwiftPackageReference "OpenIslandKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = OpenIslandKit;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		A1000000000000000000C001 /* OICore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = OICore;
+		};
+		A1000000000000000000C002 /* OIProviders */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = OIProviders;
+		};
+		A1000000000000000000C003 /* OIWindow */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = OIWindow;
+		};
+		A1000000000000000000C004 /* OIModules */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = OIModules;
+		};
+		A1000000000000000000C005 /* OIState */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = OIState;
+		};
+		A1000000000000000000C006 /* OIUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = OIUI;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = A10000000000000000000080 /* Project object */;
 }

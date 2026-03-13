@@ -23,15 +23,15 @@
 
 ### 0.2 SPM / Package.swift for Internal Modules
 
-- [ ] Create a local Swift package (`OpenIslandKit`) with these initial library targets:
-  - [ ] `OICore` — shared models, protocols, utilities
-  - [ ] `OIProviders` — provider adapter protocol + concrete implementations
-  - [ ] `OIWindow` — notch window system, geometry, shape
-  - [ ] `OIModules` — closed-state module system
-  - [ ] `OIUI` — SwiftUI views
-  - [ ] `OIState` — SessionStore, state machine, event processing
-- [ ] Configure `swift-tools-version: 6.2` (Swift 6 language mode is enabled by default for all targets with `swift-tools-version: 6.0+` — do not add `.swiftLanguageMode(.v6)` on targets, as it is redundant. Note: swift-dev-pro.md Section 1 example includes `.swiftLanguageMode(.v6)` explicitly for clarity, but it is a no-op with `swift-tools-version: 6.2`.)
-- [ ] Enable upcoming feature flags per target:
+- [x] Create a local Swift package (`OpenIslandKit`) with these initial library targets:
+  - [x] `OICore` — shared models, protocols, utilities
+  - [x] `OIProviders` — provider adapter protocol + concrete implementations
+  - [x] `OIWindow` — notch window system, geometry, shape
+  - [x] `OIModules` — closed-state module system
+  - [x] `OIUI` — SwiftUI views
+  - [x] `OIState` — SessionStore, state machine, event processing
+- [x] Configure `swift-tools-version: 6.2` (Swift 6 language mode is enabled by default for all targets with `swift-tools-version: 6.0+` — do not add `.swiftLanguageMode(.v6)` on targets, as it is redundant. Note: swift-dev-pro.md Section 1 example includes `.swiftLanguageMode(.v6)` explicitly for clarity, but it is a no-op with `swift-tools-version: 6.2`.)
+- [x] Enable upcoming feature flags per target:
   ```swift
   .enableUpcomingFeature("NonisolatedNonsendingByDefault"),
   .enableUpcomingFeature("InferIsolatedConformances"),
@@ -39,11 +39,11 @@
   .enableUpcomingFeature("ExistentialAny"),
   .enableUpcomingFeature("InternalImportsByDefault"),
   ```
-- [ ] Use `package` access level for intra-package APIs instead of `public` where possible
-- [ ] `.defaultIsolation(MainActor.self)` is intentionally absent from Package.swift — the SPM package contains only library targets, which keep `nonisolated` default per project guidelines. The app target receives MainActor default isolation via Xcode build setting (Phase 0.1).
-- [ ] Since `OpenIslandKit` is an internal package (no library evolution mode), `@inlinable`, `@usableFromInline`, and `@frozen` are unnecessary. Don't add unless benchmarks show measurable improvement.
-- [ ] With `InternalImportsByDefault` enabled, all `import` statements default to `internal` visibility. Use `public import Foundation` (or `public import AppKit`, etc.) **only** in modules that deliberately re-export those symbols to downstream targets. This prevents transitive dependency leakage across module boundaries.
-- [ ] **Per-target warning control** (SE-0480, Swift 6.2): use `.swiftSettings([.warningLevel(.error, for: .deprecation)])` on production targets to promote deprecation warnings to errors. Keep default warning levels on test targets where mock/fixture code may use deprecated APIs intentionally. Evaluate need during Phase 12.5 performance audit; add only if specific warning categories prove problematic.
+- [x] Use `package` access level for intra-package APIs instead of `public` where possible
+- [x] `.defaultIsolation(MainActor.self)` is intentionally absent from Package.swift — the SPM package contains only library targets, which keep `nonisolated` default per project guidelines. The app target receives MainActor default isolation via Xcode build setting (Phase 0.1).
+- [x] Since `OpenIslandKit` is an internal package (no library evolution mode), `@inlinable`, `@usableFromInline`, and `@frozen` are unnecessary. Don't add unless benchmarks show measurable improvement.
+- [x] With `InternalImportsByDefault` enabled, all `import` statements default to `internal` visibility. Use `public import Foundation` (or `public import AppKit`, etc.) **only** in modules that deliberately re-export those symbols to downstream targets. This prevents transitive dependency leakage across module boundaries.
+- [x] **Per-target warning control** (SE-0480, Swift 6.2): use `.swiftSettings([.warningLevel(.error, for: .deprecation)])` on production targets to promote deprecation warnings to errors. Keep default warning levels on test targets where mock/fixture code may use deprecated APIs intentionally. Evaluate need during Phase 12.5 performance audit; add only if specific warning categories prove problematic.
 
 > **Note on `ExistentialAny`**: Deferred to Swift 7 as a mandatory language change (not required in Swift 6), but enabled here as an upcoming feature flag to enforce `any Protocol` discipline at compile time in a greenfield project. This aligns with the project checklist requirement that `any Protocol` is required for all existential types (SE-0335).
 
