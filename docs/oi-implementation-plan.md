@@ -612,6 +612,279 @@ Several system frameworks predate Swift concurrency and may produce Sendable dia
 
 Document these in `CONCURRENCY.md` under a "Legacy Framework Imports" section.
 
+# Phase 0.8 — Build Scripts, CI/CD & Release Infrastructure
+
+> Insert after Phase 0.7 (Legacy Framework Import Strategy) and before Phase 1.
+
+This phase establishes the complete build, test, and release pipeline. All CI workflows
+use the Makefile as their single entry point — scripts are never called directly from
+workflow YAML. This ensures local development and CI always run the same commands.
+
+---
+
+## 0.8.1 Makefile (Single Entry Point)
+
+- [ ] Create `Makefile` in the repo root with these targets:
+
+| Target | Purpose | Used by CI |
+|---|---|---|
+| `build` | Debug build (ad-hoc signed) | — |
+| `build-release` | Release build, export .app to `build/export/` | `ci.yml`, `release.yml` |
+| `build-package` | Build SPM package independently via `swift build` | `ci.yml` |
+| `resolve` | Resolve SPM dependencies explicitly | `ci.yml` |
+| `test` | Run all tests (Xcode scheme + SPM package) | — |
+| `test-ci` | Run tests with CI settings (no retry, result bundle) | `ci.yml`, `release.yml` |
+| `test-package` | Run SPM package tests via `swift test` | via `test` / `test-ci` |
+| `format` | SwiftFormat auto-fix | — |
+| `format-check` | SwiftFormat lint (no modification, CI-safe) | `code-quality.yml` |
+| `lint` | SwiftLint strict mode | `code-quality.yml` |
+| `lint-fix` | SwiftLint auto-correct + verify | — |
+| `quality` | `format-check` + `lint` combined | `code-quality.yml` |
+| `install-hooks` | `pre-commit install` for pre-commit + pre-push | — |
+| `update-hooks` | `pre-commit autoupdate` (update all hook revs) | — |
+| `pre-commit` | `pre-commit run --all-files` (manual full check) | — |
+| `dmg` | `build-release` then `create-release.sh --skip-notarization` | — |
+| `release` | Full local release pipeline | — |
+| `generate-keys` | Sparkle EdDSA key generation | — |
+| `version` | Show current version from Xcode project | — |
+| `set-version` | Set marketing version (`make set-version V=1.2.3`) | — |
+| `bump-build` | Increment build number (timestamp) | — |
+| `clean` | Remove build artifacts | — |
+| `nuke` | Deep clean including releases and Xcode caches | — |
+| `check-tools` | Verify all required dev tools are installed | — |
+| `help` | Show all targets with descriptions | — |
+
+- [ ] The Makefile defines shared configuration constants (`SCHEME`, `PACKAGE_DIR`, `BUILD_DIR`, etc.) used by all targets — these are the canonical source for project naming
+- [ ] `xcpretty` is auto-detected and used when available, with raw `xcodebuild` output as fallback
+- [ ] `test-ci` differs from `test` in: no retry on failure, always produces `.xcresult` bundle for artifact upload, combined stdout/stderr for log capture
+
+#### Why Makefile over `justfile`
+
+`make` is available on every macOS system without installation. `just` requires `brew install just`. For an open-source project targeting macOS developers, zero-dependency-for-basic-tasks is preferable. The Makefile syntax is more verbose but universally understood.
+
+---
+
+## 0.8.2 Build Script (`scripts/build.sh`)
+
+- [ ] Port from claude-island with these changes:
+  - [ ] All references: `ClaudeIsland` → `OpenIsland`, `Claude Island` → `Open Island`
+  - [ ] Scheme name: `OpenIsland`
+  - [ ] DerivedData path: `build/DerivedData` (consistent with Makefile)
+
+- [ ] **Version sync check**: uses `agvtool what-marketing-version -terse1` to read the current `MARKETING_VERSION` from `project.pbxproj`. This works correctly with the modern Xcode pattern where `Info.plist` references `$(MARKETING_VERSION)` — `agvtool` reads the build setting, not the plist. Warns if local version differs from latest git tag.
+
+- [ ] **Explicit SPM resolution**: calls `xcodebuild -resolvePackageDependencies` before building. This surfaces dependency failures early and separately from build failures. Particularly important with the `OpenIslandKit` local package — resolution verifies the package graph is valid before compilation begins.
+
+- [ ] **Post-build validation**: verifies the `.app` bundle exists at the expected path before declaring success. The app bundle path is `$DERIVED_DATA/Build/Products/Release/Open Island.app`.
+
+- [ ] Script outputs match Makefile expectations — `build/export/Open Island.app` is the canonical export location used by both `create-release.sh` and the CI workflows.
+
+---
+
+## 0.8.3 Release Script (`scripts/create-release.sh`)
+
+- [ ] Port from claude-island with these changes:
+  - [ ] GitHub repo: `engels74/open-island`
+  - [ ] App name: `OpenIsland` (identifier), `Open Island` (display name)
+  - [ ] Keychain profile: `OpenIsland`
+  - [ ] Website env var: `OPEN_ISLAND_WEBSITE` (defaults to `../open-island-website`)
+  - [ ] Sparkle tool search paths updated for `OpenIsland-*` DerivedData
+
+- [ ] **Version reading strategy**: reads version from the **built app's Info.plist** via `PlistBuddy`, not from `project.pbxproj` or `agvtool`. Rationale: the built plist is the canonical artifact — it reflects exactly what `xcodebuild` compiled. This avoids discrepancies between project settings and the actual binary.
+
+- [ ] **Six-step pipeline** (each skippable via `--skip-*` flag):
+  1. Notarize the `.app` bundle
+  2. Create DMG (via `create-dmg` if available, `hdiutil` fallback)
+  3. Notarize the DMG
+  4. Sign DMG for Sparkle + generate `appcast.xml`
+  5. Create GitHub Release + upload DMG
+  6. Update website appcast + deploy
+
+- [ ] **`--help` flag** added for discoverability
+
+---
+
+## 0.8.4 Sparkle Key Generation (`scripts/generate-keys.sh`)
+
+- [ ] Port from claude-island — minimal changes beyond naming
+- [ ] Search paths updated for `OpenIsland-*` DerivedData
+- [ ] Reminds user to add private key as `SPARKLE_PRIVATE_KEY` GitHub secret
+
+---
+
+## 0.8.5 Version Management Strategy
+
+**Decision: `agvtool` as primary, `sed` as fallback.**
+
+`agvtool` is Apple's official tool for managing Xcode project versions. It modifies `project.pbxproj` directly and correctly handles:
+- Multiple build configurations (Debug, Release)
+- Multiple targets in the project
+- The modern `$(MARKETING_VERSION)` variable-reference pattern in Info.plist
+
+The `sed`-based approach from claude-island's release workflow (`sed -i '' "s/MARKETING_VERSION = .*;/..."`) is fragile because:
+- It does a global replacement across the entire pbxproj
+- It can match in unexpected places if there are multiple targets or configurations
+- It doesn't understand the pbxproj structure
+
+**Approach in CI** (release.yml):
+1. Use `agvtool new-marketing-version $VERSION` to set the version
+2. Use `agvtool new-version -all $BUILD_NUMBER` to set the build number
+3. Verify with `agvtool what-marketing-version -terse1`
+4. If verification fails, fall back to `sed` with a `::error::` annotation
+
+**Approach locally**:
+- `make set-version V=1.2.3` wraps `agvtool new-marketing-version`
+- `make bump-build` wraps `agvtool new-version -all` with timestamp
+- `make version` shows current version
+
+**Version commit in CI**: The release workflow commits the version bump to `main`. If the push fails (concurrent update), the release continues — the DMG already has the correct version baked in. This is non-fatal because the version bump is a convenience (keeping the repo in sync), not a prerequisite for the release artifact.
+
+---
+
+## 0.8.6 CI Workflows
+
+### Architecture
+
+```
+push/PR to main ──→ [Code Quality] ──success──→ [CI]
+                         │                        │
+                    lint, format              test, build,
+                    pre-commit checks        DMG artifact,
+                                             VirusTotal scan
+
+push tag v*.*.* ──→ [Release]
+                      │
+                  test → build → sign → publish → VT scan → website update
+```
+
+All workflows use `concurrency` groups to cancel in-progress runs for the same ref, except releases which never cancel.
+
+### Runner Strategy
+
+- [ ] **Target**: `macos-16` runners (macOS 16 Tahoe with Xcode 17 / Swift 6.2)
+- [ ] **Swift version gate**: every workflow verifies `swift --version` outputs 6.2+ and fails fast with a clear error if not. This catches runner misconfigurations early.
+- [ ] **Fallback plan**: if GitHub-hosted `macos-16` runners are unavailable at project start, temporarily use `macos-15` with `xcode-version: latest-stable` and set deployment target to macOS 15 in the Xcode project. The Phase 0.1 deployment target (macOS 16.0) can be enforced once `macos-16` runners are available. Document this in `CONTRIBUTING.md` under "CI Runners".
+- [ ] **Self-hosted option**: if neither GitHub-hosted option provides Swift 6.2, document how to set up a self-hosted macOS runner. This is a last resort — GitHub-hosted runners are preferred for reproducibility.
+
+### Workflow: Code Quality (`code-quality.yml`)
+
+- [ ] Triggers: push to `main`, PRs targeting `main`
+- [ ] Skips on `[skip ci]` commit messages
+- [ ] Steps:
+  1. Checkout
+  2. Setup Xcode (latest-stable)
+  3. Verify Swift 6.2+
+  4. Install SwiftFormat + SwiftLint via `brew install` (always latest, no version pinning)
+  5. `make format-check` — verify formatting without modification
+  6. `make lint` — SwiftLint strict mode
+  7. Pre-commit checks via `pre-commit-action` — runs remaining hooks (shellcheck, ruff, markdownlint, standard hooks). SwiftFormat/SwiftLint are `SKIP`'d here since they're covered by explicit Makefile steps above (with version-controlled output).
+
+**Why separate `make format-check` + `make lint` from pre-commit?**
+Pre-commit runs SwiftFormat/SwiftLint via `language: system` which uses whatever binary is on PATH. The explicit Makefile steps ensure CI uses the freshly-installed latest versions and produces clear, attributable error output. Pre-commit covers everything else (shellcheck, ruff, yaml/json checks, etc.).
+
+### Workflow: CI (`ci.yml`)
+
+- [ ] Triggers: after `Code Quality` workflow completes successfully on `main`
+- [ ] Jobs:
+  1. **Test** — `make resolve` → `make build-package` → `make test-ci`. Uploads `.xcresult` bundle as artifact (always, even on failure — for debugging).
+  2. **Build** (needs test) — `make build-release` → create DMG → upload artifact. Gets version from built app's Info.plist.
+  3. **VirusTotal Scan** (needs build, conditional on `HAS_VT_KEY` repository variable) — downloads DMG artifact, scans, creates summary.
+
+- [ ] **SPM package build as separate step**: `make build-package` runs `swift build` on the `OpenIslandKit` package independently of Xcode. This catches issues that Xcode's integrated build might mask (e.g., missing `public import` declarations, target dependency gaps, platform-conditional compilation issues).
+
+### Workflow: Release (`release.yml`)
+
+- [ ] Triggers: push tag matching `v[0-9]+.[0-9]+.[0-9]+`, or manual dispatch with version input
+- [ ] **Concurrency**: `group: release`, `cancel-in-progress: false` — never cancel a release in progress
+- [ ] Jobs:
+  1. **Test** — full test suite via `make test-ci` (same as CI, but runs independently for release isolation)
+  2. **Build & Sign** (needs test) — version management → build → DMG → Sparkle sign → GitHub Release
+  3. **VirusTotal Scan** (needs build) — scan + append results to release notes
+  4. **Update Website** (needs build, conditional on Sparkle signature) — repository dispatch to `engels74/open-island-web`
+
+- [ ] **Version management in release**: see Phase 0.8.5 — uses `agvtool` with `sed` fallback, commits version bump to `main`, non-fatal push failure.
+
+- [ ] **DMG filename normalization**: `create-release.sh` names the DMG from the built app's Info.plist version. The workflow renames to match the tag version for consistent download URLs. This handles the edge case where agvtool failed and the built version differs from the tag.
+
+---
+
+## 0.8.7 Pre-commit Hook Versioning (Amendment to Phase 0.3.1)
+
+The `.pre-commit-config.yaml` in Phase 0.3.1 pins specific `rev` values for all hook repositories. Pre-commit **requires** pinned revs — there is no "latest" option. However, since SwiftFormat and SwiftLint hooks use `language: system`, the `rev` only determines the hook definition script version, not the tool binary version. The actual binary version is whatever is installed on the system.
+
+**Strategy for keeping hooks current**:
+
+- [ ] **`make update-hooks`** target: runs `pre-commit autoupdate`, which bumps all `rev` values in `.pre-commit-config.yaml` to the latest release of each repository. Run periodically (e.g., monthly or before major releases) and commit the changes.
+
+- [ ] **CI installs latest**: `code-quality.yml` runs `brew install swiftformat swiftlint` without version pinning, ensuring CI always uses the latest release. The `ci: skip: [swiftformat, swiftlint]` in `.pre-commit-config.yaml` prevents pre-commit from running its own (potentially stale-rev) copies of these tools in CI — the explicit `make format-check` and `make lint` steps use the freshly-installed latest versions instead.
+
+- [ ] **Local development**: developers run `brew upgrade swiftformat swiftlint` periodically. The pre-commit hooks use `language: system` so they automatically pick up the system-installed version.
+
+- [ ] **No version-pinning comments**: remove any version-specific comments from `.pre-commit-config.yaml` that might discourage updates. Add a header comment:
+  ```yaml
+  # Hook revisions — update with: make update-hooks (runs pre-commit autoupdate)
+  # SwiftFormat and SwiftLint use language: system — the rev pins the hook
+  # definition only; the actual binary version is whatever is installed.
+  ```
+
+---
+
+## 0.8.8 Test Execution in CI (Amendment to Phase 0.4)
+
+Phase 0.4 establishes the testing infrastructure. This section specifies how tests run in CI:
+
+- [ ] **Xcode scheme tests**: `xcodebuild test` runs all test targets included in the `OpenIsland` scheme. Ensure the scheme's "Test" action includes: `OICoreTests`, `OIStateTests`, `OIProvidersTests`, and any future test targets. Check the scheme's test plan in Xcode before the first CI run.
+
+- [ ] **SPM package tests**: `swift test` in the `OpenIslandKit` directory runs all test targets defined in `Package.swift`. This catches package-level issues independently of Xcode.
+
+- [ ] **Test result artifacts**: the `test-ci` Makefile target produces a `.xcresult` bundle at `build/TestResults.xcresult`. This is uploaded as a CI artifact (14-day retention) for debugging test failures. The `.xcresult` bundle contains full test logs, screenshots (for UI tests), and performance metrics.
+
+- [ ] **No test retries in CI**: `test-ci` uses `-retry-tests-on-failure NO` to prevent flaky tests from silently passing. Flaky tests must be fixed, not retried.
+
+- [ ] **Parallel testing**: enabled via `-parallel-testing-enabled YES`. Suites using `.serialized` trait (Phase 0.4) will still run serially as configured.
+
+- [ ] **Test execution in release workflow**: the release workflow runs the full test suite (`make test-ci`) as a prerequisite before building. A release cannot be published if tests fail. This is a deliberate gate — even if the same commit passed CI earlier, the release runs tests independently for isolation.
+
+---
+
+## 0.8.9 Script Permissions & Repository Setup
+
+- [ ] Make all scripts executable: `chmod +x scripts/*.sh`
+- [ ] Verify `.gitignore` includes:
+  ```
+  build/
+  DerivedData/
+  .build/
+  releases/
+  .sparkle-keys/
+  *.xcuserstate
+  xcuserdata/
+  ```
+- [ ] Verify `scripts/` directory is tracked in git (not ignored)
+- [ ] Run `make check-tools` to verify development environment
+- [ ] Run `make install-hooks` to set up pre-commit hooks
+- [ ] Run `make pre-commit` to verify all hooks pass on the initial skeleton
+
+---
+
+## 0.8.10 Secrets & Repository Configuration
+
+Configure these in GitHub repository settings (`Settings → Secrets and variables → Actions`):
+
+**Secrets** (required for full pipeline):
+- [ ] `SPARKLE_PRIVATE_KEY` — EdDSA private key from `make generate-keys` (required for Sparkle auto-update signing)
+- [ ] `VT_API_KEY` — VirusTotal API key (required for malware scanning)
+- [ ] `WEBSITE_PAT` — GitHub Personal Access Token with repo scope on `engels74/open-island-web` (required for website appcast updates)
+
+**Variables**:
+- [ ] `HAS_VT_KEY` — set to `true` if `VT_API_KEY` is configured (controls conditional VirusTotal scan job in `ci.yml`)
+
+**Branch protection** on `main`:
+- [ ] Require `Code Quality / Lint & Format` to pass before merge
+- [ ] Require PR reviews (optional but recommended)
+- [ ] Allow `github-actions[bot]` to push version bump commits (bypass branch protection for bot)
+
+
 ---
 
 ## Phase 1 — Core Models & Provider Protocol
