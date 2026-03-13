@@ -9,13 +9,14 @@
 
 ### 0.1 Xcode Project Setup
 
-- Create a new macOS app target in Xcode 17 (Swift 6.2, minimum deployment macOS 14.0)
+- Create a new macOS app target in Xcode 17 (Swift 6.2, minimum deployment macOS 15.0)
 - Set activation policy to `.accessory` (no dock icon)
 - Configure build settings:
-  - `SWIFT_STRICT_CONCURRENCY = complete`
   - `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor` (SE-0466)
   - `SWIFT_APPROACHABLE_CONCURRENCY = YES`
   - Swift Language Mode: Swift 6
+  - Note: Swift 6 language mode subsumes strict concurrency checking — `SWIFT_STRICT_CONCURRENCY` is not needed. Do not add `SWIFT_STRICT_CONCURRENCY = complete`; it is a Swift 5 migration setting and is a no-op under Swift 6 language mode.
+  - Note: `SWIFT_APPROACHABLE_CONCURRENCY = YES` (Xcode) is the Xcode equivalent of enabling `NonisolatedNonsendingByDefault` + `InferIsolatedConformances` together, applying to the app target. The `.enableUpcomingFeature()` calls in Phase 0.2 Package.swift serve SPM library targets, which don't inherit Xcode build settings. These cover different targets and are not redundant.
 - Add a `Settings { EmptyView() }` scene as the only SwiftUI scene (all UI via custom NSPanel)
 - Set bundle identifier, app icon placeholder, and Info.plist entries (LSUIElement = YES for accessory)
 
@@ -28,7 +29,7 @@
   - `OIModules` — closed-state module system
   - `OIUI` — SwiftUI views
   - `OIState` — SessionStore, state machine, event processing
-- Configure `swift-tools-version: 6.2` with `.swiftLanguageMode(.v6)` on all targets
+- Configure `swift-tools-version: 6.2` (Swift 6 language mode is enabled by default for all targets with `swift-tools-version: 6.0+` — do not add `.swiftLanguageMode(.v6)` on targets, as it is redundant)
 - Enable upcoming feature flags per target:
   ```swift
   .enableUpcomingFeature("NonisolatedNonsendingByDefault"),
@@ -38,6 +39,8 @@
   .enableUpcomingFeature("InternalImportsByDefault"),
   ```
 - Use `package` access level for intra-package APIs instead of `public` where possible
+- `.defaultIsolation(MainActor.self)` is intentionally absent from Package.swift — the SPM package contains only library targets, which keep `nonisolated` default per project guidelines. The app target receives MainActor default isolation via Xcode build setting (Phase 0.1).
+- Since `OpenIslandKit` is an internal package (no library evolution mode), `@inlinable`, `@usableFromInline`, and `@frozen` are unnecessary. Don't add unless benchmarks show measurable improvement.
 - With `InternalImportsByDefault` enabled, all `import` statements default to `internal` visibility. Use `public import Foundation` (or `public import AppKit`, etc.) **only** in modules that deliberately re-export those symbols to downstream targets. This prevents transitive dependency leakage across module boundaries.
 
 > **Note on `ExistentialAny`**: Deferred to Swift 7 as a mandatory language change (not required in Swift 6), but enabled here as an upcoming feature flag to enforce `any Protocol` discipline at compile time in a greenfield project. This aligns with the project checklist requirement that `any Protocol` is required for all existential types (SE-0335).
@@ -465,6 +468,12 @@ custom_rules:
     regex: "^import Combine$"
     message: "Use AsyncStream instead of Combine (project convention)"
     severity: warning
+
+  no_nonisolated_unsafe:
+    name: "No nonisolated(unsafe)"
+    regex: "\\bnonisolated\\s*\\(\\s*unsafe\\s*\\)"
+    message: "Use Mutex<T> or actor instead of nonisolated(unsafe)"
+    severity: error
 ```
 
 #### 0.3.4 `Makefile` / `justfile`
@@ -501,6 +510,10 @@ install-hooks:   ## Install prek hooks (pre-commit + pre-push)
 - Configure all test suites as `@Suite` structs (not classes)
 - Establish parameterized test patterns for multi-provider scenarios
 - Note: `single_test_class` SwiftLint rule is disabled — multiple `@Suite` structs per file and global `@Test` functions are valid Swift Testing patterns
+- Define project-wide test tags: `extension Tag { @Tag static var claude: Self; @Tag static var socket: Self; @Tag static var ui: Self }`. Use `.serialized` on suites with shared file system resources. Use `.timeLimit(.minutes(1))` on socket tests. Use `.disabled("reason")` over commenting out tests. Use `.enabled(if:)` for provider-specific tests conditional on binary availability. Use `.bug(id:)` to link tests to bug tracker.
+- Implement custom test traits for common setup/teardown: `MockSocketTrait` (creates/destroys temp socket), `TempDirectoryTrait` (creates/cleans temp directory). Uses `TestTrait` + `TestScoping` (Swift 6.1+).
+- XCTest remains required for UI testing (XCUITest) and performance benchmarking (`measure {}`). Create separate XCTest-based targets if needed. Do not mix XCTest and Swift Testing assertions in the same file.
+- Name test files as `<TypeUnderTest>Tests.swift`: `SessionPhaseTests.swift`, `JSONValueTests.swift`, `ClaudeEventNormalizerTests.swift`.
 
 ### 0.5 Git & CI Foundations
 
@@ -560,6 +573,17 @@ Create `CONCURRENCY.md` in the repo root explaining:
 - When **not** to mark functions `@concurrent` (most of the time — the default is correct)
 - When `InlineArray` (SE-0452) may be a fit for fixed-size buffers with trivially-copyable elements (e.g., small `ProviderID` → color lookup tables) — note as a future optimization opportunity, but **not** suitable for collections of complex types like `SessionEvent` (see Phase 2.1 note)
 - When to use `@preconcurrency import` for legacy frameworks (see Phase 0.7)
+- **`nonisolated(unsafe)` — never use in this project.** Prefer `Mutex<T>`, `actor`, or `@preconcurrency import`. A SwiftLint custom rule (`no_nonisolated_unsafe`) enforces this at compile time (Phase 0.3.3).
+- **`async let` for structured concurrency**: use `async let` for fixed-count parallel operations; task groups for dynamic counts. Example:
+  ```swift
+  // Phase 3.6 — starting independent subsystems
+  async let hooks = installer.install()
+  async let socket = socketServer.start()
+  async let watcher = conversationParser.startWatching()
+  try await (hooks, socket, watcher)
+  ```
+- **`Task.init` closures use `sending` semantics (not `@Sendable`)**: In Swift 6, `Task { }` closures use `sending` semantics. Captured values need only be disconnected from their current isolation region, not fully `Sendable`. Don't reflexively add `Sendable` conformance just because a type is captured in a `Task { }` closure.
+- **`Span<T>` for safe contiguous access**: Prefer `Span<T>` (SE-0447) over `UnsafeBufferPointer` for read-only contiguous access. Full adoption requires `@lifetime` annotations (experimental in 6.2). Adopt incrementally as annotations stabilize.
 - **Forward-scan trailing closures** (SE-0286): Swift 6 changed trailing closure matching from backward-scan to forward-scan. When designing APIs with multiple closure parameters, the first trailing closure label is dropped. Use labeled trailing closures for all subsequent closure parameters. Avoid trailing closure syntax in `guard` conditions. Document this in `CONTRIBUTING.md` as well so contributors from Swift 5 habits are aware.
 
 ### 0.7 Legacy Framework Import Strategy
@@ -652,6 +676,7 @@ OICore/Models/ChatHistoryItem.swift
 - `ChatHistoryItem` — ID, timestamp, type enum (`.user`, `.assistant`, `.toolCall`, `.thinking`, `.interrupted`). Explicitly `Sendable`.
 - `ToolCallItem` — name, input, status (`.running`, `.success`, `.error`, `.interrupted`), result, nested subagent tools. Explicitly `Sendable`.
 - Simple leaf enums with no reference types (`PermissionDecision`, `ModuleSide`, `ToolStatus`) should be marked `BitwiseCopyable` (SE-0426) — these contain only trivial cases (no `String` associated values, no reference-type payloads) and explicit conformance on `package`-visible types enables more efficient generic code paths.
+- Note: `BitwiseCopyable` is auto-inferred for `internal` types but must be declared explicitly when promoting to `package` or `public`. Audit for missing conformance when elevating access levels.
 
 ### 1.4 Define `JSONValue` Type
 
@@ -680,7 +705,7 @@ OIProviders/ProviderAdapter.swift
       func stop() async
 
       /// Stream of normalized events from this provider
-      func events() -> AsyncStream<ProviderEvent>
+      func events() -> some AsyncSequence<ProviderEvent, Never>
 
       /// Respond to a permission request.
       /// Uses plain `throws` intentionally — failure modes are provider-specific
@@ -734,6 +759,8 @@ Use `throws(ErrorType)` (SE-0413) in these closed error domains:
 
 **Rule**: default to plain `throws` for most functions. Use typed throws only where the error domain is closed and exhaustive `catch` handling adds real value — primarily at module boundaries and in provider startup/installation flows.
 
+**Typed throws completeness note**: `throws(Never)` is equivalent to non-throwing. When using generic typed throws (`throws(E)`) in higher-order functions, passing a non-throwing closure infers `E = Never`, making the outer function non-throwing. This subsumes `rethrows` — prefer `throws(E)` generics over `rethrows` for new higher-order functions.
+
 ### 1.6 Provider Registry
 
 ```
@@ -752,8 +779,7 @@ OIProviders/ProviderRegistry.swift
       let (stream, continuation) = AsyncStream<ProviderEvent>.makeStream(
           bufferingPolicy: .bufferingNewest(64)
       )
-      continuation.onTermination = { _ in /* cleanup */ }
-      Task {
+      let task = Task {
           try await withThrowingDiscardingTaskGroup { group in
               for adapter in adapters.values {
                   group.addTask {
@@ -765,6 +791,7 @@ OIProviders/ProviderRegistry.swift
           }
           continuation.finish()
       }
+      continuation.onTermination = { _ in task.cancel() }
       return stream
   }
   ```
@@ -795,6 +822,7 @@ OIState/SessionStore.swift
 - Internal state: `private var sessions: [String: SessionState]`
 - Event audit trail: circular buffer array of last 100 events for debugging, using a simple index-wrapping array implementation. **Do not use `InlineArray<100, SessionEvent>`** — `InlineArray` (SE-0452) requires its element type to be stack-allocatable for real benefit, and `SessionEvent` carries `String`s, `Array`s, and nested structs that are heap-allocated. Reserve `InlineArray` for genuinely fixed-size, trivially-copyable element buffers (e.g., small `ProviderID` lookup tables).
 - On each state change, call `publishState()` to broadcast to all subscribers
+- Session state snapshots use standard CoW types. Broadcasting to multiple subscribers creates shared references without copying storage until mutation — efficient by design.
 
 ### 2.2 Multi-Subscriber Broadcast
 
@@ -918,6 +946,10 @@ struct SocketFD: ~Copyable {
 ```
 
 Use `consuming` methods for operations that terminate the socket (e.g., responding to a permission request and closing the held-open connection). Use `borrowing` for read/write operations that don't transfer ownership. This validates the project's `~Copyable` toolchain and lint pipeline early, before the architecture solidifies.
+
+**Pointer lifetime safety**: All `UnsafeBufferPointer` / `UnsafeMutableRawBufferPointer` usage must follow pointer lifetime rules: valid only within `withUnsafe*` closure scope. Never store, return, or escape. Document at each call site.
+
+**Forward reference — `~Escapable` and `Span<T>`**: `~Escapable` types (SE-0446) and `@lifetime` annotations are experimental in Swift 6.2. Evaluate `Span<T>` as replacement for `UnsafeBufferPointer` in `SocketFD`'s read/write paths once `@lifetime` stabilizes. Do not adopt in initial implementation.
 
 Similarly, the permission socket's held-open client connection (5-minute timeout lifecycle) should be wrapped in a `~Copyable` type — transferring ownership via `consuming` enforces that the connection can't be used after the response is sent.
 
@@ -1118,6 +1150,7 @@ OIUI/Views/NotchView.swift
   - Close: `.spring(response: 0.45, dampingFraction: 1.0)`
   - Content transitions: `.scale.combined(with: .opacity)`
 - Boot animation: open briefly after 0.3s delay, close after 1.0s
+- Include `#Preview` blocks in every SwiftUI view file. Create preview helpers providing mock `SessionState`, `NotchViewModel`, and `ModuleRenderContext` for self-contained previews. `#Preview` replaces the legacy `PreviewProvider` protocol.
 
 ### 5.4 NotchHeaderView
 
@@ -1468,7 +1501,7 @@ OICore/Permissions/AccessibilityPermissionManager.swift
 - Create `NotchUserDriver` for in-notch update UI
 - Configure `SPUUpdater` with hourly check interval
 - Set up appcast XML endpoint
-- Note: if Sparkle types need `Sendable` conformance for crossing isolation boundaries, use `@retroactive Sendable` with `@unchecked` only as a last resort, and prefer wrapper types where possible (per SE-0364 guidance on retroactive conformances)
+- Note: if Sparkle types need `Sendable` conformance for crossing isolation boundaries, follow this escalation path: (1) create a wrapper struct isolating Sparkle behind a `Sendable` interface, (2) submit upstream PR to Sparkle adding `Sendable` conformances, (3) `@retroactive @unchecked Sendable` as documented last resort. Prefer wrapper types where possible (per SE-0364 guidance on retroactive conformances).
 
 ### 11.2 Release Pipeline
 
@@ -1532,6 +1565,7 @@ OICore/TokenTracking/QuotaService.swift
 - Ensure `Mutex` usage doesn't create contention under high event rates
 - Memory leak check: verify **all** `AsyncStream` continuations have `onTermination` handlers and are properly cleaned up on subscriber removal — audit every `AsyncStream.makeStream()` call site across the project
 - Verify no `Task.detached` usage exists unless explicitly justified — grep for `Task.detached` and document each instance's rationale
+- Evaluate `Span<T>` (SE-0447) adoption for socket I/O and conversation parser paths as `@lifetime` annotations stabilize — replace `UnsafeBufferPointer` where possible
 
 ### 12.6 Accessibility
 
@@ -1573,6 +1607,7 @@ OIProviders/Example/ExampleProviderAdapter.swift
   - Note about `organizeDeclarations` + `nonisolated` gotcha and `// swiftformat:disable all` guards
   - Note about forward-scan trailing closure matching (SE-0286) — the first trailing closure label is dropped in Swift 6; use labeled trailing closures for all subsequent closure parameters; avoid trailing closure syntax in `guard` conditions
   - Note about `AsyncStream` buffering policy conventions (state snapshots → `.bufferingNewest(1)`, event streams → `.bufferingOldest(N)`)
+  - One primary type per file (`NotchViewModel.swift`). Extensions: `TypeName+Feature.swift` (`SessionStore+Streaming.swift`).
 - `PROVIDERS.md` — status matrix of supported providers and their capabilities
 
 ---
@@ -1604,7 +1639,7 @@ Applied throughout all phases:
 
 - [ ] `nonisolated` explicit on all model types and their extensions (in library targets this is the default; document it for clarity)
 - [ ] `Sendable` explicitly on all `package`/`public` value types; compiler-synthesized for internal types
-- [ ] `sending` parameter annotation on key isolation boundary crossing points — specifically `SessionStore.process(_:)` and any function accepting events that transfer ownership across actor boundaries (SE-0430)
+- [ ] `sending` parameter and result annotations (SE-0430) used at actor isolation boundaries where non-Sendable values are transferred. Key sites include `SessionStore.process(_:)`, any actor method accepting ownership of event payloads, and factory functions returning values for cross-isolation consumption. Note: `Task.init` closures use `sending` automatically in Swift 6.
 - [ ] Region-based isolation (SE-0414) leveraged to avoid unnecessary `Sendable` conformances
 - [ ] `Mutex<T>` from Synchronization framework for shared mutable class state
 - [ ] `actor` for serialized state management (`SessionStore`, parsers, API services)
@@ -1618,6 +1653,9 @@ Applied throughout all phases:
 - [ ] `borrowing` methods for read-only access to `~Copyable` resources
 - [ ] `discard self` in consuming methods that perform explicit cleanup (suppresses `deinit`)
 - [ ] `~Copyable` patterns validated early (Phase 3) to confirm toolchain and lint pipeline compatibility
+- [ ] `~Escapable` types (SE-0446) and `@lifetime` annotations noted as experimental in Swift 6.2. Evaluate `Span<T>` as replacement for `UnsafeBufferPointer` in socket paths once `@lifetime` stabilizes. Do not adopt in initial implementation.
+- [ ] `consume` keyword (SE-0366) used to explicitly end variable lifetimes in `~Copyable` paths and to document ownership transfer intent. Don't sprinkle everywhere — the optimizer handles most cases for copyable types.
+- [ ] For copyable types, `borrowing`/`consuming` (SE-0377) are optional optimization hints. Do not annotate without benchmark evidence. Mandatory only for `~Copyable` types.
 
 ### Async Patterns
 
@@ -1643,7 +1681,11 @@ Applied throughout all phases:
 
 - [ ] `@Observable` for all view models (SE-0395)
 - [ ] `@Bindable` for `$` bindings, `@State` for view-owned objects, `@Environment` for injection
+- [ ] Pass `@Observable` objects as plain properties (no wrapper) for read-only child views — SwiftUI auto-tracks changes. Reserve `@Bindable` only when `$` bindings are needed.
+- [ ] Apply `@ObservationIgnored` to properties that should not trigger UI updates: UUID/identity properties, cached computation results, internal subscription handles, geometry objects recomputed from external parameters, and high-frequency properties where observation overhead matters.
+- [ ] Never write `@ObservationTracked` manually — it is auto-applied by `@Observable`. Use `@ObservationIgnored` to opt out.
 - [ ] No `ObservableObject` / `@Published` / `@StateObject` / `@EnvironmentObject` anywhere
+- [ ] `#Preview` blocks included in every SwiftUI view file with mock data helpers
 
 ### Testing
 
@@ -1651,11 +1693,16 @@ Applied throughout all phases:
 - [ ] Parameterized tests (`@Test(arguments:)`) for multi-provider scenarios
 - [ ] `confirmation` for async event verification
 - [ ] `single_test_class` SwiftLint rule disabled (incompatible with Swift Testing)
+- [ ] Test traits used: `.tags()` for filtering by provider/domain, `.serialized` for shared-resource suites, `.timeLimit(.minutes(1))` for socket/network tests, `.disabled("reason")` over commenting out, `.enabled(if:)` for conditional tests, `.bug(id:)` for bug tracker links
+- [ ] `withKnownIssue` used for tests covering known incomplete features (e.g., Codex/Gemini provider tests before implementation). Prefer over `.disabled()` when the test body exists but the feature is not yet complete.
+- [ ] Exit testing (Swift 6.2) used for verifying fatal error paths in `~Copyable` resource types. Test attachments used for diagnostic data in socket integration tests.
+- [ ] XCTest used only for UI testing (XCUITest) and performance benchmarking (`measure {}`). Not mixed with Swift Testing in the same file.
 
 ### Compile-Time Enforcement (Phase 0.3 — lint rules)
 
 - [ ] `no_observable_object` custom SwiftLint rule active — prevents legacy `ObservableObject` / `@Published` / `@StateObject` / `@ObservedObject` / `@EnvironmentObject` usage. Verified against comment/string false positives (Phase 0.3.5).
 - [ ] `no_combine_import` custom SwiftLint rule active — prevents `import Combine` (AsyncStream throughout)
+- [ ] `no_nonisolated_unsafe` custom SwiftLint rule active — prevents `nonisolated(unsafe)` usage (use `Mutex<T>` or `actor` instead)
 - [ ] `private_over_fileprivate` SwiftLint rule enabled for clean module boundaries
 - [ ] `redundantSendable` SwiftFormat rule disabled — explicit `Sendable` on public types is intentional (SE-0414 region-based isolation)
 
