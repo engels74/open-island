@@ -617,16 +617,17 @@ Document these in `CONCURRENCY.md` under a "Legacy Framework Imports" section.
 > Insert after Phase 0.7 (Legacy Framework Import Strategy) and before Phase 1.
 
 This phase establishes the complete build, test, and release pipeline. All CI workflows
-use the Makefile as their single entry point — scripts are never called directly from
+use the `justfile` as their single entry point — scripts are never called directly from
 workflow YAML. This ensures local development and CI always run the same commands.
 
 ---
 
-## 0.8.1 Makefile (Single Entry Point)
+## 0.8.1 Task Runner (`justfile`)
 
-- [ ] Create `Makefile` in the repo root with these targets:
+- [ ] Install `just`: `brew install just`
+- [ ] Create `justfile` in the repo root with these recipes:
 
-| Target | Purpose | Used by CI |
+| Recipe | Purpose | Used by CI |
 |---|---|---|
 | `build` | Debug build (ad-hoc signed) | — |
 | `build-release` | Release build, export .app to `build/export/` | `ci.yml`, `release.yml` |
@@ -647,20 +648,25 @@ workflow YAML. This ensures local development and CI always run the same command
 | `release` | Full local release pipeline | — |
 | `generate-keys` | Sparkle EdDSA key generation | — |
 | `version` | Show current version from Xcode project | — |
-| `set-version` | Set marketing version (`make set-version V=1.2.3`) | — |
+| `set-version <ver>` | Set marketing version (`just set-version 1.2.3`) | — |
 | `bump-build` | Increment build number (timestamp) | — |
 | `clean` | Remove build artifacts | — |
 | `nuke` | Deep clean including releases and Xcode caches | — |
 | `check-tools` | Verify all required dev tools are installed | — |
-| `help` | Show all targets with descriptions | — |
 
-- [ ] The Makefile defines shared configuration constants (`SCHEME`, `PACKAGE_DIR`, `BUILD_DIR`, etc.) used by all targets — these are the canonical source for project naming
-- [ ] `xcpretty` is auto-detected and used when available, with raw `xcodebuild` output as fallback
+#### Why `just` over `make`
+
+`just` is a modern command runner purpose-built for project task automation:
+- **Clean syntax**: no tab-sensitivity, no `.PHONY` boilerplate, built-in argument handling
+- **Built-in `--list`**: `just --list` shows all recipes with descriptions — no grep hacks
+- **Native arguments**: `just set-version 1.2.3` instead of `make set-version V=1.2.3`
+- **Path helpers**: `justfile_directory()` for reliable relative paths
+- **Single binary**: `brew install just` — trivial for the target audience (macOS developers using Homebrew)
+
+The project does not use any of Make's actual build-system features (dependency graphs, incremental file-based rebuilds) — every target would be `.PHONY`. `just` is the right tool for a task-runner role.
+
+- [ ] The justfile defines shared configuration variables (`scheme`, `package_dir`, `build_dir`, etc.) used by all recipes — these are the canonical source for project naming
 - [ ] `test-ci` differs from `test` in: no retry on failure, always produces `.xcresult` bundle for artifact upload, combined stdout/stderr for log capture
-
-#### Why Makefile over `justfile`
-
-`make` is available on every macOS system without installation. `just` requires `brew install just`. For an open-source project targeting macOS developers, zero-dependency-for-basic-tasks is preferable. The Makefile syntax is more verbose but universally understood.
 
 ---
 
@@ -669,7 +675,7 @@ workflow YAML. This ensures local development and CI always run the same command
 - [ ] Port from claude-island with these changes:
   - [ ] All references: `ClaudeIsland` → `OpenIsland`, `Claude Island` → `Open Island`
   - [ ] Scheme name: `OpenIsland`
-  - [ ] DerivedData path: `build/DerivedData` (consistent with Makefile)
+  - [ ] DerivedData path: `build/DerivedData` (consistent with justfile)
 
 - [ ] **Version sync check**: uses `agvtool what-marketing-version -terse1` to read the current `MARKETING_VERSION` from `project.pbxproj`. This works correctly with the modern Xcode pattern where `Info.plist` references `$(MARKETING_VERSION)` — `agvtool` reads the build setting, not the plist. Warns if local version differs from latest git tag.
 
@@ -677,7 +683,7 @@ workflow YAML. This ensures local development and CI always run the same command
 
 - [ ] **Post-build validation**: verifies the `.app` bundle exists at the expected path before declaring success. The app bundle path is `$DERIVED_DATA/Build/Products/Release/Open Island.app`.
 
-- [ ] Script outputs match Makefile expectations — `build/export/Open Island.app` is the canonical export location used by both `create-release.sh` and the CI workflows.
+- [ ] Script outputs match justfile expectations — `build/export/Open Island.app` is the canonical export location used by both `create-release.sh` and the CI workflows.
 
 ---
 
@@ -733,9 +739,9 @@ The `sed`-based approach from claude-island's release workflow (`sed -i '' "s/MA
 4. If verification fails, fall back to `sed` with a `::error::` annotation
 
 **Approach locally**:
-- `make set-version V=1.2.3` wraps `agvtool new-marketing-version`
-- `make bump-build` wraps `agvtool new-version -all` with timestamp
-- `make version` shows current version
+- `just set-version 1.2.3` wraps `agvtool new-marketing-version`
+- `just bump-build` wraps `agvtool new-version -all` with timestamp
+- `just version` shows current version
 
 **Version commit in CI**: The release workflow commits the version bump to `main`. If the push fails (concurrent update), the release continues — the DMG already has the correct version baked in. This is non-fatal because the version bump is a convenience (keeping the repo in sync), not a prerequisite for the release artifact.
 
@@ -758,6 +764,155 @@ push tag v*.*.* ──→ [Release]
 ```
 
 All workflows use `concurrency` groups to cancel in-progress runs for the same ref, except releases which never cancel.
+
+### Runner Strategy
+
+- [ ] **Target**: `macos-16` runners (macOS 16 Tahoe with Xcode 17 / Swift 6.2)
+- [ ] **Swift version gate**: every workflow verifies `swift --version` outputs 6.2+ and fails fast with a clear error if not. This catches runner misconfigurations early.
+- [ ] **Fallback plan**: if GitHub-hosted `macos-16` runners are unavailable at project start, temporarily use `macos-15` with `xcode-version: latest-stable` and set deployment target to macOS 15 in the Xcode project. The Phase 0.1 deployment target (macOS 16.0) can be enforced once `macos-16` runners are available. Document this in `CONTRIBUTING.md` under "CI Runners".
+- [ ] **Self-hosted option**: if neither GitHub-hosted option provides Swift 6.2, document how to set up a self-hosted macOS runner. This is a last resort — GitHub-hosted runners are preferred for reproducibility.
+
+### `just` Installation in CI
+
+All workflow jobs that call justfile recipes install `just` as their first tool step:
+
+```yaml
+- name: Install just
+  run: brew install just
+```
+
+This is fast (single binary, no dependencies) and ensures the same task runner is available in every job. Combined with `brew install swiftformat swiftlint` (no version pinning), CI always uses the latest tooling.
+
+### Workflow: Code Quality (`code-quality.yml`)
+
+- [ ] Triggers: push to `main`, PRs targeting `main`
+- [ ] Skips on `[skip ci]` commit messages
+- [ ] Steps:
+  1. Checkout
+  2. Setup Xcode (latest-stable)
+  3. Verify Swift 6.2+
+  4. Install `just`, SwiftFormat, SwiftLint via `brew install` (always latest, no version pinning)
+  5. `just format-check` — verify formatting without modification
+  6. `just lint` — SwiftLint strict mode
+  7. Pre-commit checks via `pre-commit-action` — runs remaining hooks (shellcheck, ruff, markdownlint, standard hooks). SwiftFormat/SwiftLint are `SKIP`'d here since they're covered by explicit justfile steps above (with version-controlled output).
+
+**Why separate `just format-check` + `just lint` from pre-commit?**
+Pre-commit runs SwiftFormat/SwiftLint via `language: system` which uses whatever binary is on PATH. The explicit justfile steps ensure CI uses the freshly-installed latest versions and produces clear, attributable error output. Pre-commit covers everything else (shellcheck, ruff, yaml/json checks, etc.).
+
+### Workflow: CI (`ci.yml`)
+
+- [ ] Triggers: after `Code Quality` workflow completes successfully on `main`
+- [ ] Jobs:
+  1. **Test** — `just resolve` → `just build-package` → `just test-ci`. Uploads `.xcresult` bundle as artifact (always, even on failure — for debugging).
+  2. **Build** (needs test) — `just build-release` → create DMG → upload artifact. Gets version from built app's Info.plist.
+  3. **VirusTotal Scan** (needs build, conditional on `HAS_VT_KEY` repository variable) — downloads DMG artifact, scans, creates summary.
+
+- [ ] **SPM package build as separate step**: `just build-package` runs `swift build` on the `OpenIslandKit` package independently of Xcode. This catches issues that Xcode's integrated build might mask (e.g., missing `public import` declarations, target dependency gaps, platform-conditional compilation issues).
+
+### Workflow: Release (`release.yml`)
+
+- [ ] Triggers: push tag matching `v[0-9]+.[0-9]+.[0-9]+`, or manual dispatch with version input
+- [ ] **Concurrency**: `group: release`, `cancel-in-progress: false` — never cancel a release in progress
+- [ ] Jobs:
+  1. **Test** — full test suite via `just test-ci` (same as CI, but runs independently for release isolation)
+  2. **Build & Sign** (needs test) — version management → build → DMG → Sparkle sign → GitHub Release
+  3. **VirusTotal Scan** (needs build) — scan + append results to release notes
+  4. **Update Website** (needs build, conditional on Sparkle signature) — repository dispatch to `engels74/open-island-web`
+
+- [ ] **Version management in release**: see Phase 0.8.5 — uses `agvtool` with `sed` fallback, commits version bump to `main`, non-fatal push failure.
+
+- [ ] **DMG filename normalization**: `create-release.sh` names the DMG from the built app's Info.plist version. The workflow renames to match the tag version for consistent download URLs. This handles the edge case where agvtool failed and the built version differs from the tag.
+
+---
+
+## 0.8.7 Pre-commit Hook Versioning (Amendment to Phase 0.3.1)
+
+The `.pre-commit-config.yaml` in Phase 0.3.1 pins specific `rev` values for all hook repositories. Pre-commit **requires** pinned revs — there is no "latest" option. However, since SwiftFormat and SwiftLint hooks use `language: system`, the `rev` only determines the hook definition script version, not the tool binary version. The actual binary version is whatever is installed on the system.
+
+**Strategy for keeping hooks current**:
+
+- [ ] **`just update-hooks`** recipe: runs `pre-commit autoupdate`, which bumps all `rev` values in `.pre-commit-config.yaml` to the latest release of each repository. Run periodically (e.g., monthly or before major releases) and commit the changes.
+
+- [ ] **CI installs latest**: `code-quality.yml` runs `brew install swiftformat swiftlint` without version pinning, ensuring CI always uses the latest release. The `ci: skip: [swiftformat, swiftlint]` in `.pre-commit-config.yaml` prevents pre-commit from running its own (potentially stale-rev) copies of these tools in CI — the explicit `just format-check` and `just lint` steps use the freshly-installed latest versions instead.
+
+- [ ] **Local development**: developers run `brew upgrade swiftformat swiftlint` periodically. The pre-commit hooks use `language: system` so they automatically pick up the system-installed version.
+
+- [ ] **No version-pinning comments**: remove any version-specific comments from `.pre-commit-config.yaml` that might discourage updates. Add a header comment:
+  ```yaml
+  # Hook revisions — update with: just update-hooks (runs pre-commit autoupdate)
+  # SwiftFormat and SwiftLint use language: system — the rev pins the hook
+  # definition only; the actual binary version is whatever is installed.
+  ```
+
+---
+
+## 0.8.8 Test Execution in CI (Amendment to Phase 0.4)
+
+Phase 0.4 establishes the testing infrastructure. This section specifies how tests run in CI:
+
+- [ ] **Xcode scheme tests**: `xcodebuild test` runs all test targets included in the `OpenIsland` scheme. Ensure the scheme's "Test" action includes: `OICoreTests`, `OIStateTests`, `OIProvidersTests`, and any future test targets. Check the scheme's test plan in Xcode before the first CI run.
+
+- [ ] **SPM package tests**: `swift test` in the `OpenIslandKit` directory runs all test targets defined in `Package.swift`. This catches package-level issues independently of Xcode.
+
+- [ ] **Test result artifacts**: the `test-ci` justfile recipe produces a `.xcresult` bundle at `build/TestResults.xcresult`. This is uploaded as a CI artifact (14-day retention) for debugging test failures. The `.xcresult` bundle contains full test logs, screenshots (for UI tests), and performance metrics.
+
+- [ ] **No test retries in CI**: `test-ci` uses `-retry-tests-on-failure NO` to prevent flaky tests from silently passing. Flaky tests must be fixed, not retried.
+
+- [ ] **Parallel testing**: enabled via `-parallel-testing-enabled YES`. Suites using `.serialized` trait (Phase 0.4) will still run serially as configured.
+
+- [ ] **Test execution in release workflow**: the release workflow runs the full test suite (`just test-ci`) as a prerequisite before building. A release cannot be published if tests fail. This is a deliberate gate — even if the same commit passed CI earlier, the release runs tests independently for isolation.
+
+---
+
+## 0.8.9 Script Permissions & Repository Setup
+
+- [ ] Make all scripts executable: `chmod +x scripts/*.sh`
+- [ ] Verify `.gitignore` includes:
+  ```
+  build/
+  DerivedData/
+  .build/
+  releases/
+  .sparkle-keys/
+  *.xcuserstate
+  xcuserdata/
+  ```
+- [ ] Verify `scripts/` directory is tracked in git (not ignored)
+- [ ] Run `just check-tools` to verify development environment
+- [ ] Run `just install-hooks` to set up pre-commit hooks
+- [ ] Run `just pre-commit` to verify all hooks pass on the initial skeleton
+
+---
+
+## 0.8.10 Secrets & Repository Configuration
+
+Configure these in GitHub repository settings (`Settings → Secrets and variables → Actions`):
+
+**Secrets** (required for full pipeline):
+- [ ] `SPARKLE_PRIVATE_KEY` — EdDSA private key from `just generate-keys` (required for Sparkle auto-update signing)
+- [ ] `VT_API_KEY` — VirusTotal API key (required for malware scanning)
+- [ ] `WEBSITE_PAT` — GitHub Personal Access Token with repo scope on `engels74/open-island-web` (required for website appcast updates)
+
+**Variables**:
+- [ ] `HAS_VT_KEY` — set to `true` if `VT_API_KEY` is configured (controls conditional VirusTotal scan job in `ci.yml`)
+
+**Branch protection** on `main`:
+- [ ] Require `Code Quality / Lint & Format` to pass before merge
+- [ ] Require PR reviews (optional but recommended)
+- [ ] Allow `github-actions[bot]` to push version bump commits (bypass branch protection for bot)
+
+---
+
+## 0.8.11 Cross-references to Other Phases
+
+This phase connects to several existing plan sections. When implementing, update these references:
+
+- [ ] **Phase 0.3.1** (`.pre-commit-config.yaml`): add header comment referencing `just update-hooks`. Remove the `prek` alias references — the plan uses `pre-commit` directly (or via `just pre-commit`).
+- [ ] **Phase 0.3.4**: replace `Makefile / justfile` with just `justfile`. Remove the Makefile target list — it's superseded by the recipe table in Phase 0.8.1. Update the `install-hooks` reference to `just install-hooks`.
+- [ ] **Phase 0.3.5**: update verification commands: `prek install` → `just install-hooks`, `prek run --all-files` → `just pre-commit`.
+- [ ] **Phase 0.4** (Testing Infrastructure): add cross-reference to Phase 0.8.8 for CI-specific test execution details.
+- [ ] **Phase 11.2** (Release Pipeline): reference Phase 0.8.6's release workflow instead of duplicating the CI/CD description.
+- [ ] **Dependency Summary** table: add `just` (task runner, `brew install just`).
 
 ### Runner Strategy
 
