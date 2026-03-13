@@ -1416,6 +1416,7 @@ Resources/Hooks/Claude/open-island-claude-hook.py
 - [ ] Port `claude-island-state.py` with updated socket path (`/tmp/open-island-claude.sock`)
 - [ ] Keep the same protocol: JSON over Unix socket, blocking for permission responses
 - [ ] Update the hook event names to match `open-island` naming
+- [ ] Output `{}` (empty JSON) to stdout on all non-permission exit paths — prevents parallel hook interference when Claude Code merges stdout from multiple hooks (e.g., RTK's `rtk-rewrite.sh`)
 
 ### 3.4 Hook Installer
 
