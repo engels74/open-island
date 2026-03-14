@@ -523,10 +523,10 @@ install-hooks:   ## Install prek hooks (pre-commit + pre-push)
 
 ### 0.5 Git & CI Foundations
 
-- [ ] Initialize repo with `.gitignore` (Xcode, SPM, DerivedData, build artifacts)
-- [ ] Set up branch protection on `main`
-- [ ] Add a basic GitHub Actions workflow: build + test on macOS runner
-- [ ] Install pre-commit hooks
+- [x] Initialize repo with `.gitignore` (Xcode, SPM, DerivedData, build artifacts)
+- [x] Set up branch protection on `main`
+- [x] Add a basic GitHub Actions workflow: build + test on macOS runner
+- [x] Install pre-commit hooks
 
 ### 0.6 Approachable Concurrency Strategy (Swift 6.2)
 
