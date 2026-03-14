@@ -901,13 +901,13 @@ Configure these in GitHub repository settings (`Settings → Secrets and variabl
 
 **Secrets** (required for full pipeline):
 
-- [ ] `SPARKLE_PRIVATE_KEY` — EdDSA private key from `just generate-keys` (required for Sparkle auto-update signing)
-- [ ] `VT_API_KEY` — VirusTotal API key (required for malware scanning)
-- [ ] `WEBSITE_PAT` — GitHub Personal Access Token with repo scope on `engels74/open-island-web` (required for website appcast updates)
+- [ ] `a` — EdDSA private key from `just generate-keys` (required for Sparkle auto-update signing)
+- [x] `VT_API_KEY` — VirusTotal API key (required for malware scanning)
+- [x] `WEBSITE_PAT` — GitHub Personal Access Token with repo scope on `engels74/open-island-web` (required for website appcast updates)
 
 **Variables**:
 
-- [ ] `HAS_VT_KEY` — set to `true` if `VT_API_KEY` is configured (controls conditional VirusTotal scan job in `ci.yml`)
+- [x] `HAS_VT_KEY` — set to `true` if `VT_API_KEY` is configured (controls conditional VirusTotal scan job in `ci.yml`)
 
 **Branch protection** on `main`:
 
