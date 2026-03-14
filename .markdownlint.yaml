@@ -1,0 +1,6 @@
+# Markdownlint configuration
+# See: https://github.com/DavidAnson/markdownlint/blob/main/doc/Rules.md
+
+# MD013/line-length — exclude tables (cannot be wrapped)
+MD013:
+  tables: false
