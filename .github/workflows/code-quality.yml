@@ -50,7 +50,7 @@ jobs:
         run: just lint
 
       - name: Run prek checks
-        uses: j178/pre-commit-action@v1
+        uses: j178/prek-action@v1
         with:
           extra-args: --all-files --hook-stage manual
         env:
