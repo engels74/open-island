@@ -62,7 +62,7 @@ Adapt the claude-island config with these changes:
 - [x] **`exclude` regex**: update project-specific paths — replace `ClaudeIsland` references with `OpenIsland` and `OpenIslandKit` module paths. Add `OpenIslandKit/\.build/.*` for the SPM package build directory.
 - [x] **SwiftFormat hook**: keep `types: [swift]`, ensure `entry: swiftformat` uses the system-installed binary (same as claude-island)
 - [x] **SwiftLint hook**: keep `entry: swiftlint lint --strict`, `types: [swift]`
-- [x] **Ruff hooks** (`ruff-check`, `ruff-format`): update `files:` pattern from `^ClaudeIsland/Resources/.*\.py$` to `^OpenIsland/Resources/Hooks/.*\.py$` — this covers the provider hook scripts (Claude's Python hook, and any future Python-based hooks)
+- [x] **Ruff hooks** (`ruff-check`, `ruff-format`): update `files:` pattern from `^ClaudeIsland/Resources/.*\.py$` to `^OpenIsland/Resources/Hooks/.*\.py$` — this covers the provider hook scripts (Claude's Python hook, Gemini CLI's hook scripts, and any future Python-based hooks)
 - [x] **Shellcheck**: update `files:` to `^scripts/.*\.sh$` (same pattern, verify `scripts/` directory exists)
 - [x] **Markdownlint**: keep as-is, update `exclude` if needed for new directory names
 - [x] **Standard hooks**: keep all (`trailing-whitespace`, `end-of-file-fixer`, `check-yaml`, `check-json`, `check-merge-conflict`, `detect-private-key`, `no-commit-to-branch`, `check-added-large-files`)
@@ -170,7 +170,7 @@ Adapt the claude-island config:
 
 - [x] `--swiftversion 6.2` (already correct)
 - [x] **`--exclude`**: update to `build,DerivedData,.build,Pods,releases,*.xcodeproj,*.xcworkspace,xcuserdata,.sparkle-keys,OpenIslandKit/.build` — remove the claude-island-specific `HookSocketServer.swift` exclusion (start fresh; if the new socket server triggers the same `organizeDeclarations` timeout, exclude it then)
-- [x] **`--acronyms`**: keep all existing (`ID,URL,UUID,HTTP,HTTPS,JSON,API,UI,MCP,PID,JSONL,SSH,TCP,IP,DNS,HTML,XML,CSS,JS,SDK,CLI,TLS,SSL`) — add `OI` (project prefix) for type names
+- [x] **`--acronyms`**: keep all existing (`ID,URL,UUID,HTTP,HTTPS,JSON,API,UI,MCP,PID,JSONL,SSH,TCP,IP,DNS,HTML,XML,CSS,JS,SDK,CLI,TLS,SSL`) — add `OI` (project prefix) for type names, add `SSE` (Server-Sent Events, used by OpenCode provider), add `RPC` (JSON-RPC, used by Codex provider), add `OTLP` (OpenTelemetry Protocol, used across providers)
 - [x] **All enabled rules**: keep `acronyms`, `blankLinesBetweenImports`, `blockComments`, `docComments`, `isEmpty`, `markTypes`, `organizeDeclarations`, `sortDeclarations`, `wrapEnumCases`, `wrapSwitchCases`
 - [x] **All disabled rules**: keep `andOperator`, `redundantSendable`, `wrapMultilineStatementBraces`
 - [x] **`redundantSendable` rationale**: Swift 6.2's region-based isolation (SE-0414) means many explicit `Sendable` conformances that look redundant are actually intentional public API contracts — do not auto-remove them
@@ -245,8 +245,8 @@ Full config:
 --modifierorder
 
 # Acronyms to preserve
-# Added OI (project prefix) per open-island naming conventions
---acronyms ID,URL,UUID,HTTP,HTTPS,JSON,API,UI,MCP,PID,JSONL,SSH,TCP,IP,DNS,HTML,XML,CSS,JS,SDK,CLI,TLS,SSL,OI
+# Added OI (project prefix), SSE (OpenCode), RPC (Codex), OTLP (telemetry)
+--acronyms ID,URL,UUID,HTTP,HTTPS,JSON,API,UI,MCP,PID,JSONL,SSH,TCP,IP,DNS,HTML,XML,CSS,JS,SDK,CLI,TLS,SSL,OI,SSE,RPC,OTLP
 
 # Exclude directories and files
 # Note: No file-specific exclusions yet — start fresh. If organizeDeclarations
@@ -516,10 +516,10 @@ install-hooks:   ## Install prek hooks (pre-commit + pre-push)
 - [ ] Configure all test suites as `@Suite` structs (not classes)
 - [ ] Establish parameterized test patterns for multi-provider scenarios
 - [ ] Note: `single_test_class` SwiftLint rule is disabled — multiple `@Suite` structs per file and global `@Test` functions are valid Swift Testing patterns
-- [ ] Define project-wide test tags: `extension Tag { @Tag static var claude: Self; @Tag static var socket: Self; @Tag static var ui: Self }`. Use `.serialized` on suites with shared file system resources. Use `.timeLimit(.minutes(1))` on socket tests. Use `.disabled("reason")` over commenting out tests. Use `.enabled(if:)` for provider-specific tests conditional on binary availability. Use `.bug(id:)` to link tests to bug tracker.
-- [ ] Implement custom test traits for common setup/teardown: `MockSocketTrait` (creates/destroys temp socket), `TempDirectoryTrait` (creates/cleans temp directory). Uses `TestTrait` + `TestScoping` (Swift 6.1+).
+- [ ] Define project-wide test tags: `extension Tag { @Tag static var claude: Self; @Tag static var codex: Self; @Tag static var gemini: Self; @Tag static var opencode: Self; @Tag static var socket: Self; @Tag static var ui: Self }`. Use `.serialized` on suites with shared file system resources. Use `.timeLimit(.minutes(1))` on socket tests. Use `.disabled("reason")` over commenting out tests. Use `.enabled(if:)` for provider-specific tests conditional on binary availability. Use `.bug(id:)` to link tests to bug tracker.
+- [ ] Implement custom test traits for common setup/teardown: `MockSocketTrait` (creates/destroys temp socket), `TempDirectoryTrait` (creates/cleans temp directory), `MockHTTPServerTrait` (starts/stops a local HTTP server for OpenCode SSE testing). Uses `TestTrait` + `TestScoping` (Swift 6.1+).
 - [ ] XCTest remains required for UI testing (XCUITest) and performance benchmarking (`measure {}`). Create separate XCTest-based targets if needed. Do not mix XCTest and Swift Testing assertions in the same file.
-- [ ] Name test files as `<TypeUnderTest>Tests.swift`: `SessionPhaseTests.swift`, `JSONValueTests.swift`, `ClaudeEventNormalizerTests.swift`.
+- [ ] Name test files as `<TypeUnderTest>Tests.swift`: `SessionPhaseTests.swift`, `JSONValueTests.swift`, `ClaudeEventNormalizerTests.swift`, `CodexJSONRPCClientTests.swift`, `GeminiEventNormalizerTests.swift`, `OpenCodeSSEClientTests.swift`.
 
 ### 0.5 Git & CI Foundations
 
@@ -561,6 +561,8 @@ This is a **deliberate architectural decision**, not just build flags. Swift 6.2
   - [ ] `@concurrent func parseJSONLChunk(_ data: Data) async -> [ChatMessage]` — parsing large JSONL chunks should not block the main actor
   - [ ] `@concurrent func detectPythonRuntime() async -> PythonRuntime?` — spawns subprocesses, should not block UI
   - [ ] `@concurrent func buildProcessTree() async -> [Int32: Int32]` — enumerates all PIDs, CPU-bound
+  - [ ] `@concurrent func parseCodexJSONRPC(_ data: Data) async -> JSONRPCMessage` — parsing Codex app-server JSONL should not block the main actor
+  - [ ] `@concurrent func connectSSEStream(_ url: URL) async throws -> AsyncStream<SSEEvent>` — long-lived HTTP connection for OpenCode SSE should not block any actor
 - [ ] **Rule**: if a function doesn't need to run in parallel, don't mark it `@concurrent`. The default (run on caller's actor) is safer and simpler.
 
 #### 0.6.5 Configuration Summary
@@ -569,7 +571,7 @@ This is a **deliberate architectural decision**, not just build flags. Swift 6.2
 |---|---|---|---|---|
 | `OpenIsland` (app) | `MainActor` | Yes (upcoming feature) | Yes (upcoming feature) | Sparingly — heavy computation only |
 | `OICore` | `nonisolated` | Yes (upcoming feature) | Yes (upcoming feature) | On CPU-bound utilities |
-| `OIProviders` | `nonisolated` | Yes (upcoming feature) | Yes (upcoming feature) | On file I/O, process spawning |
+| `OIProviders` | `nonisolated` | Yes (upcoming feature) | Yes (upcoming feature) | On file I/O, process spawning, SSE connections, JSON-RPC parsing |
 | `OIState` | `nonisolated` | Yes (upcoming feature) | Yes (upcoming feature) | Rarely — actors serialize already |
 | `OIWindow` | `nonisolated` | Yes (upcoming feature) | Yes (upcoming feature) | Never — all UI work |
 | `OIUI` | `nonisolated` | Yes (upcoming feature) | Yes (upcoming feature) | Never — all UI work |
@@ -581,7 +583,7 @@ Create `CONCURRENCY.md` in the repo root explaining:
 
 - [ ] Why `MainActor` is the default for the app target (safety, simplicity, matches Xcode 17's default template)
 - [ ] Why library targets stay `nonisolated` (reusability, no main-thread assumption)
-- [ ] When to use `@concurrent` (include the 3 examples above as canonical patterns)
+- [ ] When to use `@concurrent` (include the 5 examples above as canonical patterns)
 - [ ] When to use `actor` (shared mutable state accessed from multiple isolation domains)
 - [ ] When to use `Mutex<T>` (protecting state in `Sendable` classes, GCD-bridging code). **`Mutex<T>` requires `import Synchronization`** (Swift 6.0+) — add this import wherever `Mutex` is used. The `Synchronization` framework is a compiler-level module with no OS runtime dependency (back-deploys freely).
 - [ ] When **not** to mark functions `@concurrent` (most of the time — the default is correct)
@@ -929,137 +931,6 @@ This phase connects to several existing plan sections. When implementing, update
 - [ ] **Phase 11.2** (Release Pipeline): reference Phase 0.8.6's release workflow instead of duplicating the CI/CD description.
 - [ ] **Dependency Summary** table: add `just` (task runner, `brew install just`).
 
-### Runner Strategy
-
-- [ ] **Target**: `macos-16` runners (macOS 16 Tahoe with Xcode 17 / Swift 6.2)
-- [ ] **Swift version gate**: every workflow verifies `swift --version` outputs 6.2+ and fails fast with a clear error if not. This catches runner misconfigurations early.
-- [ ] **Fallback plan**: if GitHub-hosted `macos-16` runners are unavailable at project start, temporarily use `macos-15` with `xcode-version: latest-stable` and set deployment target to macOS 15 in the Xcode project. The Phase 0.1 deployment target (macOS 16.0) can be enforced once `macos-16` runners are available. Document this in `CONTRIBUTING.md` under "CI Runners".
-- [ ] **Self-hosted option**: if neither GitHub-hosted option provides Swift 6.2, document how to set up a self-hosted macOS runner. This is a last resort — GitHub-hosted runners are preferred for reproducibility.
-
-### Workflow: Code Quality (`code-quality.yml`)
-
-- [ ] Triggers: push to `main`, PRs targeting `main`
-- [ ] Skips on `[skip ci]` commit messages
-- [ ] Steps:
-  1. Checkout
-  2. Setup Xcode (latest-stable)
-  3. Verify Swift 6.2+
-  4. Install SwiftFormat + SwiftLint via `brew install` (always latest, no version pinning)
-  5. `make format-check` — verify formatting without modification
-  6. `make lint` — SwiftLint strict mode
-  7. Pre-commit checks via `pre-commit-action` — runs remaining hooks (shellcheck, ruff, markdownlint, standard hooks). SwiftFormat/SwiftLint are `SKIP`'d here since they're covered by explicit Makefile steps above (with version-controlled output).
-
-**Why separate `make format-check` + `make lint` from pre-commit?**
-Pre-commit runs SwiftFormat/SwiftLint via `language: system` which uses whatever binary is on PATH. The explicit Makefile steps ensure CI uses the freshly-installed latest versions and produces clear, attributable error output. Pre-commit covers everything else (shellcheck, ruff, yaml/json checks, etc.).
-
-### Workflow: CI (`ci.yml`)
-
-- [ ] Triggers: after `Code Quality` workflow completes successfully on `main`
-- [ ] Jobs:
-  1. **Test** — `make resolve` → `make build-package` → `make test-ci`. Uploads `.xcresult` bundle as artifact (always, even on failure — for debugging).
-  2. **Build** (needs test) — `make build-release` → create DMG → upload artifact. Gets version from built app's Info.plist.
-  3. **VirusTotal Scan** (needs build, conditional on `HAS_VT_KEY` repository variable) — downloads DMG artifact, scans, creates summary.
-
-- [ ] **SPM package build as separate step**: `make build-package` runs `swift build` on the `OpenIslandKit` package independently of Xcode. This catches issues that Xcode's integrated build might mask (e.g., missing `public import` declarations, target dependency gaps, platform-conditional compilation issues).
-
-### Workflow: Release (`release.yml`)
-
-- [ ] Triggers: push tag matching `v[0-9]+.[0-9]+.[0-9]+`, or manual dispatch with version input
-- [ ] **Concurrency**: `group: release`, `cancel-in-progress: false` — never cancel a release in progress
-- [ ] Jobs:
-  1. **Test** — full test suite via `make test-ci` (same as CI, but runs independently for release isolation)
-  2. **Build & Sign** (needs test) — version management → build → DMG → Sparkle sign → GitHub Release
-  3. **VirusTotal Scan** (needs build) — scan + append results to release notes
-  4. **Update Website** (needs build, conditional on Sparkle signature) — repository dispatch to `engels74/open-island-web`
-
-- [ ] **Version management in release**: see Phase 0.8.5 — uses `agvtool` with `sed` fallback, commits version bump to `main`, non-fatal push failure.
-
-- [ ] **DMG filename normalization**: `create-release.sh` names the DMG from the built app's Info.plist version. The workflow renames to match the tag version for consistent download URLs. This handles the edge case where agvtool failed and the built version differs from the tag.
-
----
-
-## 0.8.7 Pre-commit Hook Versioning (Amendment to Phase 0.3.1)
-
-The `.pre-commit-config.yaml` in Phase 0.3.1 pins specific `rev` values for all hook repositories. Pre-commit **requires** pinned revs — there is no "latest" option. However, since SwiftFormat and SwiftLint hooks use `language: system`, the `rev` only determines the hook definition script version, not the tool binary version. The actual binary version is whatever is installed on the system.
-
-**Strategy for keeping hooks current**:
-
-- [ ] **`make update-hooks`** target: runs `pre-commit autoupdate`, which bumps all `rev` values in `.pre-commit-config.yaml` to the latest release of each repository. Run periodically (e.g., monthly or before major releases) and commit the changes.
-
-- [ ] **CI installs latest**: `code-quality.yml` runs `brew install swiftformat swiftlint` without version pinning, ensuring CI always uses the latest release. The `ci: skip: [swiftformat, swiftlint]` in `.pre-commit-config.yaml` prevents pre-commit from running its own (potentially stale-rev) copies of these tools in CI — the explicit `make format-check` and `make lint` steps use the freshly-installed latest versions instead.
-
-- [ ] **Local development**: developers run `brew upgrade swiftformat swiftlint` periodically. The pre-commit hooks use `language: system` so they automatically pick up the system-installed version.
-
-- [ ] **No version-pinning comments**: remove any version-specific comments from `.pre-commit-config.yaml` that might discourage updates. Add a header comment:
-
-  ```yaml
-  # Hook revisions — update with: make update-hooks (runs pre-commit autoupdate)
-  # SwiftFormat and SwiftLint use language: system — the rev pins the hook
-  # definition only; the actual binary version is whatever is installed.
-  ```
-
----
-
-## 0.8.8 Test Execution in CI (Amendment to Phase 0.4)
-
-Phase 0.4 establishes the testing infrastructure. This section specifies how tests run in CI:
-
-- [ ] **Xcode scheme tests**: `xcodebuild test` runs all test targets included in the `OpenIsland` scheme. Ensure the scheme's "Test" action includes: `OICoreTests`, `OIStateTests`, `OIProvidersTests`, and any future test targets. Check the scheme's test plan in Xcode before the first CI run.
-
-- [ ] **SPM package tests**: `swift test` in the `OpenIslandKit` directory runs all test targets defined in `Package.swift`. This catches package-level issues independently of Xcode.
-
-- [ ] **Test result artifacts**: the `test-ci` Makefile target produces a `.xcresult` bundle at `build/TestResults.xcresult`. This is uploaded as a CI artifact (14-day retention) for debugging test failures. The `.xcresult` bundle contains full test logs, screenshots (for UI tests), and performance metrics.
-
-- [ ] **No test retries in CI**: `test-ci` uses `-retry-tests-on-failure NO` to prevent flaky tests from silently passing. Flaky tests must be fixed, not retried.
-
-- [ ] **Parallel testing**: enabled via `-parallel-testing-enabled YES`. Suites using `.serialized` trait (Phase 0.4) will still run serially as configured.
-
-- [ ] **Test execution in release workflow**: the release workflow runs the full test suite (`make test-ci`) as a prerequisite before building. A release cannot be published if tests fail. This is a deliberate gate — even if the same commit passed CI earlier, the release runs tests independently for isolation.
-
----
-
-## 0.8.9 Script Permissions & Repository Setup
-
-- [ ] Make all scripts executable: `chmod +x scripts/*.sh`
-- [ ] Verify `.gitignore` includes:
-
-  ```
-  build/
-  DerivedData/
-  .build/
-  releases/
-  .sparkle-keys/
-  *.xcuserstate
-  xcuserdata/
-  ```
-
-- [ ] Verify `scripts/` directory is tracked in git (not ignored)
-- [ ] Run `make check-tools` to verify development environment
-- [ ] Run `make install-hooks` to set up pre-commit hooks
-- [ ] Run `make pre-commit` to verify all hooks pass on the initial skeleton
-
----
-
-## 0.8.10 Secrets & Repository Configuration
-
-Configure these in GitHub repository settings (`Settings → Secrets and variables → Actions`):
-
-**Secrets** (required for full pipeline):
-
-- [ ] `SPARKLE_PRIVATE_KEY` — EdDSA private key from `make generate-keys` (required for Sparkle auto-update signing)
-- [ ] `VT_API_KEY` — VirusTotal API key (required for malware scanning)
-- [ ] `WEBSITE_PAT` — GitHub Personal Access Token with repo scope on `engels74/open-island-web` (required for website appcast updates)
-
-**Variables**:
-
-- [ ] `HAS_VT_KEY` — set to `true` if `VT_API_KEY` is configured (controls conditional VirusTotal scan job in `ci.yml`)
-
-**Branch protection** on `main`:
-
-- [ ] Require `Code Quality / Lint & Format` to pass before merge
-- [ ] Require PR reviews (optional but recommended)
-- [ ] Allow `github-actions[bot]` to push version bump commits (bypass branch protection for bot)
-
 ---
 
 ## Phase 1 — Core Models & Provider Protocol
@@ -1072,7 +943,7 @@ OICore/Provider/ProviderMetadata.swift
 ```
 
 - [ ] `ProviderID` — a `RawRepresentable<String>`, `Sendable`, `Hashable` enum with cases: `.claude`, `.codex`, `.geminiCLI`, `.openCode`
-- [ ] `ProviderMetadata` — struct holding display name, icon name (SF Symbol or bundled), accent color, CLI binary name(s)
+- [ ] `ProviderMetadata` — struct holding display name, icon name (SF Symbol or bundled), accent color, CLI binary name(s), event transport type (`.hookSocket`, `.jsonRPC`, `.hookSocket`, `.httpSSE`), config file format (`.json`, `.toml`, `.json`, `.json`), session log directory path
 - [ ] Both must be `Sendable` value types
 - [ ] **Note**: `ProviderID` has `String` raw values. `String` is a reference-counted, heap-allocated type and is **not** `BitwiseCopyable`. Do not mark `ProviderID` as `BitwiseCopyable` — the compiler would reject this conformance. `BitwiseCopyable` (SE-0426) is reserved for types whose stored properties are all trivially copyable via `memcpy` (e.g., enums with `Int` raw values and no associated values containing reference types).
 
@@ -1084,17 +955,23 @@ OICore/Events/SessionEvent.swift
 ```
 
 - [ ] `ProviderEvent` — the normalized event enum that all providers emit:
-  - [ ] `.sessionStarted(SessionID, cwd: String, pid: Int32?)`
-  - [ ] `.sessionEnded(SessionID)`
-  - [ ] `.userPromptSubmitted(SessionID)`
-  - [ ] `.processingStarted(SessionID)`
-  - [ ] `.toolStarted(SessionID, ToolEvent)`
-  - [ ] `.toolCompleted(SessionID, ToolEvent, ToolResult?)`
-  - [ ] `.permissionRequested(SessionID, PermissionRequest)`
-  - [ ] `.waitingForInput(SessionID)`
-  - [ ] `.compacting(SessionID)`
-  - [ ] `.notification(SessionID, message: String)`
-  - [ ] `.chatUpdated(SessionID, [ChatHistoryItem])`
+  - [ ] `.sessionStarted(SessionID, cwd: String, pid: Int32?)` — maps from: Claude `SessionStart`, Codex `thread/started`, Gemini `SessionStart`, OpenCode `session.created`
+  - [ ] `.sessionEnded(SessionID)` — maps from: Claude `SessionEnd`, Codex `turn/completed` with status `completed`, Gemini `SessionEnd`, OpenCode `session.deleted`
+  - [ ] `.userPromptSubmitted(SessionID)` — maps from: Claude `UserPromptSubmit`, Codex `turn/started` (user-initiated), Gemini `BeforeAgent`, OpenCode `message.updated` (role: user)
+  - [ ] `.processingStarted(SessionID)` — maps from: Claude `UserPromptSubmit` (implicit), Codex `turn/started`, Gemini `BeforeModel`, OpenCode `session.status` (status: processing)
+  - [ ] `.toolStarted(SessionID, ToolEvent)` — maps from: Claude `PreToolUse`, Codex `item/started` (commandExecution/mcpToolCall/fileChange), Gemini `BeforeTool`, OpenCode `tool.execute.before`
+  - [ ] `.toolCompleted(SessionID, ToolEvent, ToolResult?)` — maps from: Claude `PostToolUse`/`PostToolUseFailure`, Codex `item/completed`, Gemini `AfterTool`, OpenCode `tool.execute.after`
+  - [ ] `.permissionRequested(SessionID, PermissionRequest)` — maps from: Claude `PermissionRequest` hook, Codex `item/commandExecution/requestApproval` or `item/fileChange/requestApproval`, Gemini `Notification` (notification_type: ToolPermission) + `BeforeTool`, OpenCode `permission.asked`
+  - [ ] `.waitingForInput(SessionID)` — maps from: Claude `Stop`, Codex `turn/completed`, Gemini `AfterAgent`, OpenCode `session.idle`
+  - [ ] `.compacting(SessionID)` — maps from: Claude `PreCompact`, Codex `item/completed` (compacted item type), Gemini `PreCompress`, OpenCode `session.compacted`
+  - [ ] `.notification(SessionID, message: String)` — maps from: Claude `Notification`, Codex notify hook, Gemini `Notification`, OpenCode (via plugin events)
+  - [ ] `.chatUpdated(SessionID, [ChatHistoryItem])` — maps from: JSONL transcript parsing (Claude), session rollout files (Codex), session JSON (Gemini), message REST API (OpenCode)
+  - [ ] `.subagentStarted(SessionID, taskID: String, parentToolID: String?)` — maps from: Claude `SubagentStart`, Codex `item/started` (collabToolCall), Gemini (via MCP tool calls with `mcp_context`), OpenCode (nested tool calls)
+  - [ ] `.subagentStopped(SessionID, taskID: String)` — maps from: Claude `SubagentStop`, Codex `item/completed` (collabToolCall), Gemini (MCP tool result), OpenCode (nested tool result)
+  - [ ] `.configChanged(SessionID?)` — maps from: Claude `ConfigChange`, Codex `config/read` (polled), Gemini (settings.json watch), OpenCode `GET /config` (polled)
+  - [ ] `.diffUpdated(SessionID, unifiedDiff: String)` — maps from: Codex `turn/diff/updated`, OpenCode `session.diff`; Claude and Gemini emit this via file change tool results
+  - [ ] `.modelResponse(SessionID, textDelta: String)` — maps from: Codex `item/agentMessage/delta`, Gemini `AfterModel` (streaming chunks), OpenCode `message.part.updated` (delta); Claude emits full messages via JSONL transcript
+  - [ ] `.tokenUsage(SessionID, promptTokens: Int?, completionTokens: Int?, totalTokens: Int?)` — maps from: Codex `turn/completed` (token usage), Gemini `AfterModel` (usageMetadata.totalTokenCount), OpenCode (via provider-specific fields); Claude requires API-level integration
 - [ ] `SessionEvent` — internal event for the `SessionStore` (superset of ProviderEvent + UI events like `.permissionApproved`, `.archiveSession`, etc.)
 - [ ] All payloads are `Sendable` structs/enums — explicitly marked `Sendable` since they are `package`-visible and cross module boundaries
 
@@ -1133,11 +1010,14 @@ OICore/Models/ChatHistoryItem.swift
   - [ ] `toolTracker: ToolTracker`
   - [ ] `createdAt: Date`
   - [ ] `lastActivityAt: Date`
+  - [ ] `tokenUsage: TokenUsageSnapshot?` — optional, populated by providers that report token counts (Codex, Gemini, OpenCode)
   - [ ] Explicitly marked `Sendable` — all stored properties must be `Sendable`
-- [ ] `PermissionContext` — tool use ID, name, input, timestamp, `displaySummary` computed property. Explicitly `Sendable`.
-- [ ] `ChatHistoryItem` — ID, timestamp, type enum (`.user`, `.assistant`, `.toolCall`, `.thinking`, `.interrupted`). Explicitly `Sendable`.
-- [ ] `ToolCallItem` — name, input, status (`.running`, `.success`, `.error`, `.interrupted`), result, nested subagent tools. Explicitly `Sendable`.
-- [ ] Simple leaf enums with no reference types (`PermissionDecision`, `ModuleSide`, `ToolStatus`) should be marked `BitwiseCopyable` (SE-0426) — these contain only trivial cases (no `String` associated values, no reference-type payloads) and explicit conformance on `package`-visible types enables more efficient generic code paths.
+- [ ] `PermissionContext` — tool use ID, name, input, timestamp, `displaySummary` computed property, `risk: PermissionRisk?` (Codex provides risk levels with approval requests). Explicitly `Sendable`.
+- [ ] `PermissionRisk` — enum: `.low`, `.medium`, `.high` — maps from Codex's `risk` field in `requestApproval` events. Other providers default to `nil`.
+- [ ] `ChatHistoryItem` — ID, timestamp, type enum (`.user`, `.assistant`, `.toolCall`, `.thinking`, `.interrupted`, `.reasoning`). The `.reasoning` case maps from Codex's explicit `reasoning` item type. Explicitly `Sendable`.
+- [ ] `ToolCallItem` — name, input, status (`.running`, `.success`, `.error`, `.interrupted`), result, nested subagent tools, `providerSpecific: JSONValue?` (captures provider-specific metadata like Codex's `exitCode`, `durationMs`; OpenCode's LSP diagnostics). Explicitly `Sendable`.
+- [ ] `TokenUsageSnapshot` — struct: `promptTokens: Int?`, `completionTokens: Int?`, `totalTokens: Int?`, `timestamp: Date`. Explicitly `Sendable`.
+- [ ] Simple leaf enums with no reference types (`PermissionDecision`, `ModuleSide`, `ToolStatus`, `PermissionRisk`) should be marked `BitwiseCopyable` (SE-0426) — these contain only trivial cases (no `String` associated values, no reference-type payloads) and explicit conformance on `package`-visible types enables more efficient generic code paths.
 - [ ] Note: `BitwiseCopyable` is auto-inferred for `internal` types but must be declared explicitly when promoting to `package` or `public`. Audit for missing conformance when elevating access levels.
 
 ### 1.4 Define `JSONValue` Type
@@ -1150,6 +1030,7 @@ OICore/Models/JSONValue.swift
 - [ ] `Sendable`, `Equatable`, `Codable`
 - [ ] Replaces `AnyCodable` / `@unchecked Sendable` dictionary patterns
 - [ ] Include subscript accessors for ergonomic nested access
+- [ ] Used extensively for provider-specific payloads: Claude hook stdin JSON, Codex JSON-RPC messages, Gemini hook stdin JSON, OpenCode SSE event data
 
 ### 1.5 Provider Adapter Protocol
 
@@ -1164,6 +1045,12 @@ OIProviders/ProviderAdapter.swift
       var providerID: ProviderID { get }
       var metadata: ProviderMetadata { get }
 
+      /// Transport type determines the integration pattern:
+      /// - `.hookSocket`: Claude Code, Gemini CLI — hook scripts forward JSON over Unix socket
+      /// - `.jsonRPC`: Codex CLI — bidirectional JSON-RPC 2.0 over stdio
+      /// - `.httpSSE`: OpenCode — HTTP server with SSE event streams
+      var transportType: ProviderTransportType { get }
+
       func start() async throws(ProviderStartupError)
       func stop() async
 
@@ -1174,6 +1061,12 @@ OIProviders/ProviderAdapter.swift
       /// Uses plain `throws` intentionally — failure modes are provider-specific
       /// and not a closed domain (network errors, timeout, provider-specific
       /// protocol failures, etc.).
+      ///
+      /// Permission response mechanisms differ by provider:
+      /// - Claude Code: write JSON response to held-open Unix socket connection
+      /// - Codex CLI: send JSON-RPC response to server-initiated request
+      /// - Gemini CLI: BeforeTool hook returns deny/allow via stdout JSON
+      /// - OpenCode: POST /session/{id}/permissions/{permId} via REST API
       func respondToPermission(
           _ request: PermissionRequest,
           decision: PermissionDecision
@@ -1184,6 +1077,7 @@ OIProviders/ProviderAdapter.swift
   }
   ```
 
+- [ ] `ProviderTransportType` — enum: `.hookSocket`, `.jsonRPC`, `.httpSSE`
 - [ ] `PermissionDecision` — enum: `.allow`, `.deny(reason: String?)`
 - [ ] Each provider implementation is a concrete actor conforming to this protocol
 
@@ -1199,6 +1093,8 @@ Use `throws(ErrorType)` (SE-0413) in these closed error domains:
       case hookInstallationFailed(String)
       case socketBindFailed(path: String, errno: Int32)
       case permissionDenied(String)
+      case httpServerUnreachable(host: String, port: Int)  // OpenCode
+      case jsonRPCHandshakeFailed(String)  // Codex
   }
   ```
 
@@ -1277,6 +1173,7 @@ OIProviders/ProviderRegistry.swift
 - [ ] Test `JSONValue` encoding/decoding round-trips
 - [ ] Test `PermissionContext.displaySummary` for various tool inputs
 - [ ] Test `ChatHistoryItem` construction and deduplication
+- [ ] Test `TokenUsageSnapshot` aggregation
 - [ ] Use parameterized tests (`@Test(arguments:)`) for transition matrix
 
 ---
@@ -1335,6 +1232,7 @@ OIState/ToolEventProcessor.swift
 - [ ] `ToolEventProcessor` — static methods processing tool start/complete events
 - [ ] Track tool durations, statuses, nested subagent tools
 - [ ] Subagent state machine: active tasks stack, attribute nested tools to parent Task
+- [ ] Handle provider-specific tool type names: Claude uses `Bash`, `Write`, `Edit`, `Read`, `Glob`, `Grep`, `WebFetch`, `WebSearch`, `Task`, and MCP tools; Codex uses `commandExecution`, `fileChange`, `mcpToolCall`, `webSearch`, `collabToolCall`; Gemini uses standard tool names prefixed with server alias for MCP (`mcp_<serverAlias>_<toolName>`); OpenCode uses its own tool identifiers
 
 ### 2.5 Periodic Health Check
 
@@ -1375,6 +1273,30 @@ OIState/SessionStore+HealthCheck.swift
 ## Phase 3 — Claude Code Provider Adapter
 
 > Build the first concrete provider to validate the architecture end-to-end.
+
+### 3.0 Claude Code Integration Architecture
+
+Claude Code's monitoring architecture centers on **shell/Python hook scripts** registered in `settings.json` that receive JSON on stdin and return JSON on stdout. The system supports **18 distinct hook event types** organized across four categories:
+
+**Session lifecycle events**: `Setup` (fires on `claude --init`), `SessionStart` (startup, resume, clear, compact), `SessionEnd` (exit, logout, prompt exit)
+
+**Agentic loop events**: `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `PermissionRequest` (v2.0.45+), `Stop`, `Notification`
+
+**Team/subagent events**: `SubagentStart`, `SubagentStop`, `TeammateIdle`, `TaskCompleted`
+
+**Maintenance events**: `PreCompact`, `ConfigChange`, `WorktreeCreate`, `WorktreeRemove`
+
+Four handler types are available: `command` (shell scripts), `http` (POST to endpoints), `prompt` (single-turn LLM evaluation), and `agent` (multi-turn subagent with tool access). Lifecycle and maintenance events support only `command`; agentic loop events support all four. This project uses `command` handlers exclusively — they are the most reliable and lowest-latency for the notch overlay use case.
+
+**Configuration priority** (highest to lowest): `.claude/settings.local.json` (project-level, gitignored), `.claude/settings.json` (project-level, committable), `~/.claude/settings.json` (user-level).
+
+**Conversation logs** are stored as JSONL at `~/.claude/projects/<project-name>/<session-uuid>.jsonl`, with a sessions index at `sessions-index.json` containing summaries, message counts, git branches, and timestamps. Transcripts persist for approximately **30 days**.
+
+**Key environment variables** available to hooks: `$CLAUDE_PROJECT_DIR`, `$CLAUDE_TRANSCRIPT_PATH`, `$CLAUDE_TOOL_INPUT_FILE_PATH`, `$CLAUDE_ENV_FILE` (for persisting vars during SessionStart).
+
+**Hook execution constraints**: hooks are **snapshot-loaded at session start** — edits during a session take effect only after restart. Default command hook timeout is **600 seconds** (increased from 60s in v2.1.3), while SessionEnd hooks are capped at **1.5 seconds**. Exit code semantics: **exit 0** means success (stdout parsed as JSON), **exit 2** means blocking error (blocks tool execution), other codes are non-blocking warnings.
+
+**Reference implementation**: Claude Island (github.com/farouqaldori/claude-island, 914 stars, Swift 95.7%) demonstrates the proven pattern: hook scripts installed in `~/.claude/hooks/` read JSON from stdin, forward events over a Unix domain socket, and for `PermissionRequest` hooks, wait for an approve/deny response from the Swift app before outputting the decision to stdout.
 
 ### 3.1 Hook Socket Server
 
@@ -1436,10 +1358,21 @@ OIProviders/Claude/ClaudeHookEvent.swift
 OIProviders/Claude/ClaudeEventNormalizer.swift
 ```
 
-- [ ] `ClaudeHookEvent` — raw struct matching the Python script's JSON payload (session_id, cwd, event, status, pid, tty, tool, tool_input, tool_use_id)
+- [ ] `ClaudeHookEvent` — raw struct matching the hook script's JSON payload:
+  - [ ] Common fields (all events): `session_id`, `transcript_path`, `cwd`, `permission_mode`, `hook_event_name`
+  - [ ] `PreToolUse` fields: `tool_name`, `tool_input` (with tool-specific schemas for Bash, Write, Edit, Read, Glob, Grep, WebFetch, WebSearch, Task, and MCP tools), `tool_use_id`
+  - [ ] `PermissionRequest` fields: same as `PreToolUse` plus decision response schema
+  - [ ] `PostToolUse`/`PostToolUseFailure` fields: tool result, error info
+  - [ ] `SessionStart` fields: session type (startup, resume, clear, compact)
+  - [ ] `SubagentStart`/`SubagentStop` fields: task ID, parent context
+  - [ ] `PreCompact` fields: compaction reason, message count
+  - [ ] `Notification` fields: notification type, message content
 - [ ] `ClaudeEventNormalizer` — maps `ClaudeHookEvent` → `ProviderEvent`
   - [ ] Uses `throws(EventNormalizationError)` for closed error domain (see Phase 1.5)
-- [ ] Handle all Claude-specific event types: `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PermissionRequest`, `Notification`, `Stop`, `SessionStart`, `SessionEnd`, `PreCompact`, `SubagentStop`
+  - [ ] Maps all 18 hook event types to the appropriate `ProviderEvent` cases
+  - [ ] Handles `PreToolUse` tool input schema variations per tool type
+  - [ ] Extracts permission context from `PermissionRequest` events
+- [ ] Handle all Claude-specific event types: `Setup`, `SessionStart`, `SessionEnd`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `PermissionRequest`, `Stop`, `Notification`, `SubagentStart`, `SubagentStop`, `TeammateIdle`, `TaskCompleted`, `PreCompact`, `ConfigChange`, `WorktreeCreate`, `WorktreeRemove`
 
 ### 3.3 Python Hook Script
 
@@ -1451,6 +1384,10 @@ Resources/Hooks/Claude/open-island-claude-hook.py
 - [ ] Keep the same protocol: JSON over Unix socket, blocking for permission responses
 - [ ] Update the hook event names to match `open-island` naming
 - [ ] Output `{}` (empty JSON) to stdout on all non-permission exit paths — prevents parallel hook interference when Claude Code merges stdout from multiple hooks (e.g., RTK's `rtk-rewrite.sh`)
+- [ ] Handle `PermissionRequest` hooks specially: read JSON from stdin, forward to socket, **block waiting** for approve/deny response from the Swift app, then output the decision JSON to stdout:
+  - [ ] Allow response: `{"decision": {"behavior": "allow"}}`
+  - [ ] Deny response: `{"decision": {"behavior": "deny", "message": "reason", "interrupt": true}}`
+- [ ] `PreToolUse` hooks can optionally set `permissionDecision` to `"allow"`, `"deny"`, or `"ask"` in `hookSpecificOutput` for policy-based auto-approval
 
 ### 3.4 Hook Installer
 
@@ -1461,10 +1398,13 @@ OIProviders/Claude/ClaudeHookInstaller.swift
 - [ ] Port `HookInstaller` logic:
   - [ ] Copy bundled Python script to `~/.claude/hooks/`
   - [ ] Detect Python runtime via `PythonRuntimeDetector`
-  - [ ] Update `~/.claude/settings.json` with hook config for all event types
+  - [ ] Update `~/.claude/settings.json` with hook config for all 18 event types
+  - [ ] Register hooks for all four categories: session lifecycle (`SessionStart`, `SessionEnd`), agentic loop (`UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `PermissionRequest`, `Stop`, `Notification`), team (`SubagentStart`, `SubagentStop`, `TeammateIdle`, `TaskCompleted`), maintenance (`PreCompact`, `ConfigChange`, `WorktreeCreate`, `WorktreeRemove`)
+  - [ ] Use `command` handler type for all events (the only type that supports lifecycle/maintenance events, and the most appropriate for the notch overlay use case)
 - [ ] Handle deduplication, legacy format migration, uninstallation
 - [ ] Make this async with cancellation support
 - [ ] Uses `throws(HookInstallError)` for closed error domain (see Phase 1.5)
+- [ ] Note: hooks are snapshot-loaded at Claude Code session start — installing hooks while a Claude session is running requires the user to restart their session. Display a notification if hooks are installed/updated while active Claude sessions are detected.
 
 ### 3.5 Claude Conversation Parser
 
@@ -1473,11 +1413,14 @@ OIProviders/Claude/ClaudeConversationParser.swift
 ```
 
 - [ ] Actor that reads Claude Code's JSONL conversation files incrementally
+- [ ] **Session log location**: `~/.claude/projects/<project-name>/<session-uuid>.jsonl`
+- [ ] **Sessions index**: `~/.claude/projects/<project-name>/sessions-index.json` — contains summaries, message counts, git branches, timestamps; useful for populating session list on app launch
 - [ ] Track `lastFileOffset` per session, detect file truncation
 - [ ] Parse user messages, assistant messages (text, tool_use, thinking blocks), tool results
-- [ ] Handle `/clear` detection
+- [ ] Handle `/clear` detection (resets session state)
 - [ ] Emit parsed `[ChatHistoryItem]` via `ProviderEvent.chatUpdated`
 - [ ] Large file handling: tail-based parsing for files > 10MB
+- [ ] The `transcript_path` field from every hook event provides the absolute path to the active session's JSONL file — use this for direct file tailing rather than directory scanning
 - [ ] The file handle used for incremental reading is another candidate for a `~Copyable` wrapper (see Phase 3.1 pattern) — evaluate whether the ownership model adds value here or if the actor's isolation is sufficient
 
 ### 3.6 Claude Provider Adapter (Composition)
@@ -1487,19 +1430,22 @@ OIProviders/Claude/ClaudeProviderAdapter.swift
 ```
 
 - [ ] Actor conforming to `ProviderAdapter`
+- [ ] `transportType: .hookSocket`
 - [ ] Composes: `ClaudeHookSocketServer` + `ClaudeHookInstaller` + `ClaudeConversationParser`
 - [ ] `start()`: install hooks, start socket server, begin file watching. Uses `throws(ProviderStartupError)`.
 - [ ] `stop()`: stop socket server, cancel file watchers
 - [ ] `events()`: merge socket events + file change events into single `AsyncStream<ProviderEvent>` — **always set `onTermination`** on the merged stream's continuation to cancel internal tasks and close the socket listener when consumers disconnect. Use `.bufferingOldest(128)` to preserve event ordering (same rationale as Phase 3.1).
-- [ ] `respondToPermission()`: delegate to socket server's held-open connection
+- [ ] `respondToPermission()`: delegate to socket server's held-open connection. The connection is kept alive for up to 5 minutes waiting for the user's decision. Write the approval/denial JSON and close the connection.
 - [ ] `isSessionAlive()`: check PID via `kill(pid, 0)`
 
 ### 3.7 Integration Test: Claude Adapter End-to-End
 
-- [ ] Mock socket client sending Claude hook events
+- [ ] Mock socket client sending Claude hook events (all 18 event types)
 - [ ] Verify `ProviderEvent` stream emits correct normalized events
 - [ ] Test permission flow: request → response → socket write
-- [ ] Test conversation parsing with sample JSONL fixtures
+- [ ] Test conversation parsing with sample JSONL fixtures from `~/.claude/projects/` format
+- [ ] Test hook installer: verify settings.json is correctly updated with all event hooks
+- [ ] Test session lifecycle: start → process → tool use → permission → approval → stop → end
 
 ---
 
@@ -1721,7 +1667,7 @@ OIModules/BuiltIn/SessionDotsModule.swift      — right, order 2
 OIModules/BuiltIn/TimerModule.swift            — right, order 3
 ```
 
-- [ ] `MascotModule` replaces `ClawdModule` — shows provider-appropriate icon (crab for Claude, diamond for Codex, etc.), or a generic icon when multi-provider sessions are active
+- [ ] `MascotModule` replaces `ClawdModule` — shows provider-appropriate icon (crab for Claude, diamond for Codex, Gemini symbol for Gemini CLI, OpenCode logo for OpenCode), or a generic icon when multi-provider sessions are active
 - [ ] Each module is a small struct conforming to `NotchModule`
 
 ### 6.5 Module Layout Persistence
@@ -1752,7 +1698,7 @@ OIUI/Views/ChatView.swift
 
 - [ ] Scrollable chat history for a single session
 - [ ] Provider-aware styling (accent colors, icon)
-- [ ] Message types: user bubbles, assistant text, tool calls (expandable), thinking (collapsible), interrupted markers
+- [ ] Message types: user bubbles, assistant text, tool calls (expandable), thinking (collapsible), reasoning (Codex-specific, collapsible), interrupted markers
 - [ ] Auto-scroll to bottom on new messages
 - [ ] Approval bar at bottom when session is `.waitingForApproval`
 
@@ -1763,6 +1709,7 @@ OIUI/Views/ApprovalBarView.swift
 ```
 
 - [ ] Shows tool name and summary from `PermissionContext.displaySummary`
+- [ ] Risk level indicator when available (Codex provides `.low`/`.medium`/`.high` risk with approval requests)
 - [ ] Three buttons: Approve, Deny, Always Allow
 - [ ] Slide-in animation from bottom
 - [ ] Calls `SessionMonitor.approvePermission()` / `denyPermission()`
@@ -1777,7 +1724,8 @@ OIUI/Views/ToolResultViews.swift
   - [ ] Tool name + status icon (spinner, checkmark, X)
   - [ ] Input summary (file path, command, etc.)
   - [ ] Expandable result content (truncated by default)
-  - [ ] Duration badge
+  - [ ] Duration badge (populated from Codex's `durationMs`, or calculated from tool start/complete timestamps for other providers)
+  - [ ] Exit code indicator for command executions (Codex provides `exitCode` natively; Claude infers from Bash tool results)
 - [ ] Nested subagent tools displayed indented under parent Task
 
 ### 7.4 Markdown Renderer
@@ -1802,45 +1750,291 @@ OIUI/Components/MarkdownText.swift
 
 ## Phase 8 — Additional Provider Adapters
 
-### 8.1 Codex Provider Adapter
+### 8.0 Provider Integration Architecture Overview
+
+All four CLI coding agents expose rich event systems, but each uses a fundamentally different architectural pattern:
+
+| Capability | Claude Code | Codex CLI | Gemini CLI | OpenCode |
+|---|---|---|---|---|
+| **Primary event source** | Hook scripts (stdin/stdout) | JSON-RPC 2.0 app-server (stdio) | Hook scripts (stdin/stdout) | SSE over HTTP |
+| **Event count** | 18 hook types | ~15 item/turn types | 11 hook types | 30+ SSE event types |
+| **Permission interception** | PermissionRequest hook → JSON response | Server-initiated JSON-RPC request | BeforeTool hook → deny/allow | REST API POST |
+| **Approval latency** | Hook script execution time | Native protocol response | Hook script execution time | HTTP round-trip |
+| **Session log format** | JSONL (`~/.claude/projects/`) | JSONL (`~/.codex/sessions/`) | JSON (`~/.gemini/tmp/`) | JSON (`~/.local/share/opencode/`) |
+| **Config format** | JSON (`settings.json`) | TOML (`config.toml`) | JSON (`settings.json`) | JSON (`opencode.json`) |
+| **OpenTelemetry** | Via settings | Native (OTLP-HTTP/gRPC) | Native (local/GCP/OTLP) | Via plugin (community) |
+| **MCP support** | Full (native host) | Full | Full | Full |
+| **SDK available** | TypeScript + Python | TypeScript (`@openai/codex-sdk`) | — | TypeScript (`@opencode-ai/sdk`) |
+| **Headless JSONL stream** | No | `codex exec --json` | `gemini -p --output-format stream-json` | SSE (`/event`) |
+| **Plugin/extension system** | Plugins (hooks.json) | — | Extensions (gemini-extension.json) | Plugins (.ts/.js, npm) |
+| **macOS sandbox** | — | Seatbelt (`sandbox-exec`) | Seatbelt profiles | — |
+
+**Key architectural insight**: Claude Code and Gemini CLI share the hook-script-to-socket pattern, meaning a single bridge script template (parameterized by event names and socket paths) can serve both. Codex CLI's app-server is the most powerful interface but requires managing a child process and implementing a JSON-RPC client. OpenCode's HTTP/SSE approach is the most modern and language-agnostic, requiring no hook installation or process spawning.
+
+**Permission interception** — the most time-sensitive feature for a notch overlay — works differently for each tool and must be implemented at the protocol level, not as an afterthought. A production adapter should prioritize approval latency, using async hooks where possible and keeping synchronous hook scripts under 2 seconds.
+
+### 8.1 Codex CLI Provider Adapter
+
+Codex CLI (github.com/openai/codex, 60.2k stars, 95.9% Rust) offers the **richest programmatic integration surface** through its `codex app-server` — a bidirectional JSON-RPC 2.0 server over stdio that provides complete session control, real-time event streaming, and approval interception.
 
 ```
 OIProviders/Codex/CodexProviderAdapter.swift
-OIProviders/Codex/CodexEventSource.swift
+OIProviders/Codex/CodexAppServerClient.swift
 OIProviders/Codex/CodexEventNormalizer.swift
+OIProviders/Codex/CodexJSONRPCProtocol.swift
+OIProviders/Codex/CodexSessionRolloutParser.swift
 ```
 
-- [ ] Research Codex CLI's event/hook mechanism (file-based, API, or stdout parsing)
-- [ ] Implement appropriate event source (file watcher, socket, or log tailer)
-- [ ] Normalize Codex-specific events → `ProviderEvent`
-- [ ] Implement `respondToPermission()` via Codex's approval mechanism
+#### 8.1.1 JSON-RPC 2.0 App-Server Client
+
+- [ ] **Launch**: spawn `codex app-server` as a child process, communicate via stdio JSONL (reads JSONL from stdin, writes JSONL to stdout)
+- [ ] **Handshake**: `initialize` request → wait for `initialized` response before sending any other messages
+- [ ] **Schema generation**: run `codex app-server generate-json-schema --out ./schemas` at build time to produce version-matched type definitions; use these to validate `CodexJSONRPCProtocol` types
+- [ ] **Available methods** (client → server):
+  - [ ] `thread/start` — create new conversation thread
+  - [ ] `thread/resume` — resume existing thread
+  - [ ] `thread/list` — list all threads
+  - [ ] `turn/start` — send user message
+  - [ ] `turn/interrupt` — cancel current turn
+  - [ ] `config/read` — read current configuration
+  - [ ] `model/list` — list available models
+- [ ] **Event notifications** (server → client, streamed on stdout):
+  - [ ] Turn lifecycle: `turn/started`, `turn/completed` (with status: `completed`, `interrupted`, or `failed`; includes token usage), `turn/diff/updated` (aggregated unified diffs), `turn/plan/updated`
+  - [ ] Item types form a **tagged union** (`ThreadItem`): `userMessage`, `agentMessage`, `reasoning`, `commandExecution` (with `command`, `cwd`, `status`, `exitCode`, `durationMs`), `fileChange` (with `path`, `kind`, `diff` per change), `mcpToolCall` (server, tool, arguments, result), `webSearch`, `imageView`, `enteredReviewMode`, `compacted`, `collabToolCall`
+  - [ ] Each item fires `item/started` and `item/completed` events
+  - [ ] **Streaming deltas**: `item/agentMessage/delta`, `item/reasoning/summaryTextDelta`, `item/commandExecution/outputDelta`
+- [ ] **Approval interception** (first-class, no hooks needed):
+  - [ ] Server sends **server-initiated JSON-RPC request** to client: `item/commandExecution/requestApproval` (with `itemId`, `reason`, `risk`, `parsedCmd`) or `item/fileChange/requestApproval` (with `grantRoot` info)
+  - [ ] Client responds with `{"decision": "accept"}` or `{"decision": "decline"}`
+  - [ ] This makes Codex the only tool where approval interception requires no hook installation — it's native to the protocol
+- [ ] Implement `CodexAppServerClient` as an actor managing the child process lifecycle, JSON-RPC message routing, and request/response correlation
+
+#### 8.1.2 Additional Monitoring Surfaces
+
+- [ ] **`codex exec --json`**: outputs a JSONL event stream on stdout (`thread.started`, `turn.started`, `item.started`, `item.completed`, `turn.completed` with token usage). Useful as a lightweight alternative to the full app-server for read-only monitoring.
+- [ ] **`notify` config hook**: configured in `~/.codex/config.toml`, spawns an external command on `agent-turn-complete` events, passing a JSON payload with `thread-id`, `turn-id`, `last-assistant-message`, and `input-messages`. Can be used as a fallback notification mechanism.
+- [ ] **Session rollout files**: `~/.codex/sessions/YYYY/MM/DD/rollout-<timestamp>-<uuid>.jsonl` — complete conversation history in JSONL format, can be tailed with FSEvents for chat history reconstruction
+
+#### 8.1.3 Configuration & Environment
+
+- [ ] **Config format**: TOML at `~/.codex/config.toml` (user-level), `.codex/config.toml` (project-level)
+- [ ] **Directory structure** under `~/.codex/`: `auth.json`, `history.jsonl`, `AGENTS.md`, `rules/`, `skills/`, `log/codex-tui.log`, `sessions/` tree
+- [ ] **Sandbox model**: macOS Seatbelt (`sandbox-exec`) with three modes: `read-only`, `workspace-write` (writes confined to CWD, network disabled by default), `danger-full-access`
+- [ ] **Approval policies**: `untrusted` (ask for everything), `on-request` (ask for risky actions), `never` (auto-approve). Runtime changes via `/permissions` slash command or per-turn overrides through app-server.
+- [ ] **Native OpenTelemetry** configured in `~/.codex/config.toml`:
+  ```toml
+  [otel]
+  exporter = "otlp-http"
+  log_user_prompt = true
+  [otel.exporter."otlp-http"]
+  endpoint = "https://otel.example.com/v1/logs"
+  ```
+
+#### 8.1.4 Event Normalization
+
+- [ ] `CodexEventNormalizer` — maps Codex JSON-RPC events → `ProviderEvent`:
+  - [ ] `turn/started` → `.processingStarted`
+  - [ ] `turn/completed` → `.waitingForInput` + `.tokenUsage` (extracts token counts)
+  - [ ] `item/started` (commandExecution) → `.toolStarted`
+  - [ ] `item/completed` (commandExecution) → `.toolCompleted` (with `exitCode`, `durationMs` in `providerSpecific`)
+  - [ ] `item/started` (fileChange) → `.toolStarted`
+  - [ ] `item/completed` (fileChange) → `.toolCompleted` (with `path`, `kind`, `diff`)
+  - [ ] `item/started` (mcpToolCall) → `.toolStarted`
+  - [ ] `item/completed` (mcpToolCall) → `.toolCompleted`
+  - [ ] `item/commandExecution/requestApproval` → `.permissionRequested` (with `risk` field mapped to `PermissionRisk`)
+  - [ ] `item/fileChange/requestApproval` → `.permissionRequested`
+  - [ ] `item/agentMessage/delta` → `.modelResponse`
+  - [ ] `turn/diff/updated` → `.diffUpdated`
+  - [ ] `item/started`/`item/completed` (collabToolCall) → `.subagentStarted`/`.subagentStopped`
+  - [ ] `item/completed` (compacted) → `.compacting`
+
+#### 8.1.5 Codex Provider Adapter Composition
+
+- [ ] Actor conforming to `ProviderAdapter`
+- [ ] `transportType: .jsonRPC`
+- [ ] Composes: `CodexAppServerClient` + `CodexEventNormalizer` + `CodexSessionRolloutParser`
+- [ ] `start()`: verify `codex` binary exists on PATH, spawn `codex app-server` process, perform JSON-RPC handshake. Uses `throws(ProviderStartupError)` with `.jsonRPCHandshakeFailed` case.
+- [ ] `stop()`: send shutdown signal, terminate child process
+- [ ] `events()`: stream events from app-server stdout, normalize to `ProviderEvent`
+- [ ] `respondToPermission()`: send JSON-RPC response to the held server-initiated request (no hooks, no sockets — pure protocol)
+- [ ] `isSessionAlive()`: check child process status + JSON-RPC ping
 - [ ] Register in `ProviderRegistry`
 
 ### 8.2 Gemini CLI Provider Adapter
 
+Gemini CLI (github.com/google-gemini/gemini-cli, Apache 2.0, TypeScript/Node.js) implements a hook system architecturally similar to Claude Code — **command hooks that receive JSON on stdin and return JSON on stdout** — but with different event naming, native OpenTelemetry integration, and a headless JSONL streaming mode.
+
 ```
 OIProviders/GeminiCLI/GeminiCLIProviderAdapter.swift
-OIProviders/GeminiCLI/GeminiCLIEventSource.swift
-OIProviders/GeminiCLI/GeminiCLIEventNormalizer.swift
+OIProviders/GeminiCLI/GeminiHookSocketServer.swift
+OIProviders/GeminiCLI/GeminiEventNormalizer.swift
+OIProviders/GeminiCLI/GeminiHeadlessStreamParser.swift
+OIProviders/GeminiCLI/GeminiHookInstaller.swift
+OIProviders/GeminiCLI/GeminiConversationParser.swift
 ```
 
-- [ ] Research Gemini CLI's monitoring capabilities
-- [ ] Implement event source appropriate to Gemini CLI's architecture
-- [ ] Normalize events → `ProviderEvent`
-- [ ] Handle permission model (if applicable)
+#### 8.2.1 Hook System (Primary Event Source)
+
+- [ ] **11 hook event types**: `SessionStart`, `SessionEnd`, `BeforeAgent` (after user prompt, before planning), `AfterAgent` (after model's final response), `BeforeModel` (before LLM API call), `AfterModel` (after each LLM response chunk), `BeforeToolSelection`, `BeforeTool` (before tool execution — the key interception point), `AfterTool`, `PreCompress`, `Notification`
+- [ ] **Hook input format** — same pattern as Claude Code: base JSON object on stdin with `session_id`, `transcript_path`, `cwd`, `hook_event_name`, `timestamp`, plus event-specific fields:
+  - [ ] `BeforeTool`: adds `tool_name`, `tool_input`, optional `mcp_context`
+  - [ ] `AfterTool`: adds `tool_response` with `llmContent`, `returnDisplay`, `error`
+  - [ ] `BeforeModel`/`AfterModel`: provides full `llm_request` (model, messages array, config, toolConfig) and `llm_response` (candidates with content and finishReason, usageMetadata with `totalTokenCount`)
+  - [ ] `Notification`: with `notification_type: "ToolPermission"` provides observability into permission requests but **cannot grant permissions**
+- [ ] **Blocking events** that can halt execution: `BeforeAgent`, `AfterAgent`, `BeforeModel`, `AfterModel`, `BeforeTool`, `AfterTool`
+- [ ] **High-frequency warning**: `AfterModel` fires **for every chunk during streaming** — requires throttling/debouncing in the normalizer to avoid flooding the event bus. Only process final chunks or aggregate at configurable intervals.
+- [ ] **Environment variables**: `GEMINI_PROJECT_DIR`, `GEMINI_SESSION_ID`, `GEMINI_CWD`. A compatibility alias `CLAUDE_PROJECT_DIR` exists, suggesting deliberate cross-tool portability.
+
+#### 8.2.2 Shared Hook Infrastructure with Claude Code
+
+- [ ] **Reuse `ClaudeHookSocketServer` pattern**: Gemini CLI hooks use the same stdin/stdout JSON protocol as Claude Code. Create a shared `HookSocketBridge` that both providers use, parameterized by:
+  - [ ] Socket path (`/tmp/open-island-gemini.sock` vs `/tmp/open-island-claude.sock`)
+  - [ ] Event name mapping (Gemini's `BeforeTool` vs Claude's `PreToolUse`)
+  - [ ] Permission response format
+- [ ] **Hook script template**: a single Python hook script template can serve both Claude and Gemini, with the socket path and event name mappings passed as arguments or environment variables
+
+#### 8.2.3 Permission & Approval
+
+- [ ] **Permission modes**: `default` (prompt for each tool call), `auto_edit` (auto-approve edit tools), `yolo`/`-y` (auto-approve everything), experimental `plan` (read-only)
+- [ ] **Fine-grained control**: `tools.safeTools` arrays in config (e.g., `["run_shell_command(git status)"]`)
+- [ ] **`BeforeTool` is the interception point**: can deny execution or rewrite arguments before the user sees a confirmation prompt. This is distinct from Claude's `PermissionRequest` hook — Gemini's permission interception happens at the tool level, not as a separate permission event.
+- [ ] Note: `Notification` with `notification_type: "ToolPermission"` is observation-only — it cannot grant or deny permissions
+
+#### 8.2.4 Configuration & Session Data
+
+- [ ] **Config file priority** (highest to lowest): system override (`/Library/Application Support/GeminiCli/settings.json`), project (`.gemini/settings.json`), user (`~/.gemini/settings.json`), system defaults
+- [ ] **Session data**: `~/.gemini/tmp/<project_hash>/chats/` as JSON files
+- [ ] **Checkpointing** (enabled via `{"general": {"checkpointing": true}}`): writes to `~/.gemini/tmp/<project_hash>/checkpoints/` with git snapshots
+- [ ] **Chat export**: `/chat share file.json` or `/chat share file.md`
+
+#### 8.2.5 Headless Streaming Mode (Alternative Event Source)
+
+- [ ] `gemini -p "query" --output-format stream-json` outputs JSONL with event types: `init` (session metadata), `message` (text chunks), `tool_use` (tool call requests), `tool_result` (execution output), `error`, `result` (final statistics)
+- [ ] This stream can be parsed line-by-line for overlay updates **without hooks** — useful as a fallback or for monitoring non-interactive Gemini sessions
+- [ ] Implement `GeminiHeadlessStreamParser` to consume this JSONL stream and emit `ProviderEvent`s
+
+#### 8.2.6 OpenTelemetry & Extensions
+
+- [ ] **Native OpenTelemetry**: supports local file output (`.gemini/telemetry.log`), Google Cloud export, or any OTLP backend:
+  ```json
+  {"telemetry": {"enabled": true, "target": "local", "otlpEndpoint": "", "outfile": ".gemini/telemetry.log", "logPrompts": true}}
+  ```
+- [ ] **Extensions system**: bundles hooks, MCP servers, custom commands, and agents into installable packages. MCP tools follow the `mcp_<serverAlias>_<toolName>` naming convention and can be matched in hooks using regex.
+
+#### 8.2.7 Event Normalization
+
+- [ ] `GeminiEventNormalizer` — maps Gemini hook events → `ProviderEvent`:
+  - [ ] `SessionStart` → `.sessionStarted`
+  - [ ] `SessionEnd` → `.sessionEnded`
+  - [ ] `BeforeAgent` → `.userPromptSubmitted` + `.processingStarted`
+  - [ ] `AfterAgent` → `.waitingForInput`
+  - [ ] `BeforeTool` → `.toolStarted` (also the permission interception point)
+  - [ ] `AfterTool` → `.toolCompleted`
+  - [ ] `BeforeModel` → `.processingStarted` (model-level)
+  - [ ] `AfterModel` → `.modelResponse` (streaming delta) + `.tokenUsage` (from `usageMetadata.totalTokenCount`). **Throttle**: only emit `.modelResponse` for final chunks or at 100ms intervals to avoid flooding.
+  - [ ] `PreCompress` → `.compacting`
+  - [ ] `Notification` (ToolPermission) → `.permissionRequested` (observation-only — the overlay can display it but cannot grant/deny through this event)
+  - [ ] MCP tool calls: identified by `mcp_<serverAlias>_<toolName>` naming convention in `tool_name` field
+
+#### 8.2.8 Gemini Provider Adapter Composition
+
+- [ ] Actor conforming to `ProviderAdapter`
+- [ ] `transportType: .hookSocket`
+- [ ] Composes: `GeminiHookSocketServer` (shared infrastructure with Claude) + `GeminiHookInstaller` + `GeminiConversationParser` + optional `GeminiHeadlessStreamParser`
+- [ ] `start()`: install hooks into `~/.gemini/settings.json`, start socket server. Uses `throws(ProviderStartupError)`.
+- [ ] `stop()`: stop socket server, cancel file watchers
+- [ ] `events()`: merge socket events + conversation file changes. Use `.bufferingOldest(128)`.
+- [ ] `respondToPermission()`: delegate to `BeforeTool` hook's held connection (returns deny/allow via stdout JSON). **Limitation**: Gemini's permission model is less granular than Claude's — `Notification` events are observation-only and cannot be used for permission decisions.
+- [ ] `isSessionAlive()`: check PID via `kill(pid, 0)`
+- [ ] Register in `ProviderRegistry`
 
 ### 8.3 OpenCode Provider Adapter
 
+OpenCode (github.com/anomalyco/opencode, formerly sst/opencode, 120k+ stars, MIT) takes a radically different approach: it runs a **Bun HTTP server** (Hono framework) alongside a Go TUI, exposing a full REST API with SSE event streams — making it the most straightforward to integrate with from any language, including Swift.
+
 ```
 OIProviders/OpenCode/OpenCodeProviderAdapter.swift
-OIProviders/OpenCode/OpenCodeEventSource.swift
+OIProviders/OpenCode/OpenCodeSSEClient.swift
+OIProviders/OpenCode/OpenCodeRESTClient.swift
 OIProviders/OpenCode/OpenCodeEventNormalizer.swift
+OIProviders/OpenCode/OpenCodeServerDiscovery.swift
 ```
 
-- [ ] Research OpenCode's hook/event system
-- [ ] Implement event source
-- [ ] Normalize events → `ProviderEvent`
-- [ ] Handle permissions
+#### 8.3.1 SSE Event Stream (Primary Event Source)
+
+- [ ] **Project-scoped endpoint**: `GET /event?directory=/path/to/project`
+- [ ] **Cross-project endpoint**: `GET /global/event`
+- [ ] **30+ event types** delivered in real-time via Server-Sent Events:
+  - [ ] Session lifecycle: `session.created`, `session.updated`, `session.deleted`, `session.status`, `session.idle`, `session.error`, `session.compacted`
+  - [ ] Messages: `message.updated`, `message.removed`, `message.part.updated` (with `delta` for incremental text streaming), `message.part.removed`
+  - [ ] Tools: `tool.execute.before`, `tool.execute.after`
+  - [ ] Permissions: `permission.asked` (with `requestID`, `sessionID`, questions), `permission.replied`
+  - [ ] File changes: `file.edited`, `file.watcher.updated`, `session.diff`
+  - [ ] Additional: LSP diagnostics, TODO tracking, TUI control events
+- [ ] Implement `OpenCodeSSEClient` using `URLSession` with streaming data task, parsing SSE format (`event:`, `data:`, `id:` fields)
+- [ ] **No hook scripts or file watchers needed** — pure HTTP communication
+
+#### 8.3.2 REST API (Session Control & Permission Response)
+
+- [ ] **Session management**:
+  - [ ] `POST /session` — create session
+  - [ ] `POST /session/{id}/prompt` — send message
+  - [ ] `POST /session/{id}/abort` — cancel current processing
+  - [ ] `GET /session/{id}/message` — list messages (for chat history)
+- [ ] **Permission response**: `POST /session/{id}/permissions/{permId}` with decision payload — this is the **sole permission interception mechanism** for OpenCode
+- [ ] **Configuration**: `GET /config`, `GET /provider`
+- [ ] **OpenAPI spec**: `GET /doc` returns auto-generated OpenAPI 3.1 spec — use this for type generation and validation
+- [ ] Implement `OpenCodeRESTClient` as an actor wrapping `URLSession` for all REST calls
+
+#### 8.3.3 Server Discovery
+
+- [ ] **Default**: `opencode serve --port 4096` (headless mode)
+- [ ] **mDNS discovery**: `--mdns` flag enables Bonjour-based service discovery — implement `OpenCodeServerDiscovery` using `NWBrowser` (Network framework) to discover running OpenCode instances on the local network
+- [ ] **Process argument parsing**: as a fallback, parse `proc_listpids` output to find running `opencode` processes and extract their `--port` arguments
+- [ ] **Port configuration**: support user-specified port in settings, with auto-discovery as default
+
+#### 8.3.4 Plugin System (Alternative Integration)
+
+- [ ] OpenCode supports **in-process plugins** — TypeScript/JavaScript files in `.opencode/plugins/` (project) or `~/.config/opencode/plugins/` (global), or npm packages in `opencode.json`
+- [ ] Plugin API provides `event` handler for **all** bus events, plus named hooks (`tool.execute.before`, `tool.execute.after`), custom tool registration, auth integration, and SDK client access
+- [ ] **Decision**: use SSE + REST as the primary integration path (no plugin installation required). Document the plugin approach in `PROVIDERS.md` as an alternative for power users who want deeper integration.
+
+#### 8.3.5 Configuration & Data Storage
+
+- [ ] **Config files**: `~/.config/opencode/opencode.json` (global), `opencode.json` (project), `tui.json` (TUI settings)
+- [ ] **Permission configuration**: per-tool granularity: `{"permission": {"edit": "ask", "bash": "ask", "webfetch": "ask"}}` with values `"ask"`, `"allow"`, or `"deny"`
+- [ ] **Data storage**: file-based hierarchical key-value under `~/.local/share/opencode/project/<project-slug>/`. Storage keys: `["session", projectID, sessionID]` for sessions, `["message", sessionID, messageID]` for messages
+- [ ] **ACP mode**: `opencode acp` communicates over stdin/stdout with nd-JSON — an alternative to HTTP for embedded integrations (not used by this project)
+
+#### 8.3.6 Event Normalization
+
+- [ ] `OpenCodeEventNormalizer` — maps OpenCode SSE events → `ProviderEvent`:
+  - [ ] `session.created` → `.sessionStarted`
+  - [ ] `session.deleted` → `.sessionEnded`
+  - [ ] `session.status` (processing) → `.processingStarted`
+  - [ ] `session.idle` → `.waitingForInput`
+  - [ ] `session.compacted` → `.compacting`
+  - [ ] `session.error` → `.notification` (with error message)
+  - [ ] `tool.execute.before` → `.toolStarted`
+  - [ ] `tool.execute.after` → `.toolCompleted`
+  - [ ] `permission.asked` → `.permissionRequested` (extract `requestID` for response routing)
+  - [ ] `message.part.updated` (with delta) → `.modelResponse` (streaming text)
+  - [ ] `message.updated` → `.chatUpdated` (reconstruct chat items from message content)
+  - [ ] `session.diff` → `.diffUpdated`
+  - [ ] `file.edited` → (optionally feed into tool tracking as implicit file change tool)
+
+#### 8.3.7 OpenCode Provider Adapter Composition
+
+- [ ] Actor conforming to `ProviderAdapter`
+- [ ] `transportType: .httpSSE`
+- [ ] Composes: `OpenCodeSSEClient` + `OpenCodeRESTClient` + `OpenCodeEventNormalizer` + `OpenCodeServerDiscovery`
+- [ ] `start()`: discover or connect to OpenCode HTTP server, establish SSE connection. Uses `throws(ProviderStartupError)` with `.httpServerUnreachable` case.
+- [ ] `stop()`: close SSE connection, cancel all pending HTTP requests
+- [ ] `events()`: stream events from SSE connection, normalize to `ProviderEvent`. Use `.bufferingOldest(128)`.
+- [ ] `respondToPermission()`: `POST /session/{id}/permissions/{permId}` via REST client — the most straightforward permission response of any provider
+- [ ] `isSessionAlive()`: `GET /session/{id}` and check response status
+- [ ] **Reconnection**: implement exponential backoff for SSE connection drops. SSE standard includes `retry:` field — respect it.
+- [ ] Register in `ProviderRegistry`
 
 ### 8.4 Provider Adapter Test Suite
 
@@ -1852,8 +2046,17 @@ OIProviders/OpenCode/OpenCodeEventNormalizer.swift
   func sessionStart(provider: ProviderID) async { ... }
   ```
 
-- [ ] Mock event sources for deterministic testing
-- [ ] Test permission round-trips per provider
+- [ ] Mock event sources for deterministic testing:
+  - [ ] `MockSocketClient` — simulates Claude/Gemini hook scripts sending JSON over Unix socket
+  - [ ] `MockJSONRPCServer` — simulates Codex app-server sending JSON-RPC notifications over stdio
+  - [ ] `MockHTTPServer` — simulates OpenCode HTTP server with SSE endpoint and REST permission API
+- [ ] Test permission round-trips per provider:
+  - [ ] Claude: hook sends PermissionRequest → socket → Swift app → approve/deny → socket → hook → stdout JSON
+  - [ ] Codex: app-server sends `requestApproval` JSON-RPC → Swift responds with decision JSON-RPC
+  - [ ] Gemini: hook sends BeforeTool → socket → Swift app → approve/deny → socket → hook → stdout JSON
+  - [ ] OpenCode: SSE delivers `permission.asked` → Swift sends `POST /session/{id}/permissions/{permId}`
+- [ ] Test event normalization for each provider's full event set
+- [ ] Use `withKnownIssue` for Codex/Gemini/OpenCode tests during Phase 3 development (when only Claude is implemented)
 
 ---
 
@@ -1873,7 +2076,7 @@ OICore/Settings/AppSettings.swift
   - [ ] `notchAutoExpand: Bool`
   - [ ] `enabledProviders: Set<ProviderID>`
   - [ ] `verboseMode: Bool`
-- [ ] Per-provider settings namespace (e.g., `claude.hookPath`, `codex.logDirectory`)
+- [ ] Per-provider settings namespace (e.g., `claude.hookPath`, `codex.appServerBinary`, `codex.approvalPolicy`, `gemini.hookPath`, `gemini.throttleAfterModelMs`, `opencode.serverPort`, `opencode.useMDNS`)
 - [ ] Thread safety note: `UserDefaults` is inherently thread-safe, so static computed properties reading/writing `UserDefaults` are safe across isolation domains without additional synchronization. Do not use static stored properties (which would require `nonisolated(unsafe)` or actor isolation). **Add a code comment** explaining why `Mutex` is not needed here (unlike most shared state) to prevent a well-meaning contributor from "fixing" it:
 
   ```swift
@@ -1890,7 +2093,11 @@ OIUI/Views/SettingsMenuView.swift
 
 - [ ] Expandable picker rows for: sound, suppression mode, screen selection, mascot color
 - [ ] Provider toggles section — enable/disable each provider
-- [ ] Per-provider configuration (expandable sub-sections)
+- [ ] Per-provider configuration (expandable sub-sections):
+  - [ ] Claude: hook installation status, socket path, reinstall hooks button
+  - [ ] Codex: app-server binary path, approval policy override, sandbox mode display
+  - [ ] Gemini CLI: hook installation status, AfterModel throttle interval, headless mode toggle
+  - [ ] OpenCode: server port/URL, mDNS discovery toggle, connection status indicator
 - [ ] Module layout customization
 - [ ] About / version info
 
@@ -1950,6 +2157,7 @@ OICore/Terminal/ProcessTreeBuilder.swift
 - [ ] Build PID → parent PID tree using `proc_listallpids` / `proc_pidinfo`
 - [ ] Map CLI process PID → parent terminal PID
 - [ ] Detect tmux sessions
+- [ ] Handle Codex's `sandbox-exec` wrapper — the Codex process may be wrapped in Seatbelt sandboxing, requiring process tree traversal through the sandbox-exec parent
 
 ### 10.4 TerminalFocuser
 
@@ -1971,6 +2179,26 @@ OICore/Permissions/AccessibilityPermissionManager.swift
 - [ ] Show alert if missing
 - [ ] Periodic monitoring for permission grants
 
+### 10.6 Process Detection for All Providers
+
+```
+OICore/Terminal/AgentProcessDetector.swift
+```
+
+- [ ] Detect running instances of all four CLI agents using `proc_listpids`/`proc_name` polling every 2–5 seconds
+- [ ] Binary names to detect:
+  - [ ] Claude Code: `claude` process
+  - [ ] Codex CLI: `codex` process (may be wrapped in `sandbox-exec`)
+  - [ ] Gemini CLI: `gemini` process (Node.js-based — may appear as `node` with gemini in args)
+  - [ ] OpenCode: `opencode` process (Go binary)
+- [ ] Wrap detection in `AsyncStream` for structured concurrency compatibility
+- [ ] FSEvents monitoring of known session directories for new session files:
+  - [ ] `~/.claude/projects/` (Claude Code JSONL session files)
+  - [ ] `~/.codex/sessions/` (Codex session rollout files)
+  - [ ] `~/.gemini/tmp/` (Gemini CLI session JSON files)
+  - [ ] `~/.local/share/opencode/` (OpenCode hierarchical key-value session files)
+- [ ] Wrap FSEvents in `AsyncStream` for structured concurrency compatibility
+
 ---
 
 ## Phase 11 — Auto-Update & Distribution
@@ -1988,6 +2216,7 @@ OICore/Permissions/AccessibilityPermissionManager.swift
 - [ ] GitHub Actions workflow: build → sign → notarize → create DMG
 - [ ] Generate appcast XML from GitHub Releases
 - [ ] Version bumping script
+- [ ] See Phase 0.8.6 for full CI/CD workflow details
 
 ### 11.3 Single-Instance Check
 
@@ -2004,14 +2233,20 @@ OICore/App/SingleInstanceGuard.swift
 
 ### 12.1 Interrupt Detection
 
-- [ ] Per-provider interrupt detection strategy
-- [ ] Claude: `JSONLInterruptWatcher` monitoring for `^C` patterns
-- [ ] Others: provider-specific mechanisms
+- [ ] Per-provider interrupt detection strategy:
+  - [ ] Claude: `JSONLInterruptWatcher` monitoring for `^C` patterns in JSONL transcripts
+  - [ ] Codex: `turn/completed` with status `interrupted`, or `turn/interrupt` method call
+  - [ ] Gemini: `AfterAgent` with interruption indicators
+  - [ ] OpenCode: `session.error` or `POST /session/{id}/abort` response
 - [ ] Fire `.interruptDetected` through `SessionStore`
 
 ### 12.2 Context Compaction Handling
 
-- [ ] Handle `.compacting` phase transitions per provider
+- [ ] Handle `.compacting` phase transitions per provider:
+  - [ ] Claude: `PreCompact` hook fires before compaction
+  - [ ] Codex: `compacted` item type in thread items
+  - [ ] Gemini: `PreCompress` hook fires before compression
+  - [ ] OpenCode: `session.compacted` SSE event
 - [ ] UI indicator during compaction
 - [ ] Resume to correct phase after compaction completes
 
@@ -2019,6 +2254,11 @@ OICore/App/SingleInstanceGuard.swift
 
 - [ ] Full subagent state tracking: `SubagentState` with active tasks stack
 - [ ] Attribute nested tool calls to parent Task
+- [ ] Provider-specific subagent patterns:
+  - [ ] Claude: `SubagentStart`/`SubagentStop` hooks with explicit task IDs, `TeammateIdle`/`TaskCompleted` team events
+  - [ ] Codex: `collabToolCall` item type in the ThreadItem tagged union
+  - [ ] Gemini: MCP tool calls with `mcp_context` field indicating nesting
+  - [ ] OpenCode: nested tool calls via plugin event system
 - [ ] UI: nested tool display in chat view
 - [ ] Agent file watcher for subagent directory changes
 
@@ -2032,7 +2272,11 @@ OICore/TokenTracking/QuotaService.swift
 - [ ] `QuotaService` protocol — provider-specific quota API adapters
 - [ ] `TokenTrackingManager` — periodic refresh, session + weekly utilization
 - [ ] `TokenRingsModule` for closed state, `TokenRingsOverlay` for opened state
-- [ ] Only for providers that expose quota APIs
+- [ ] Provider token data sources:
+  - [ ] Claude Code: requires API-level integration (not exposed via hooks)
+  - [ ] Codex CLI: `turn/completed` event includes token usage in response payload
+  - [ ] Gemini CLI: `AfterModel` hook provides `usageMetadata.totalTokenCount`
+  - [ ] OpenCode: token data available via provider-specific message fields
 
 ### 12.5 Performance Audit
 
@@ -2046,6 +2290,11 @@ OICore/TokenTracking/QuotaService.swift
 - [ ] Memory leak check: verify **all** `AsyncStream` continuations have `onTermination` handlers and are properly cleaned up on subscriber removal — audit every `AsyncStream.makeStream()` call site across the project
 - [ ] Verify no `Task.detached` usage exists unless explicitly justified — grep for `Task.detached` and document each instance's rationale
 - [ ] Evaluate `Span<T>` (SE-0447) adoption for socket I/O and conversation parser paths as `@lifetime` annotations stabilize — replace `UnsafeBufferPointer` where possible
+- [ ] **Provider-specific performance considerations**:
+  - [ ] Gemini CLI `AfterModel` throttling: verify that the streaming chunk debounce (100ms default) is effective and configurable
+  - [ ] OpenCode SSE reconnection: verify exponential backoff doesn't cause event loss during network hiccups
+  - [ ] Codex app-server child process: verify process monitoring doesn't cause excessive CPU from `waitpid` polling
+  - [ ] Multi-provider event merge: verify that the `ProviderRegistry` event merge with `withThrowingDiscardingTaskGroup` handles backpressure correctly when one provider produces events much faster than others
 
 ### 12.6 Accessibility
 
@@ -2067,7 +2316,7 @@ OICore/TokenTracking/QuotaService.swift
 ### 13.2 Inline Documentation
 
 - [ ] DocC comments on all `public` and `package` protocol requirements
-- [ ] DocC comments on all `SessionEvent` cases
+- [ ] DocC comments on all `SessionEvent` and `ProviderEvent` cases, including which provider events they map from
 - [ ] DocC comments on `SessionPhase` transition rules
 
 ### 13.3 Example Provider Skeleton
@@ -2079,6 +2328,10 @@ OIProviders/Example/ExampleProviderAdapter.swift
 - [ ] Minimal working provider adapter that emits fake events on a timer
 - [ ] Serves as a template and integration test fixture
 - [ ] Documented line-by-line for onboarding new contributors
+- [ ] Demonstrates all three transport types with comments showing the patterns for each:
+  - [ ] Hook-based (Claude/Gemini pattern): socket server setup, hook installation, event forwarding
+  - [ ] JSON-RPC (Codex pattern): child process management, message routing, approval interception
+  - [ ] HTTP/SSE (OpenCode pattern): SSE connection, REST calls, server discovery
 
 ### 13.4 README & Contributing Guide
 
@@ -2088,7 +2341,37 @@ OIProviders/Example/ExampleProviderAdapter.swift
   - [ ] Note about forward-scan trailing closure matching (SE-0286) — the first trailing closure label is dropped in Swift 6; use labeled trailing closures for all subsequent closure parameters; avoid trailing closure syntax in `guard` conditions
   - [ ] Note about `AsyncStream` buffering policy conventions (state snapshots → `.bufferingNewest(1)`, event streams → `.bufferingOldest(N)`)
   - [ ] One primary type per file (`NotchViewModel.swift`). Extensions: `TypeName+Feature.swift` (`SessionStore+Streaming.swift`).
-- [ ] `PROVIDERS.md` — status matrix of supported providers and their capabilities
+- [ ] `PROVIDERS.md` — status matrix of supported providers and their capabilities, including:
+  - [ ] Event transport type and setup requirements
+  - [ ] Permission interception mechanism and latency characteristics
+  - [ ] Session log format and location
+  - [ ] Configuration format and file locations
+  - [ ] Known limitations per provider
+  - [ ] OpenTelemetry support status
+  - [ ] MCP integration notes
+
+---
+
+## Phase 14 — OpenTelemetry Unification Layer (Future)
+
+> This phase is optional and depends on demand. OpenTelemetry is the most promising cross-provider unification layer for monitoring.
+
+### 14.1 Local OTEL Collector
+
+- [ ] All four CLI agents support OpenTelemetry export to varying degrees:
+  - [ ] Codex CLI: native OTLP-HTTP/gRPC export (traces, metrics, logs)
+  - [ ] Gemini CLI: native local/GCP/OTLP export
+  - [ ] OpenCode: community OTEL plugin
+  - [ ] Claude Code: telemetry configuration support (less documented)
+- [ ] Running a local OTEL collector (e.g., Jaeger at `localhost:16686` or a lightweight OTLP receiver) that all four tools export to provides a **single observation point** with standardized GenAI semantic conventions for model parameters, token counts, and tool executions
+- [ ] Evaluate whether the OTEL layer provides value beyond what the native event streams already deliver — primarily useful for cross-session analytics and historical dashboards, not real-time notch overlay updates
+
+### 14.2 MCP as Monitoring Layer (Limitations)
+
+- [ ] All four CLI agents support MCP as **clients/hosts** — a custom MCP server registered with all tools could act as an activity logger
+- [ ] **However, MCP cannot serve as a passive monitoring layer**: MCP servers only see tool calls explicitly routed to them, not the agent's full internal state, session lifecycle, token usage, or model selection events
+- [ ] The MCP logging primitive (`notifications/message`) and notification system (`notifications/tools/list_changed`) are outbound from server to host, not the direction needed for monitoring
+- [ ] **Decision**: use native event systems (hooks, JSON-RPC, SSE) as the primary monitoring path. MCP is useful for tool interception but insufficient for comprehensive monitoring.
 
 ---
 
@@ -2099,8 +2382,16 @@ OIProviders/Example/ExampleProviderAdapter.swift
 | swift-markdown (Apple) | Markdown rendering in chat view (pure Swift, no OS runtime dependency) | 7 |
 | Sparkle | Auto-update framework (note: may need `@retroactive` conformances for Sendable bridging) | 11 |
 | swift-syntax (Apple) | If adding macro-based features | Future |
+| swift-nio (Apple) | Optional: NIOAsyncChannel for Unix domain socket server (alternative to GCD) | 3 |
+| just | Task runner for build/test/release workflows | 0.8 |
 
 > **Design principle**: minimize external dependencies. Use Foundation, SwiftUI, AppKit, and system frameworks wherever possible. No Combine — use `AsyncStream` throughout.
+
+> **Community reference projects** that validate the integration patterns:
+> - **Claude Island** (github.com/farouqaldori/claude-island, 914 stars) — native macOS notch app for Claude Code, hook-to-socket pattern
+> - **Agent Sessions** (github.com/jazzyalex/agent-sessions) — native macOS app browsing sessions across all four agents + GitHub Copilot CLI
+> - **Agent View** — tmux-based TUI dashboard for all four tools
+> - **cc-switch-cli** — manages providers, MCP servers, and settings across all four tools from a unified CLI
 
 ---
 
@@ -2113,7 +2404,7 @@ Applied throughout all phases:
 - [ ] **Pillar 1**: `MainActor` default isolation for app target only; `nonisolated` default for library targets (SE-0466)
 - [ ] **Pillar 2**: `NonisolatedNonsendingByDefault` upcoming feature enabled on all targets — async functions stay on caller's actor (SE-0461)
 - [ ] **Pillar 3**: `InferIsolatedConformances` upcoming feature enabled on all targets — protocol conformances in isolated contexts are automatically inferred as isolated (SE-0470)
-- [ ] `@concurrent` used only on functions that genuinely need off-actor execution — CPU-bound work, blocking I/O, subprocess spawning (SE-0461 usage guideline, not a separate pillar)
+- [ ] `@concurrent` used only on functions that genuinely need off-actor execution — CPU-bound work, blocking I/O, subprocess spawning, SSE connections, JSON-RPC parsing (SE-0461 usage guideline, not a separate pillar)
 - [ ] `CONCURRENCY.md` documenting the project's concurrency contract, including forward-scan trailing closure guidance (SE-0286)
 
 ### Data-Race Safety
@@ -2123,7 +2414,7 @@ Applied throughout all phases:
 - [ ] `sending` parameter and result annotations (SE-0430) used at actor isolation boundaries where non-Sendable values are transferred. Key sites include `SessionStore.process(_:)`, any actor method accepting ownership of event payloads, and factory functions returning values for cross-isolation consumption. Note: `Task.init` closures use `sending` automatically in Swift 6.
 - [ ] Region-based isolation (SE-0414) leveraged to avoid unnecessary `Sendable` conformances
 - [ ] `Mutex<T>` from Synchronization framework for shared mutable class state
-- [ ] `actor` for serialized state management (`SessionStore`, parsers, API services)
+- [ ] `actor` for serialized state management (`SessionStore`, parsers, API services, `CodexAppServerClient`, `OpenCodeSSEClient`)
 - [ ] No `Task.detached` unless explicitly justified — prefer regular `Task` from within actors
 - [ ] `@preconcurrency import` used only on specific files needing it for legacy frameworks (Dispatch, AppKit, CoreGraphics), with comments documenting which types cause the diagnostic — prefer `OIAppKitBridge` module if feasible (Phase 0.7)
 
@@ -2156,7 +2447,7 @@ Applied throughout all phases:
 - [ ] `if`/`switch` expressions for value-producing conditionals (SE-0380)
 - [ ] `throws(ErrorType)` for closed error domains: `ProviderStartupError`, `EventNormalizationError`, `HookInstallError` (SE-0413). Plain `throws` intentionally used for open error domains (e.g., `respondToPermission()`)
 - [ ] `guard let x` shorthand (SE-0345) for optional unwrapping throughout
-- [ ] `BitwiseCopyable` on simple `package`/`public` leaf enums with no reference types — `PermissionDecision`, `ModuleSide`, `ToolStatus` (SE-0426). **Not** on `ProviderID` (has `String` raw values, which are not `BitwiseCopyable`)
+- [ ] `BitwiseCopyable` on simple `package`/`public` leaf enums with no reference types — `PermissionDecision`, `ModuleSide`, `ToolStatus`, `PermissionRisk` (SE-0426). **Not** on `ProviderID` (has `String` raw values, which are not `BitwiseCopyable`)
 - [ ] `#Expression` (macOS 15+, swift-dev-pro.md Section 5) available for type-safe expression building beyond `#Predicate` — evaluate for dynamic module filtering or settings logic if needed
 - [ ] `@retroactive` conformances documented and minimized — prefer wrapper types (SE-0364)
 
@@ -2192,7 +2483,7 @@ Applied throughout all phases:
 ### Code Quality (Phase 0.3 — `prek` pipeline)
 
 - [ ] `.pre-commit-config.yaml` configured and `prek install` run
-- [ ] `.swiftformat` adapted with correct `--exclude` paths, `--swiftversion 6.2`, `OI` in `--acronyms`
+- [ ] `.swiftformat` adapted with correct `--exclude` paths, `--swiftversion 6.2`, `OI,SSE,RPC,OTLP` in `--acronyms`
 - [ ] `.swiftlint.yml` adapted with correct `included:` paths, `single_test_class` disabled, custom rules added and verified for false positives
 - [ ] `prek run --all-files` passes cleanly on initial project skeleton (including custom rule verification)
-- [ ] `Makefile` with `format`, `lint`, `test`, `build`, `clean`, `install-hooks` targets
+- [ ] `justfile` with `format`, `lint`, `test`, `build`, `clean`, `install-hooks` recipes
