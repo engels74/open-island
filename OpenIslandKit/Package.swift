@@ -67,7 +67,7 @@ let package = Package(
         ),
         .testTarget(
             name: "OIStateTests",
-            dependencies: ["OIState", "OICore"],
+            dependencies: ["OIState", "OICore", "OIProviders"],
             swiftSettings: testSettings,
         ),
         .testTarget(
