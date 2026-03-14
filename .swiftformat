@@ -1,0 +1,96 @@
+# SwiftFormat configuration for open-island
+# Adapted from claude-island — updated for Swift 6.2 / Xcode 17
+
+# Swift version
+--swiftversion 6.2
+
+# Indentation
+--indent 4
+--tabwidth 4
+--smarttabs enabled
+--indentcase false
+--ifdef indent
+
+# Line length
+--maxwidth 150
+--wraparguments before-first
+--wrapparameters before-first
+--wrapcollections before-first
+--wrapreturntype preserve
+--wrapconditions after-first
+--closingparen balanced
+
+# Spacing
+--operatorfunc spaced
+--ranges spaced
+--typeattributes prev-line
+--funcattributes prev-line
+--varattributes same-line
+--storedvarattrs same-line
+--computedvarattrs same-line
+
+# Braces
+--allman false
+--elseposition same-line
+--guardelse next-line
+
+# Imports
+--importgrouping alpha
+
+# Stripping
+--stripunusedargs closure-only
+--trimwhitespace always
+
+# Semicolons
+--semicolons inline
+
+# Redundant
+--redundanttype inferred
+--self insert
+
+# Other
+--commas always
+--decimalgrouping 3,6
+--binarygrouping 4,8
+--octalgrouping 4,8
+--hexgrouping 4,8
+--hexliteralcase uppercase
+--exponentcase lowercase
+--exponentgrouping disabled
+--fractiongrouping disabled
+--fragment false
+--conflictmarkers reject
+--shortoptionals always
+--modifierorder
+
+# Acronyms to preserve
+# Added OI (project prefix) per open-island naming conventions
+--acronyms ID,URL,UUID,HTTP,HTTPS,JSON,API,UI,MCP,PID,JSONL,SSH,TCP,IP,DNS,HTML,XML,CSS,JS,SDK,CLI,TLS,SSL,OI
+
+# Exclude directories and files
+# Note: No file-specific exclusions yet — start fresh. If organizeDeclarations
+# causes timeouts on large files (e.g., HookSocketServer.swift), exclude then
+# and document in CONTRIBUTING.md.
+--exclude build,DerivedData,.build,Pods,releases,*.xcodeproj,*.xcworkspace,xcuserdata,.sparkle-keys,OpenIslandKit/.build
+
+# Rules to enable
+--enable acronyms
+--enable blankLinesBetweenImports
+--enable blockComments
+--enable docComments
+--enable isEmpty
+--enable markTypes
+--enable organizeDeclarations
+--enable sortDeclarations
+--enable wrapEnumCases
+--enable wrapSwitchCases
+
+# Rules to disable
+# - andOperator: project prefers && over comma separation in conditions
+# - redundantSendable: Swift 6.2 region-based isolation (SE-0414) means many
+#   explicit Sendable conformances that look redundant are actually intentional
+#   public API contracts — do not auto-remove them
+# - wrapMultilineStatementBraces: conflicts with project style
+--disable andOperator
+--disable redundantSendable
+--disable wrapMultilineStatementBraces

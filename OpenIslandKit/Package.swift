@@ -24,32 +24,32 @@ let package = Package(
     targets: [
         .target(
             name: "OICore",
-            swiftSettings: upcomingFeatures
+            swiftSettings: upcomingFeatures,
         ),
         .target(
             name: "OIProviders",
             dependencies: ["OICore"],
-            swiftSettings: upcomingFeatures
+            swiftSettings: upcomingFeatures,
         ),
         .target(
             name: "OIWindow",
             dependencies: ["OICore"],
-            swiftSettings: upcomingFeatures
+            swiftSettings: upcomingFeatures,
         ),
         .target(
             name: "OIModules",
             dependencies: ["OICore"],
-            swiftSettings: upcomingFeatures
+            swiftSettings: upcomingFeatures,
         ),
         .target(
             name: "OIState",
             dependencies: ["OICore", "OIProviders"],
-            swiftSettings: upcomingFeatures
+            swiftSettings: upcomingFeatures,
         ),
         .target(
             name: "OIUI",
             dependencies: ["OICore", "OIState", "OIModules", "OIWindow"],
-            swiftSettings: upcomingFeatures
+            swiftSettings: upcomingFeatures,
         ),
-    ]
+    ],
 )
