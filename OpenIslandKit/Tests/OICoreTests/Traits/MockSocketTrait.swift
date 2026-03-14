@@ -1,5 +1,4 @@
 import Foundation
-import Synchronization
 import Testing
 
 // MARK: - MockSocketTrait
@@ -15,7 +14,7 @@ struct MockSocketTrait: SuiteTrait, TestScoping {
     /// The Unix domain socket path for the current test scope.
     static var path: String {
         get throws {
-            guard let value = _currentPath.withLock({ $0 }) else {
+            guard let value = _currentPath else {
                 throw MockSocketError.notInScope
             }
             return value
@@ -34,18 +33,18 @@ struct MockSocketTrait: SuiteTrait, TestScoping {
 
         let socketPath = socketDir.appendingPathComponent("test.sock").path
 
-        Self._currentPath.withLock { $0 = socketPath }
         defer {
-            Self._currentPath.withLock { $0 = nil }
             try? FileManager.default.removeItem(at: socketDir)
         }
 
-        try await function()
+        try await Self.$_currentPath.withValue(socketPath) {
+            try await function()
+        }
     }
 
     // MARK: Private
 
-    private static let _currentPath = Mutex<String?>(nil)
+    @TaskLocal private static var _currentPath: String?
 }
 
 // MARK: - MockSocketError

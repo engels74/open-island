@@ -1,5 +1,4 @@
 import Foundation
-import Synchronization
 import Testing
 
 // MARK: - TempDirectoryTrait
@@ -15,7 +14,7 @@ struct TempDirectoryTrait: SuiteTrait, TestScoping {
     /// The temporary directory URL for the current test scope.
     static var url: URL {
         get throws {
-            guard let value = _currentURL.withLock({ $0 }) else {
+            guard let value = _currentURL else {
                 throw TempDirectoryError.notInScope
             }
             return value
@@ -32,18 +31,18 @@ struct TempDirectoryTrait: SuiteTrait, TestScoping {
 
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
 
-        Self._currentURL.withLock { $0 = tempDir }
         defer {
-            Self._currentURL.withLock { $0 = nil }
             try? FileManager.default.removeItem(at: tempDir)
         }
 
-        try await function()
+        try await Self.$_currentURL.withValue(tempDir) {
+            try await function()
+        }
     }
 
     // MARK: Private
 
-    private static let _currentURL = Mutex<URL?>(nil)
+    @TaskLocal private static var _currentURL: URL?
 }
 
 // MARK: - TempDirectoryError

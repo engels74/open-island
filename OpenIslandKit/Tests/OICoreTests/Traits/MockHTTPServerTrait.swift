@@ -16,7 +16,7 @@ struct MockHTTPServerTrait: SuiteTrait, TestScoping {
     /// The port the mock HTTP server is listening on in the current test scope.
     static var port: UInt16 {
         get throws {
-            guard let value = _currentPort.withLock({ $0 }) else {
+            guard let value = _currentPort else {
                 throw MockHTTPServerError.notInScope
             }
             return value
@@ -43,18 +43,18 @@ struct MockHTTPServerTrait: SuiteTrait, TestScoping {
         try server.start()
         let port = server.port
 
-        Self._currentPort.withLock { $0 = port }
         defer {
-            Self._currentPort.withLock { $0 = nil }
             server.stop()
         }
 
-        try await function()
+        try await Self.$_currentPort.withValue(port) {
+            try await function()
+        }
     }
 
     // MARK: Private
 
-    private static let _currentPort = Mutex<UInt16?>(nil)
+    @TaskLocal private static var _currentPort: UInt16?
 }
 
 // MARK: - MockHTTPServerError
