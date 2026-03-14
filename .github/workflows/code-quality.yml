@@ -38,6 +38,7 @@ jobs:
 
       - name: Install tools (latest)
         run: |
+          brew update
           brew install just swiftformat swiftlint shellcheck
           echo "just: $(just --version)"
           echo "SwiftFormat: $(swiftformat --version)"
