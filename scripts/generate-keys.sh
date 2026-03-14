@@ -1,7 +1,7 @@
 #!/bin/bash
 # Generate EdDSA signing keys for Sparkle updates.
 # Run this ONCE and save the private key securely!
-# Prefer calling via: make generate-keys
+# Prefer calling via: just generate-keys
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -48,7 +48,7 @@ if [ -z "$GENERATE_KEYS" ]; then
     echo "Could not find Sparkle's generate_keys tool."
     echo ""
     echo "You need to:"
-    echo "1. Build the project first (make build) to download Sparkle package"
+    echo "1. Build the project first (just build) to download Sparkle package"
     echo "2. Or download Sparkle manually from:"
     echo "   https://github.com/sparkle-project/Sparkle/releases"
     echo ""
@@ -90,4 +90,4 @@ echo ""
 echo "Next steps:"
 echo "1. Add the public key above to Info.plist (SUPublicEDKey)"
 echo "2. Add the private key as SPARKLE_PRIVATE_KEY secret in GitHub repo settings"
-echo "3. make build-release && make dmg"
+echo "3. just build-release && just dmg"

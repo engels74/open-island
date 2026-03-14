@@ -1,6 +1,6 @@
 #!/bin/bash
 # Create a release: notarize, create DMG, sign for Sparkle, upload to GitHub, update website
-# Prefer calling via: make release (or make dmg for local testing)
+# Prefer calling via: just release (or just dmg for local testing)
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -50,7 +50,7 @@ echo ""
 
 if [ ! -d "$APP_PATH" ]; then
     echo "ERROR: App not found at $APP_PATH"
-    echo "Run 'make build-release' first."
+    echo "Run 'just build-release' first."
     exit 1
 fi
 
@@ -201,7 +201,7 @@ else
         echo "Skipping Sparkle signing."
     elif [ ! -f "$KEYS_DIR/eddsa_private_key" ]; then
         echo "WARNING: No private key found at $KEYS_DIR/eddsa_private_key"
-        echo "Run 'make generate-keys' first."
+        echo "Run 'just generate-keys' first."
         echo ""
         echo "Skipping Sparkle signing."
     else

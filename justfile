@@ -184,7 +184,7 @@ check-tools:
     @command -v swiftformat >/dev/null 2>&1 && echo "  ✓ swiftformat" || echo "  ✗ swiftformat (brew install swiftformat)"
     @command -v swiftlint  >/dev/null 2>&1 && echo "  ✓ swiftlint"  || echo "  ✗ swiftlint (brew install swiftlint)"
     @command -v just       >/dev/null 2>&1 && echo "  ✓ just"       || echo "  ✗ just (brew install just)"
-    @command -v prek       >/dev/null 2>&1 && echo "  ✓ prek"       || echo "  ✗ prek (brew install prek)"
+    @command -v prek >/dev/null 2>&1 && echo "  ✓ prek" || echo "  ✗ prek (go install github.com/j178/prek@latest)"
     @command -v gh         >/dev/null 2>&1 && echo "  ✓ gh"         || echo "  ✗ gh (brew install gh)"
     @command -v create-dmg >/dev/null 2>&1 && echo "  ✓ create-dmg" || echo "  ✗ create-dmg (brew install create-dmg) [optional]"
     @echo ""

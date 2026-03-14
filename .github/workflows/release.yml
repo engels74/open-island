@@ -33,6 +33,16 @@ jobs:
         with:
           xcode-version: latest-stable
 
+      - name: Verify Swift version
+        run: |
+          swift --version
+          SWIFT_VERSION=$(swift --version 2>&1 | grep -oE '[0-9]+\.[0-9]+' | head -1)
+          echo "Detected Swift $SWIFT_VERSION"
+          if [[ "$(echo "$SWIFT_VERSION < 6.2" | bc)" -eq 1 ]]; then
+            echo "::error::Swift 6.2+ required. Found $SWIFT_VERSION"
+            exit 1
+          fi
+
       - name: Install just
         run: brew install just
 
