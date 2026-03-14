@@ -1,0 +1,10 @@
+# Child SwiftLint config for test files.
+# Inherits everything from root config, overrides only specific rules.
+#
+# Disables identifier_name for tests because SwiftFormat converts
+# @Test("Name") to @Test func `Name`() — backtick function names start
+# with uppercase, which identifier_name rejects. This is a known SwiftLint
+# bug (realm/SwiftLint#2708): validates_start_with_lowercase: false does
+# not suppress function-name violations.
+disabled_rules:
+  - identifier_name
