@@ -1183,12 +1183,12 @@ OIProviders/ProviderRegistry.swift
 OIState/SessionStore.swift
 ```
 
-- [ ] Swift `actor` — the single source of truth for all session state
-- [ ] Single entry point: `func process(_ event: sending SessionEvent) async` — the `sending` annotation (SE-0430) documents at the type level that the event's ownership is transferred into the actor's isolation domain. This is the canonical boundary where events cross from provider actors into the `SessionStore` actor. Even though `SessionEvent` is currently `Sendable`, `sending` makes the ownership transfer explicit and future-proofs for potential non-Sendable provider extension payloads.
-- [ ] Internal state: `private var sessions: [String: SessionState]`
-- [ ] Event audit trail: circular buffer array of last 100 events for debugging, using a simple index-wrapping array implementation. **Do not use `InlineArray<100, SessionEvent>`** — `InlineArray` (SE-0452) requires its element type to be stack-allocatable for real benefit, and `SessionEvent` carries `String`s, `Array`s, and nested structs that are heap-allocated. Reserve `InlineArray` for genuinely fixed-size, trivially-copyable element buffers (e.g., small `ProviderID` lookup tables).
-- [ ] On each state change, call `publishState()` to broadcast to all subscribers
-- [ ] Session state snapshots use standard CoW types. Broadcasting to multiple subscribers creates shared references without copying storage until mutation — efficient by design.
+- [x] Swift `actor` — the single source of truth for all session state
+- [x] Single entry point: `func process(_ event: sending SessionEvent) async` — the `sending` annotation (SE-0430) documents at the type level that the event's ownership is transferred into the actor's isolation domain. This is the canonical boundary where events cross from provider actors into the `SessionStore` actor. Even though `SessionEvent` is currently `Sendable`, `sending` makes the ownership transfer explicit and future-proofs for potential non-Sendable provider extension payloads.
+- [x] Internal state: `private var sessions: [String: SessionState]`
+- [x] Event audit trail: circular buffer array of last 100 events for debugging, using a simple index-wrapping array implementation. **Do not use `InlineArray<100, SessionEvent>`** — `InlineArray` (SE-0452) requires its element type to be stack-allocatable for real benefit, and `SessionEvent` carries `String`s, `Array`s, and nested structs that are heap-allocated. Reserve `InlineArray` for genuinely fixed-size, trivially-copyable element buffers (e.g., small `ProviderID` lookup tables).
+- [x] On each state change, call `publishState()` to broadcast to all subscribers
+- [x] Session state snapshots use standard CoW types. Broadcasting to multiple subscribers creates shared references without copying storage until mutation — efficient by design.
 
 ### 2.2 Multi-Subscriber Broadcast
 
@@ -1196,16 +1196,16 @@ OIState/SessionStore.swift
 OIState/SessionStore+Streaming.swift
 ```
 
-- [ ] UUID-keyed `AsyncStream` continuations pattern (from claude-island):
+- [x] UUID-keyed `AsyncStream` continuations pattern (from claude-island):
 
   ```swift
   private var continuations: [UUID: AsyncStream<[SessionState]>.Continuation]
   ```
 
-- [ ] `func sessionsStream() -> AsyncStream<[SessionState]>` — registers a new subscriber, immediately yields current state
-- [ ] `.bufferingNewest(1)` policy — correct for "latest snapshot" semantics where consumers only need the most recent state
-- [ ] `onTermination` set synchronously before the registration Task to avoid race conditions — **always set `onTermination`** on all `AsyncStream` continuations to clean up the UUID entry from the `continuations` dictionary, preventing memory leaks from accumulated dead continuations
-- [ ] `publishState()` iterates all continuations, yields sorted sessions
+- [x] `func sessionsStream() -> AsyncStream<[SessionState]>` — registers a new subscriber, immediately yields current state
+- [x] `.bufferingNewest(1)` policy — correct for "latest snapshot" semantics where consumers only need the most recent state
+- [x] `onTermination` set synchronously before the registration Task to avoid race conditions — **always set `onTermination`** on all `AsyncStream` continuations to clean up the UUID entry from the `continuations` dictionary, preventing memory leaks from accumulated dead continuations
+- [x] `publishState()` iterates all continuations, yields sorted sessions
 
 ### 2.3 Session Phase Validation & Transitions
 
@@ -1213,10 +1213,10 @@ OIState/SessionStore+Streaming.swift
 OIState/SessionStore+Transitions.swift
 ```
 
-- [ ] Map `ProviderEvent` to `SessionPhase` transitions
-- [ ] Validate via `canTransition(to:)` before applying
-- [ ] Log invalid transitions with the audit trail
-- [ ] Handle edge cases: permission during processing, compacting during any state, ended from any state
+- [x] Map `ProviderEvent` to `SessionPhase` transitions
+- [x] Validate via `canTransition(to:)` before applying
+- [x] Log invalid transitions with the audit trail
+- [x] Handle edge cases: permission during processing, compacting during any state, ended from any state
 
 ### 2.4 Tool Tracking
 
@@ -1225,10 +1225,10 @@ OIState/ToolTracker.swift
 OIState/ToolEventProcessor.swift
 ```
 
-- [ ] `ToolTracker` struct: `inProgress: [String: ToolInProgress]`, `seenIDs: Set<String>`
-- [ ] `ToolEventProcessor` — static methods processing tool start/complete events
-- [ ] Track tool durations, statuses, nested subagent tools
-- [ ] Subagent state machine: active tasks stack, attribute nested tools to parent Task
+- [x] `ToolTracker` struct: `inProgress: [String: ToolInProgress]`, `seenIDs: Set<String>`
+- [x] `ToolEventProcessor` — static methods processing tool start/complete events
+- [x] Track tool durations, statuses, nested subagent tools
+- [x] Subagent state machine: active tasks stack, attribute nested tools to parent Task
 - [ ] Handle provider-specific tool type names: Claude uses `Bash`, `Write`, `Edit`, `Read`, `Glob`, `Grep`, `WebFetch`, `WebSearch`, `Task`, and MCP tools; Codex uses `commandExecution`, `fileChange`, `mcpToolCall`, `webSearch`, `collabToolCall`; Gemini uses standard tool names prefixed with server alias for MCP (`mcp_<serverAlias>_<toolName>`); OpenCode uses its own tool identifiers
 
 ### 2.5 Periodic Health Check
@@ -1237,9 +1237,9 @@ OIState/ToolEventProcessor.swift
 OIState/SessionStore+HealthCheck.swift
 ```
 
-- [ ] Every 3 seconds, iterate sessions and call provider adapter's `isSessionAlive()`
-- [ ] Transition zombie sessions to `.ended`
-- [ ] Use a **regular `Task`** (not `Task.detached`) launched from within the `SessionStore` actor — it inherits the actor's isolation, which is exactly what we want for iterating sessions:
+- [x] Every 3 seconds, iterate sessions and call provider adapter's `isSessionAlive()`
+- [x] Transition zombie sessions to `.ended`
+- [x] Use a **regular `Task`** (not `Task.detached`) launched from within the `SessionStore` actor — it inherits the actor's isolation, which is exactly what we want for iterating sessions:
 
   ```swift
   func startHealthCheck() {
@@ -1254,7 +1254,7 @@ OIState/SessionStore+HealthCheck.swift
   ```
 
   Per the guidelines: "Use `Task.detached` only when you must shed all inherited context." The health check needs actor isolation to read sessions — `Task.detached` would be incorrect.
-- [ ] Store the `Task` handle for cancellation support on `stop()`
+- [x] Store the `Task` handle for cancellation support on `stop()`
 
 ### 2.6 SessionStore Tests
 
