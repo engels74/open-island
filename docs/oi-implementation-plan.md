@@ -602,7 +602,7 @@ Create `CONCURRENCY.md` in the repo root explaining:
 
 - [x] **`Task.init` closures use `sending` semantics (not `@Sendable`)**: In Swift 6, `Task { }` closures use `sending` semantics. Captured values need only be disconnected from their current isolation region, not fully `Sendable`. Don't reflexively add `Sendable` conformance just because a type is captured in a `Task { }` closure.
 - [x] **`Span<T>` for safe contiguous access**: Prefer `Span<T>` (SE-0447) over `UnsafeBufferPointer` for read-only contiguous access. Full adoption requires `@lifetime` annotations (experimental in 6.2). Adopt incrementally as annotations stabilize.
-- [x] **Forward-scan trailing closures** (SE-0286): Swift 6 changed trailing closure matching from backward-scan to forward-scan. When designing APIs with multiple closure parameters, the first trailing closure label is dropped. Use labeled trailing closures for all subsequent closure parameters. Avoid trailing closure syntax in `guard` conditions. Document this in `CONTRIBUTING.md` as well so contributors from Swift 5 habits are aware.
+- [x] **Forward-scan trailing closures** (SE-0286): Swift 6 changed trailing closure matching from backward-scan to forward-scan. When designing APIs with multiple closure parameters, the first trailing closure label is dropped. Use labeled trailing closures for all subsequent closure parameters. Avoid trailing closure syntax in `guard` conditions.
 
 ### 0.7 Legacy Framework Import Strategy
 
