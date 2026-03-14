@@ -10,6 +10,15 @@ let upcomingFeatures: [SwiftSetting] = [
     .enableUpcomingFeature("InternalImportsByDefault"),
 ]
 
+/// Test targets exclude NonisolatedNonsendingByDefault because it is ABI-incompatible
+/// with Swift Testing's TestScoping protocol.
+let testSettings: [SwiftSetting] = [
+    .enableUpcomingFeature("InferIsolatedConformances"),
+    .enableUpcomingFeature("MemberImportVisibility"),
+    .enableUpcomingFeature("ExistentialAny"),
+    .enableUpcomingFeature("InternalImportsByDefault"),
+]
+
 let package = Package(
     name: "OpenIslandKit",
     platforms: [.macOS(.v26)],
@@ -50,6 +59,21 @@ let package = Package(
             name: "OIUI",
             dependencies: ["OICore", "OIState", "OIModules", "OIWindow"],
             swiftSettings: upcomingFeatures,
+        ),
+        .testTarget(
+            name: "OICoreTests",
+            dependencies: ["OICore"],
+            swiftSettings: testSettings,
+        ),
+        .testTarget(
+            name: "OIStateTests",
+            dependencies: ["OIState", "OICore"],
+            swiftSettings: testSettings,
+        ),
+        .testTarget(
+            name: "OIProvidersTests",
+            dependencies: ["OIProviders", "OICore"],
+            swiftSettings: testSettings,
         ),
     ],
 )

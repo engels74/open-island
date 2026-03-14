@@ -94,3 +94,4 @@
 --disable andOperator
 --disable redundantSendable
 --disable wrapMultilineStatementBraces
+--test-case-name-format standard-identifiers
