@@ -534,36 +534,36 @@ This is a **deliberate architectural decision**, not just build flags. Swift 6.2
 
 #### 0.6.1 Pillar 1 — MainActor by Default ("single-threaded by default")
 
-- [ ] **App target** (`OpenIsland`): enable `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor` (SE-0466). This means every type, function, and property in the app target is `@MainActor`-isolated unless explicitly opted out.
-- [ ] **SPM library targets** (`OICore`, `OIProviders`, etc.): keep `nonisolated` as the default. Libraries should not assume main-thread execution — they are consumed by the app target, which decides isolation.
-- [ ] **Implication**: all model types, utility functions, and protocol definitions in SPM targets must be explicitly `nonisolated` (which they are by default in those targets). When used from the app target, the compiler handles the isolation boundary correctly.
-- [ ] In `Package.swift`, only the app-facing target gets `.defaultIsolation(MainActor.self)`. In Xcode, set the build setting on the app target only.
+- [x] **App target** (`OpenIsland`): enable `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor` (SE-0466). This means every type, function, and property in the app target is `@MainActor`-isolated unless explicitly opted out.
+- [x] **SPM library targets** (`OICore`, `OIProviders`, etc.): keep `nonisolated` as the default. Libraries should not assume main-thread execution — they are consumed by the app target, which decides isolation.
+- [x] **Implication**: all model types, utility functions, and protocol definitions in SPM targets must be explicitly `nonisolated` (which they are by default in those targets). When used from the app target, the compiler handles the isolation boundary correctly.
+- [x] In `Package.swift`, only the app-facing target gets `.defaultIsolation(MainActor.self)`. In Xcode, set the build setting on the app target only.
 
 #### 0.6.2 Pillar 2 — Nonisolated Nonsending by Default ("intuitive async functions")
 
-- [ ] Enable `.enableUpcomingFeature("NonisolatedNonsendingByDefault")` (SE-0461) on **all targets**.
-- [ ] **What this changes**: nonisolated `async` functions no longer hop to the global concurrent executor. They run in the caller's execution context. This means calling an `async` function from the main actor keeps you on the main actor — no implicit thread hop.
-- [ ] **Practical impact**: most `async` functions in the app "just work" without data-race issues. You can write `async` methods on classes without needing `@Sendable` closures or actor isolation annotations everywhere.
-- [ ] **Where this matters most**: `ConversationParser`, `ClaudeAPIService`, and other actors already serialize access. But helper `async` functions that don't need their own isolation domain (e.g., file reading utilities, JSON parsing) will stay on the caller's actor instead of bouncing to a background thread.
+- [x] Enable `.enableUpcomingFeature("NonisolatedNonsendingByDefault")` (SE-0461) on **all targets**.
+- [x] **What this changes**: nonisolated `async` functions no longer hop to the global concurrent executor. They run in the caller's execution context. This means calling an `async` function from the main actor keeps you on the main actor — no implicit thread hop.
+- [x] **Practical impact**: most `async` functions in the app "just work" without data-race issues. You can write `async` methods on classes without needing `@Sendable` closures or actor isolation annotations everywhere.
+- [x] **Where this matters most**: `ConversationParser`, `ClaudeAPIService`, and other actors already serialize access. But helper `async` functions that don't need their own isolation domain (e.g., file reading utilities, JSON parsing) will stay on the caller's actor instead of bouncing to a background thread.
 
 #### 0.6.3 Pillar 3 — Infer Isolated Conformances ("less boilerplate")
 
-- [ ] Enable `.enableUpcomingFeature("InferIsolatedConformances")` (SE-0470) on **all targets**.
-- [ ] **What this changes**: when a type is isolated to an actor (e.g., MainActor-isolated in the app target), its protocol conformances are automatically inferred as isolated too. Without this flag, conforming to a protocol like `Hashable` from a MainActor-isolated type requires explicitly marking `hash(into:)` as `nonisolated` or `@MainActor`.
-- [ ] **Practical impact**: `@Observable` view models in the app target can conform to protocols without boilerplate isolation annotations. Model types in library targets (which default to `nonisolated`) are unaffected.
-- [ ] **Example**: With this flag enabled, a MainActor-isolated type conforming to `Equatable` gets its `==` method inferred as MainActor-isolated automatically, instead of requiring explicit annotation.
+- [x] Enable `.enableUpcomingFeature("InferIsolatedConformances")` (SE-0470) on **all targets**.
+- [x] **What this changes**: when a type is isolated to an actor (e.g., MainActor-isolated in the app target), its protocol conformances are automatically inferred as isolated too. Without this flag, conforming to a protocol like `Hashable` from a MainActor-isolated type requires explicitly marking `hash(into:)` as `nonisolated` or `@MainActor`.
+- [x] **Practical impact**: `@Observable` view models in the app target can conform to protocols without boilerplate isolation annotations. Model types in library targets (which default to `nonisolated`) are unaffected.
+- [x] **Example**: With this flag enabled, a MainActor-isolated type conforming to `Equatable` gets its `==` method inferred as MainActor-isolated automatically, instead of requiring explicit annotation.
 
 #### 0.6.4 `@concurrent` Usage Guidelines ("opting into concurrency")
 
-- [ ] `@concurrent` is a usage pattern within SE-0461 (Pillar 2), not a separate pillar. It is the explicit opt-in for off-actor execution when the default (run on caller's actor) is not appropriate.
-- [ ] Use `@concurrent` **only** on functions that genuinely need to run off the calling actor — CPU-heavy computation, blocking I/O that shouldn't freeze the main thread, or work that benefits from parallelism.
-- [ ] Examples in `open-island`:
-  - [ ] `@concurrent func parseJSONLChunk(_ data: Data) async -> [ChatMessage]` — parsing large JSONL chunks should not block the main actor
-  - [ ] `@concurrent func detectPythonRuntime() async -> PythonRuntime?` — spawns subprocesses, should not block UI
-  - [ ] `@concurrent func buildProcessTree() async -> [Int32: Int32]` — enumerates all PIDs, CPU-bound
-  - [ ] `@concurrent func parseCodexJSONRPC(_ data: Data) async -> JSONRPCMessage` — parsing Codex app-server JSONL should not block the main actor
-  - [ ] `@concurrent func connectSSEStream(_ url: URL) async throws -> AsyncStream<SSEEvent>` — long-lived HTTP connection for OpenCode SSE should not block any actor
-- [ ] **Rule**: if a function doesn't need to run in parallel, don't mark it `@concurrent`. The default (run on caller's actor) is safer and simpler.
+- [x] `@concurrent` is a usage pattern within SE-0461 (Pillar 2), not a separate pillar. It is the explicit opt-in for off-actor execution when the default (run on caller's actor) is not appropriate.
+- [x] Use `@concurrent` **only** on functions that genuinely need to run off the calling actor — CPU-heavy computation, blocking I/O that shouldn't freeze the main thread, or work that benefits from parallelism.
+- [x] Examples in `open-island`:
+  - [x] `@concurrent func parseJSONLChunk(_ data: Data) async -> [ChatMessage]` — parsing large JSONL chunks should not block the main actor
+  - [x] `@concurrent func detectPythonRuntime() async -> PythonRuntime?` — spawns subprocesses, should not block UI
+  - [x] `@concurrent func buildProcessTree() async -> [Int32: Int32]` — enumerates all PIDs, CPU-bound
+  - [x] `@concurrent func parseCodexJSONRPC(_ data: Data) async -> JSONRPCMessage` — parsing Codex app-server JSONL should not block the main actor
+  - [x] `@concurrent func connectSSEStream(_ url: URL) async throws -> AsyncStream<SSEEvent>` — long-lived HTTP connection for OpenCode SSE should not block any actor
+- [x] **Rule**: if a function doesn't need to run in parallel, don't mark it `@concurrent`. The default (run on caller's actor) is safer and simpler.
 
 #### 0.6.5 Configuration Summary
 
@@ -581,16 +581,16 @@ This is a **deliberate architectural decision**, not just build flags. Swift 6.2
 
 Create `CONCURRENCY.md` in the repo root explaining:
 
-- [ ] Why `MainActor` is the default for the app target (safety, simplicity, matches Xcode 17's default template)
-- [ ] Why library targets stay `nonisolated` (reusability, no main-thread assumption)
-- [ ] When to use `@concurrent` (include the 5 examples above as canonical patterns)
-- [ ] When to use `actor` (shared mutable state accessed from multiple isolation domains)
-- [ ] When to use `Mutex<T>` (protecting state in `Sendable` classes, GCD-bridging code). **`Mutex<T>` requires `import Synchronization`** (Swift 6.0+) — add this import wherever `Mutex` is used. The `Synchronization` framework is a compiler-level module with no OS runtime dependency (back-deploys freely).
-- [ ] When **not** to mark functions `@concurrent` (most of the time — the default is correct)
-- [ ] When `InlineArray` (SE-0452) may be a fit for fixed-size buffers with trivially-copyable elements (e.g., small `ProviderID` → color lookup tables) — note as a future optimization opportunity, but **not** suitable for collections of complex types like `SessionEvent` (see Phase 2.1 note)
-- [ ] When to use `@preconcurrency import` for legacy frameworks (see Phase 0.7)
-- [ ] **`nonisolated(unsafe)` — never use in this project.** Prefer `Mutex<T>`, `actor`, or `@preconcurrency import`. A SwiftLint custom rule (`no_nonisolated_unsafe`) enforces this at compile time (Phase 0.3.3).
-- [ ] **`async let` for structured concurrency**: use `async let` for fixed-count parallel operations; task groups for dynamic counts. Example:
+- [x] Why `MainActor` is the default for the app target (safety, simplicity, matches Xcode 17's default template)
+- [x] Why library targets stay `nonisolated` (reusability, no main-thread assumption)
+- [x] When to use `@concurrent` (include the 5 examples above as canonical patterns)
+- [x] When to use `actor` (shared mutable state accessed from multiple isolation domains)
+- [x] When to use `Mutex<T>` (protecting state in `Sendable` classes, GCD-bridging code). **`Mutex<T>` requires `import Synchronization`** (Swift 6.0+) — add this import wherever `Mutex` is used. The `Synchronization` framework is a compiler-level module with no OS runtime dependency (back-deploys freely).
+- [x] When **not** to mark functions `@concurrent` (most of the time — the default is correct)
+- [x] When `InlineArray` (SE-0452) may be a fit for fixed-size buffers with trivially-copyable elements (e.g., small `ProviderID` → color lookup tables) — note as a future optimization opportunity, but **not** suitable for collections of complex types like `SessionEvent` (see Phase 2.1 note)
+- [x] When to use `@preconcurrency import` for legacy frameworks (see Phase 0.7)
+- [x] **`nonisolated(unsafe)` — never use in this project.** Prefer `Mutex<T>`, `actor`, or `@preconcurrency import`. A SwiftLint custom rule (`no_nonisolated_unsafe`) enforces this at compile time (Phase 0.3.3).
+- [x] **`async let` for structured concurrency**: use `async let` for fixed-count parallel operations; task groups for dynamic counts. Example:
 
   ```swift
   // Phase 3.6 — starting independent subsystems
@@ -600,9 +600,9 @@ Create `CONCURRENCY.md` in the repo root explaining:
   try await (hooks, socket, watcher)
   ```
 
-- [ ] **`Task.init` closures use `sending` semantics (not `@Sendable`)**: In Swift 6, `Task { }` closures use `sending` semantics. Captured values need only be disconnected from their current isolation region, not fully `Sendable`. Don't reflexively add `Sendable` conformance just because a type is captured in a `Task { }` closure.
-- [ ] **`Span<T>` for safe contiguous access**: Prefer `Span<T>` (SE-0447) over `UnsafeBufferPointer` for read-only contiguous access. Full adoption requires `@lifetime` annotations (experimental in 6.2). Adopt incrementally as annotations stabilize.
-- [ ] **Forward-scan trailing closures** (SE-0286): Swift 6 changed trailing closure matching from backward-scan to forward-scan. When designing APIs with multiple closure parameters, the first trailing closure label is dropped. Use labeled trailing closures for all subsequent closure parameters. Avoid trailing closure syntax in `guard` conditions. Document this in `CONTRIBUTING.md` as well so contributors from Swift 5 habits are aware.
+- [x] **`Task.init` closures use `sending` semantics (not `@Sendable`)**: In Swift 6, `Task { }` closures use `sending` semantics. Captured values need only be disconnected from their current isolation region, not fully `Sendable`. Don't reflexively add `Sendable` conformance just because a type is captured in a `Task { }` closure.
+- [x] **`Span<T>` for safe contiguous access**: Prefer `Span<T>` (SE-0447) over `UnsafeBufferPointer` for read-only contiguous access. Full adoption requires `@lifetime` annotations (experimental in 6.2). Adopt incrementally as annotations stabilize.
+- [x] **Forward-scan trailing closures** (SE-0286): Swift 6 changed trailing closure matching from backward-scan to forward-scan. When designing APIs with multiple closure parameters, the first trailing closure label is dropped. Use labeled trailing closures for all subsequent closure parameters. Avoid trailing closure syntax in `guard` conditions.
 
 ### 0.7 Legacy Framework Import Strategy
 
