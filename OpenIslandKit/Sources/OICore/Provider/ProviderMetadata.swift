@@ -6,6 +6,10 @@ package struct ProviderMetadata: Sendable, Equatable {
     package let cliBinaryNames: [String]
     package let transportType: ProviderTransportType
     package let configFileFormat: ConfigFileFormat
+
+    /// Base directory for session log files, using `~` for the home directory.
+    /// Consumers must expand the tilde before filesystem access
+    /// (e.g., via `NSString.expandingTildeInPath`).
     package let sessionLogDirectoryPath: String
 
     package static func metadata(for providerID: ProviderID) -> Self {
