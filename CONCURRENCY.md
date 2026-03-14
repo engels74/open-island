@@ -93,20 +93,39 @@ Alternatives: `Mutex<T>`, `actor`, or `@preconcurrency import`.
 
 Enforced by SwiftLint custom rule `no_nonisolated_unsafe` (error severity).
 
-## 5. `@preconcurrency import`
+## 5. Legacy Framework Imports
 
-Use for legacy frameworks that predate Swift concurrency
-and produce `Sendable` diagnostics in strict Swift 6
-mode. See Phase 0.7 of the implementation plan for the
-full list of affected frameworks.
+Use `@preconcurrency import` for system frameworks that
+predate Swift concurrency and produce `Sendable`
+diagnostics in strict Swift 6 mode (Phase 0.7).
+
+| Framework | When Needed | Files / Modules | Comment Template |
+|---|---|---|---|
+| `Dispatch` | `DispatchSource`, `DispatchQueue`, GCD primitives | `ClaudeHookSocketServer.swift` (Phase 3.1), any GCD-bridging code | `// @preconcurrency: DispatchSource/DispatchQueue predate Sendable annotations` |
+| `AppKit` | `NSWindow`, `NSEvent`, `NSScreen` cross isolation boundaries | `NotchPanel.swift`, `WindowManager.swift` (Phase 4) | `// @preconcurrency: NSPanel, NSWindow predate Sendable annotations` |
+| `CoreGraphics` | `CGWindowListCopyWindowInfo` results trigger Sendable diagnostics | `TerminalVisibilityDetector.swift` (Phase 10) | `// @preconcurrency: CGWindowListCopyWindowInfo results lack Sendable` |
 
 ```swift
-@preconcurrency import AppKit   // suppress Sendable warnings from AppKit
+@preconcurrency import Dispatch     // GCD predates Sendable
+@preconcurrency import AppKit       // NSWindow predates Sendable
+@preconcurrency import CoreGraphics // CG results lack Sendable
 ```
 
-**Rule:** Only use on framework imports where the project
-cannot control the types. Do not use as a blanket
-suppression tool.
+### Preferred: `OIAppKitBridge` module
+
+Instead of scattering `@preconcurrency import AppKit`
+across files, create a thin `OIAppKitBridge` module
+wrapping AppKit types behind `@MainActor`-isolated
+`Sendable` APIs. Confines `@preconcurrency` to one
+module; rest of codebase gets compiler-verified types.
+Route CG queries through it too. Evaluate feasibility
+in Phase 4.
+
+### Rules
+
+- **Per-file only** — use on specific files that need it, never project-wide
+- **Must have comment** — each usage documents which types cause the diagnostic
+- **Temporary** — remove when Apple ships Sendable-annotated framework headers
 
 ## 6. Structured Concurrency
 

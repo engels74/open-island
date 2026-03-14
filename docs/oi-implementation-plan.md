@@ -608,9 +608,9 @@ Create `CONCURRENCY.md` in the repo root explaining:
 
 Several system frameworks predate Swift concurrency and may produce Sendable diagnostics in strict Swift 6 mode. Use `@preconcurrency import` to suppress warnings from frameworks the project cannot control:
 
-- [ ] **`@preconcurrency import Dispatch`** — required in `ClaudeHookSocketServer.swift` (Phase 3.1) and anywhere using `DispatchSource`, `DispatchQueue`, or GCD primitives
-- [ ] **`@preconcurrency import AppKit`** — may be needed in `NotchPanel.swift`, `WindowManager.swift`, and other AppKit-bridging code where `NSWindow`, `NSEvent`, or `NSScreen` types cross isolation boundaries
-- [ ] **`@preconcurrency import CoreGraphics`** — if `CGWindowListCopyWindowInfo` results trigger Sendable warnings in `TerminalVisibilityDetector.swift`
+- [x] **`@preconcurrency import Dispatch`** — required in `ClaudeHookSocketServer.swift` (Phase 3.1) and anywhere using `DispatchSource`, `DispatchQueue`, or GCD primitives
+- [x] **`@preconcurrency import AppKit`** — may be needed in `NotchPanel.swift`, `WindowManager.swift`, and other AppKit-bridging code where `NSWindow`, `NSEvent`, or `NSScreen` types cross isolation boundaries
+- [x] **`@preconcurrency import CoreGraphics`** — if `CGWindowListCopyWindowInfo` results trigger Sendable warnings in `TerminalVisibilityDetector.swift`
 
 **Preferred approach — `OIAppKitBridge` module**: rather than scattering `@preconcurrency import AppKit` across multiple files, consider creating a thin `OIAppKitBridge` internal module that encapsulates all AppKit interactions behind `@MainActor`-isolated `Sendable` wrappers. This confines `@preconcurrency` to one module's source files and gives the rest of the codebase clean, compiler-verified types to work with. Evaluate feasibility in Phase 4; if the bridging surface is small enough, a single module is cleaner than per-file annotations.
 
