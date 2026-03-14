@@ -114,9 +114,9 @@ quality: format-check lint
 
 # ─── Pre-commit ─────────────────────────────────────────────────────────────
 
-# Install prek hooks (pre-commit + pre-push)
+# Install prek hooks
 install-hooks:
-    prek install --hook-type pre-commit --hook-type pre-push
+    prek install --hook-type pre-commit
 
 # Update all prek hook revisions to latest
 update-hooks:

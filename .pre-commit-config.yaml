@@ -3,7 +3,7 @@
 # SwiftFormat and SwiftLint use language: system — the rev pins the hook
 # definition only; the actual binary version is whatever is installed.
 #
-# Install: prek install --hook-type pre-commit --hook-type pre-push
+# Install: prek install --hook-type pre-commit
 # Run all: prek run --all-files
 
 default_stages: [pre-commit]
