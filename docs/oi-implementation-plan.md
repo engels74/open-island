@@ -510,16 +510,16 @@ install-hooks:   ## Install prek hooks (pre-commit + pre-push)
 
 ### 0.4 Testing Infrastructure
 
-- [ ] Add a `OICoreTests` target using Swift Testing (`import Testing`)
-- [ ] Add a `OIStateTests` target for state machine and SessionStore tests
-- [ ] Add a `OIProvidersTests` target for provider adapter tests
-- [ ] Configure all test suites as `@Suite` structs (not classes)
-- [ ] Establish parameterized test patterns for multi-provider scenarios
-- [ ] Note: `single_test_class` SwiftLint rule is disabled — multiple `@Suite` structs per file and global `@Test` functions are valid Swift Testing patterns
-- [ ] Define project-wide test tags: `extension Tag { @Tag static var claude: Self; @Tag static var codex: Self; @Tag static var gemini: Self; @Tag static var opencode: Self; @Tag static var socket: Self; @Tag static var ui: Self }`. Use `.serialized` on suites with shared file system resources. Use `.timeLimit(.minutes(1))` on socket tests. Use `.disabled("reason")` over commenting out tests. Use `.enabled(if:)` for provider-specific tests conditional on binary availability. Use `.bug(id:)` to link tests to bug tracker.
-- [ ] Implement custom test traits for common setup/teardown: `MockSocketTrait` (creates/destroys temp socket), `TempDirectoryTrait` (creates/cleans temp directory), `MockHTTPServerTrait` (starts/stops a local HTTP server for OpenCode SSE testing). Uses `TestTrait` + `TestScoping` (Swift 6.1+).
-- [ ] XCTest remains required for UI testing (XCUITest) and performance benchmarking (`measure {}`). Create separate XCTest-based targets if needed. Do not mix XCTest and Swift Testing assertions in the same file.
-- [ ] Name test files as `<TypeUnderTest>Tests.swift`: `SessionPhaseTests.swift`, `JSONValueTests.swift`, `ClaudeEventNormalizerTests.swift`, `CodexJSONRPCClientTests.swift`, `GeminiEventNormalizerTests.swift`, `OpenCodeSSEClientTests.swift`.
+- [x] Add a `OICoreTests` target using Swift Testing (`import Testing`)
+- [x] Add a `OIStateTests` target for state machine and SessionStore tests
+- [x] Add a `OIProvidersTests` target for provider adapter tests
+- [x] Configure all test suites as `@Suite` structs (not classes)
+- [x] Establish parameterized test patterns for multi-provider scenarios
+- [x] Note: `single_test_class` SwiftLint rule is disabled — multiple `@Suite` structs per file and global `@Test` functions are valid Swift Testing patterns
+- [x] Define project-wide test tags: `extension Tag { @Tag static var claude: Self; @Tag static var codex: Self; @Tag static var gemini: Self; @Tag static var opencode: Self; @Tag static var socket: Self; @Tag static var ui: Self }`. Use `.serialized` on suites with shared file system resources. Use `.timeLimit(.minutes(1))` on socket tests. Use `.disabled("reason")` over commenting out tests. Use `.enabled(if:)` for provider-specific tests conditional on binary availability. Use `.bug(id:)` to link tests to bug tracker.
+- [x] Implement custom test traits for common setup/teardown: `MockSocketTrait` (creates/destroys temp socket), `TempDirectoryTrait` (creates/cleans temp directory), `MockHTTPServerTrait` (starts/stops a local HTTP server for OpenCode SSE testing). Uses `TestTrait` + `TestScoping` (Swift 6.1+).
+- [x] XCTest remains required for UI testing (XCUITest) and performance benchmarking (`measure {}`). Create separate XCTest-based targets if needed. Do not mix XCTest and Swift Testing assertions in the same file.
+- [x] Name test files as `<TypeUnderTest>Tests.swift`: `SessionPhaseTests.swift`, `JSONValueTests.swift`, `ClaudeEventNormalizerTests.swift`, `CodexJSONRPCClientTests.swift`, `GeminiEventNormalizerTests.swift`, `OpenCodeSSEClientTests.swift`.
 
 ### 0.5 Git & CI Foundations
 
