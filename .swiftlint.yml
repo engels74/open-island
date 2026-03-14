@@ -11,6 +11,7 @@ excluded:
   - build
   - DerivedData
   - .build
+  - "**/.build"
   - Pods
   - releases
   - "*.xcodeproj"
@@ -138,6 +139,8 @@ identifier_name:
     - i
     - j
     - n
+    # Common in pattern matching / switch bindings
+    - v
     # Common in ~Copyable / ownership code
     - fd
 

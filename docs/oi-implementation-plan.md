@@ -939,10 +939,10 @@ OICore/Provider/ProviderID.swift
 OICore/Provider/ProviderMetadata.swift
 ```
 
-- [ ] `ProviderID` — a `RawRepresentable<String>`, `Sendable`, `Hashable` enum with cases: `.claude`, `.codex`, `.geminiCLI`, `.openCode`
-- [ ] `ProviderMetadata` — struct holding display name, icon name (SF Symbol or bundled), accent color, CLI binary name(s), event transport type (`.hookSocket`, `.jsonRPC`, `.hookSocket`, `.httpSSE`), config file format (`.json`, `.toml`, `.json`, `.json`), session log directory path
-- [ ] Both must be `Sendable` value types
-- [ ] **Note**: `ProviderID` has `String` raw values. `String` is a reference-counted, heap-allocated type and is **not** `BitwiseCopyable`. Do not mark `ProviderID` as `BitwiseCopyable` — the compiler would reject this conformance. `BitwiseCopyable` (SE-0426) is reserved for types whose stored properties are all trivially copyable via `memcpy` (e.g., enums with `Int` raw values and no associated values containing reference types).
+- [x] `ProviderID` — a `RawRepresentable<String>`, `Sendable`, `Hashable` enum with cases: `.claude`, `.codex`, `.geminiCLI`, `.openCode`
+- [x] `ProviderMetadata` — struct holding display name, icon name (SF Symbol or bundled), accent color, CLI binary name(s), event transport type (`.hookSocket`, `.jsonRPC`, `.hookSocket`, `.httpSSE`), config file format (`.json`, `.toml`, `.json`, `.json`), session log directory path
+- [x] Both must be `Sendable` value types
+- [x] **Note**: `ProviderID` has `String` raw values. `String` is a reference-counted, heap-allocated type and is **not** `BitwiseCopyable`. Do not mark `ProviderID` as `BitwiseCopyable` — the compiler would reject this conformance. `BitwiseCopyable` (SE-0426) is reserved for types whose stored properties are all trivially copyable via `memcpy` (e.g., enums with `Int` raw values and no associated values containing reference types).
 
 ### 1.2 Define Universal Event Types
 
@@ -951,26 +951,26 @@ OICore/Events/ProviderEvent.swift
 OICore/Events/SessionEvent.swift
 ```
 
-- [ ] `ProviderEvent` — the normalized event enum that all providers emit:
-  - [ ] `.sessionStarted(SessionID, cwd: String, pid: Int32?)` — maps from: Claude `SessionStart`, Codex `thread/started`, Gemini `SessionStart`, OpenCode `session.created`
-  - [ ] `.sessionEnded(SessionID)` — maps from: Claude `SessionEnd`, Codex `turn/completed` with status `completed`, Gemini `SessionEnd`, OpenCode `session.deleted`
-  - [ ] `.userPromptSubmitted(SessionID)` — maps from: Claude `UserPromptSubmit`, Codex `turn/started` (user-initiated), Gemini `BeforeAgent`, OpenCode `message.updated` (role: user)
-  - [ ] `.processingStarted(SessionID)` — maps from: Claude `UserPromptSubmit` (implicit), Codex `turn/started`, Gemini `BeforeModel`, OpenCode `session.status` (status: processing)
-  - [ ] `.toolStarted(SessionID, ToolEvent)` — maps from: Claude `PreToolUse`, Codex `item/started` (commandExecution/mcpToolCall/fileChange), Gemini `BeforeTool`, OpenCode `tool.execute.before`
-  - [ ] `.toolCompleted(SessionID, ToolEvent, ToolResult?)` — maps from: Claude `PostToolUse`/`PostToolUseFailure`, Codex `item/completed`, Gemini `AfterTool`, OpenCode `tool.execute.after`
-  - [ ] `.permissionRequested(SessionID, PermissionRequest)` — maps from: Claude `PermissionRequest` hook, Codex `item/commandExecution/requestApproval` or `item/fileChange/requestApproval`, Gemini `Notification` (notification_type: ToolPermission) + `BeforeTool`, OpenCode `permission.asked`
-  - [ ] `.waitingForInput(SessionID)` — maps from: Claude `Stop`, Codex `turn/completed`, Gemini `AfterAgent`, OpenCode `session.idle`
-  - [ ] `.compacting(SessionID)` — maps from: Claude `PreCompact`, Codex `item/completed` (compacted item type), Gemini `PreCompress`, OpenCode `session.compacted`
-  - [ ] `.notification(SessionID, message: String)` — maps from: Claude `Notification`, Codex notify hook, Gemini `Notification`, OpenCode (via plugin events)
-  - [ ] `.chatUpdated(SessionID, [ChatHistoryItem])` — maps from: JSONL transcript parsing (Claude), session rollout files (Codex), session JSON (Gemini), message REST API (OpenCode)
-  - [ ] `.subagentStarted(SessionID, taskID: String, parentToolID: String?)` — maps from: Claude `SubagentStart`, Codex `item/started` (collabToolCall), Gemini (via MCP tool calls with `mcp_context`), OpenCode (nested tool calls)
-  - [ ] `.subagentStopped(SessionID, taskID: String)` — maps from: Claude `SubagentStop`, Codex `item/completed` (collabToolCall), Gemini (MCP tool result), OpenCode (nested tool result)
-  - [ ] `.configChanged(SessionID?)` — maps from: Claude `ConfigChange`, Codex `config/read` (polled), Gemini (settings.json watch), OpenCode `GET /config` (polled)
-  - [ ] `.diffUpdated(SessionID, unifiedDiff: String)` — maps from: Codex `turn/diff/updated`, OpenCode `session.diff`; Claude and Gemini emit this via file change tool results
-  - [ ] `.modelResponse(SessionID, textDelta: String)` — maps from: Codex `item/agentMessage/delta`, Gemini `AfterModel` (streaming chunks), OpenCode `message.part.updated` (delta); Claude emits full messages via JSONL transcript
-  - [ ] `.tokenUsage(SessionID, promptTokens: Int?, completionTokens: Int?, totalTokens: Int?)` — maps from: Codex `turn/completed` (token usage), Gemini `AfterModel` (usageMetadata.totalTokenCount), OpenCode (via provider-specific fields); Claude requires API-level integration
-- [ ] `SessionEvent` — internal event for the `SessionStore` (superset of ProviderEvent + UI events like `.permissionApproved`, `.archiveSession`, etc.)
-- [ ] All payloads are `Sendable` structs/enums — explicitly marked `Sendable` since they are `package`-visible and cross module boundaries
+- [x] `ProviderEvent` — the normalized event enum that all providers emit:
+  - [x] `.sessionStarted(SessionID, cwd: String, pid: Int32?)` — maps from: Claude `SessionStart`, Codex `thread/started`, Gemini `SessionStart`, OpenCode `session.created`
+  - [x] `.sessionEnded(SessionID)` — maps from: Claude `SessionEnd`, Codex `turn/completed` with status `completed`, Gemini `SessionEnd`, OpenCode `session.deleted`
+  - [x] `.userPromptSubmitted(SessionID)` — maps from: Claude `UserPromptSubmit`, Codex `turn/started` (user-initiated), Gemini `BeforeAgent`, OpenCode `message.updated` (role: user)
+  - [x] `.processingStarted(SessionID)` — maps from: Claude `UserPromptSubmit` (implicit), Codex `turn/started`, Gemini `BeforeModel`, OpenCode `session.status` (status: processing)
+  - [x] `.toolStarted(SessionID, ToolEvent)` — maps from: Claude `PreToolUse`, Codex `item/started` (commandExecution/mcpToolCall/fileChange), Gemini `BeforeTool`, OpenCode `tool.execute.before`
+  - [x] `.toolCompleted(SessionID, ToolEvent, ToolResult?)` — maps from: Claude `PostToolUse`/`PostToolUseFailure`, Codex `item/completed`, Gemini `AfterTool`, OpenCode `tool.execute.after`
+  - [x] `.permissionRequested(SessionID, PermissionRequest)` — maps from: Claude `PermissionRequest` hook, Codex `item/commandExecution/requestApproval` or `item/fileChange/requestApproval`, Gemini `Notification` (notification_type: ToolPermission) + `BeforeTool`, OpenCode `permission.asked`
+  - [x] `.waitingForInput(SessionID)` — maps from: Claude `Stop`, Codex `turn/completed`, Gemini `AfterAgent`, OpenCode `session.idle`
+  - [x] `.compacting(SessionID)` — maps from: Claude `PreCompact`, Codex `item/completed` (compacted item type), Gemini `PreCompress`, OpenCode `session.compacted`
+  - [x] `.notification(SessionID, message: String)` — maps from: Claude `Notification`, Codex notify hook, Gemini `Notification`, OpenCode (via plugin events)
+  - [x] `.chatUpdated(SessionID, [ChatHistoryItem])` — maps from: JSONL transcript parsing (Claude), session rollout files (Codex), session JSON (Gemini), message REST API (OpenCode)
+  - [x] `.subagentStarted(SessionID, taskID: String, parentToolID: String?)` — maps from: Claude `SubagentStart`, Codex `item/started` (collabToolCall), Gemini (via MCP tool calls with `mcp_context`), OpenCode (nested tool calls)
+  - [x] `.subagentStopped(SessionID, taskID: String)` — maps from: Claude `SubagentStop`, Codex `item/completed` (collabToolCall), Gemini (MCP tool result), OpenCode (nested tool result)
+  - [x] `.configChanged(SessionID?)` — maps from: Claude `ConfigChange`, Codex `config/read` (polled), Gemini (settings.json watch), OpenCode `GET /config` (polled)
+  - [x] `.diffUpdated(SessionID, unifiedDiff: String)` — maps from: Codex `turn/diff/updated`, OpenCode `session.diff`; Claude and Gemini emit this via file change tool results
+  - [x] `.modelResponse(SessionID, textDelta: String)` — maps from: Codex `item/agentMessage/delta`, Gemini `AfterModel` (streaming chunks), OpenCode `message.part.updated` (delta); Claude emits full messages via JSONL transcript
+  - [x] `.tokenUsage(SessionID, promptTokens: Int?, completionTokens: Int?, totalTokens: Int?)` — maps from: Codex `turn/completed` (token usage), Gemini `AfterModel` (usageMetadata.totalTokenCount), OpenCode (via provider-specific fields); Claude requires API-level integration
+- [x] `SessionEvent` — internal event for the `SessionStore` (superset of ProviderEvent + UI events like `.permissionApproved`, `.archiveSession`, etc.)
+- [x] All payloads are `Sendable` structs/enums — explicitly marked `Sendable` since they are `package`-visible and cross module boundaries
 
 ### 1.3 Define Session Models
 
@@ -982,11 +982,11 @@ OICore/Models/ToolCallItem.swift
 OICore/Models/ChatHistoryItem.swift
 ```
 
-- [ ] `SessionPhase` — state machine enum: `.idle`, `.processing`, `.waitingForInput`, `.waitingForApproval(PermissionContext)`, `.compacting`, `.ended`
-  - [ ] Include `canTransition(to:) -> Bool` with the validated transition table from claude-island
-  - [ ] Validated transitions, invalid ones logged and ignored
-  - [ ] Explicitly marked `Sendable` — the `.waitingForApproval(PermissionContext)` associated value requires `PermissionContext` to also be `Sendable`
-  - [ ] Use `guard let` shorthand (SE-0345) in transition validation methods:
+- [x] `SessionPhase` — state machine enum: `.idle`, `.processing`, `.waitingForInput`, `.waitingForApproval(PermissionContext)`, `.compacting`, `.ended`
+  - [x] Include `canTransition(to:) -> Bool` with the validated transition table from claude-island
+  - [x] Validated transitions, invalid ones logged and ignored
+  - [x] Explicitly marked `Sendable` — the `.waitingForApproval(PermissionContext)` associated value requires `PermissionContext` to also be `Sendable`
+  - [x] Use `guard let` shorthand (SE-0345) in transition validation methods:
 
     ```swift
     func validate(event: SessionEvent) -> SessionPhase? {
@@ -996,26 +996,26 @@ OICore/Models/ChatHistoryItem.swift
     }
     ```
 
-- [ ] `SessionState` — complete snapshot struct:
-  - [ ] `id: String` (session ID)
-  - [ ] `providerID: ProviderID`
-  - [ ] `phase: SessionPhase`
-  - [ ] `projectName: String`
-  - [ ] `cwd: String`
-  - [ ] `pid: Int32?`
-  - [ ] `chatItems: [ChatHistoryItem]`
-  - [ ] `toolTracker: ToolTracker`
-  - [ ] `createdAt: Date`
-  - [ ] `lastActivityAt: Date`
-  - [ ] `tokenUsage: TokenUsageSnapshot?` — optional, populated by providers that report token counts (Codex, Gemini, OpenCode)
-  - [ ] Explicitly marked `Sendable` — all stored properties must be `Sendable`
-- [ ] `PermissionContext` — tool use ID, name, input, timestamp, `displaySummary` computed property, `risk: PermissionRisk?` (Codex provides risk levels with approval requests). Explicitly `Sendable`.
-- [ ] `PermissionRisk` — enum: `.low`, `.medium`, `.high` — maps from Codex's `risk` field in `requestApproval` events. Other providers default to `nil`.
-- [ ] `ChatHistoryItem` — ID, timestamp, type enum (`.user`, `.assistant`, `.toolCall`, `.thinking`, `.interrupted`, `.reasoning`). The `.reasoning` case maps from Codex's explicit `reasoning` item type. Explicitly `Sendable`.
-- [ ] `ToolCallItem` — name, input, status (`.running`, `.success`, `.error`, `.interrupted`), result, nested subagent tools, `providerSpecific: JSONValue?` (captures provider-specific metadata like Codex's `exitCode`, `durationMs`; OpenCode's LSP diagnostics). Explicitly `Sendable`.
-- [ ] `TokenUsageSnapshot` — struct: `promptTokens: Int?`, `completionTokens: Int?`, `totalTokens: Int?`, `timestamp: Date`. Explicitly `Sendable`.
-- [ ] Simple leaf enums with no reference types (`PermissionDecision`, `ModuleSide`, `ToolStatus`, `PermissionRisk`) should be marked `BitwiseCopyable` (SE-0426) — these contain only trivial cases (no `String` associated values, no reference-type payloads) and explicit conformance on `package`-visible types enables more efficient generic code paths.
-- [ ] Note: `BitwiseCopyable` is auto-inferred for `internal` types but must be declared explicitly when promoting to `package` or `public`. Audit for missing conformance when elevating access levels.
+- [x] `SessionState` — complete snapshot struct:
+  - [x] `id: String` (session ID)
+  - [x] `providerID: ProviderID`
+  - [x] `phase: SessionPhase`
+  - [x] `projectName: String`
+  - [x] `cwd: String`
+  - [x] `pid: Int32?`
+  - [x] `chatItems: [ChatHistoryItem]`
+  - [x] `toolTracker: ToolTracker`
+  - [x] `createdAt: Date`
+  - [x] `lastActivityAt: Date`
+  - [x] `tokenUsage: TokenUsageSnapshot?` — optional, populated by providers that report token counts (Codex, Gemini, OpenCode)
+  - [x] Explicitly marked `Sendable` — all stored properties must be `Sendable`
+- [x] `PermissionContext` — tool use ID, name, input, timestamp, `displaySummary` computed property, `risk: PermissionRisk?` (Codex provides risk levels with approval requests). Explicitly `Sendable`.
+- [x] `PermissionRisk` — enum: `.low`, `.medium`, `.high` — maps from Codex's `risk` field in `requestApproval` events. Other providers default to `nil`.
+- [x] `ChatHistoryItem` — ID, timestamp, type enum (`.user`, `.assistant`, `.toolCall`, `.thinking`, `.interrupted`, `.reasoning`). The `.reasoning` case maps from Codex's explicit `reasoning` item type. Explicitly `Sendable`.
+- [x] `ToolCallItem` — name, input, status (`.running`, `.success`, `.error`, `.interrupted`), result, nested subagent tools, `providerSpecific: JSONValue?` (captures provider-specific metadata like Codex's `exitCode`, `durationMs`; OpenCode's LSP diagnostics). Explicitly `Sendable`.
+- [x] `TokenUsageSnapshot` — struct: `promptTokens: Int?`, `completionTokens: Int?`, `totalTokens: Int?`, `timestamp: Date`. Explicitly `Sendable`.
+- [x] Simple leaf enums with no reference types (`PermissionDecision`, `ModuleSide`, `ToolStatus`, `PermissionRisk`) should be marked `BitwiseCopyable` (SE-0426) — these contain only trivial cases (no `String` associated values, no reference-type payloads) and explicit conformance on `package`-visible types enables more efficient generic code paths.
+- [x] Note: `BitwiseCopyable` is auto-inferred for `internal` types but must be declared explicitly when promoting to `package` or `public`. Audit for missing conformance when elevating access levels.
 
 ### 1.4 Define `JSONValue` Type
 
@@ -1023,11 +1023,11 @@ OICore/Models/ChatHistoryItem.swift
 OICore/Models/JSONValue.swift
 ```
 
-- [ ] Recursive enum: `.string`, `.int`, `.double`, `.bool`, `.null`, `.array([JSONValue])`, `.object([String: JSONValue])`
-- [ ] `Sendable`, `Equatable`, `Codable`
-- [ ] Replaces `AnyCodable` / `@unchecked Sendable` dictionary patterns
-- [ ] Include subscript accessors for ergonomic nested access
-- [ ] Used extensively for provider-specific payloads: Claude hook stdin JSON, Codex JSON-RPC messages, Gemini hook stdin JSON, OpenCode SSE event data
+- [x] Recursive enum: `.string`, `.int`, `.double`, `.bool`, `.null`, `.array([JSONValue])`, `.object([String: JSONValue])`
+- [x] `Sendable`, `Equatable`, `Codable`
+- [x] Replaces `AnyCodable` / `@unchecked Sendable` dictionary patterns
+- [x] Include subscript accessors for ergonomic nested access
+- [x] Used extensively for provider-specific payloads: Claude hook stdin JSON, Codex JSON-RPC messages, Gemini hook stdin JSON, OpenCode SSE event data
 
 ### 1.5 Provider Adapter Protocol
 
@@ -1035,7 +1035,7 @@ OICore/Models/JSONValue.swift
 OIProviders/ProviderAdapter.swift
 ```
 
-- [ ] Protocol definition:
+- [x] Protocol definition:
 
   ```swift
   package protocol ProviderAdapter: Sendable {
@@ -1074,15 +1074,15 @@ OIProviders/ProviderAdapter.swift
   }
   ```
 
-- [ ] `ProviderTransportType` — enum: `.hookSocket`, `.jsonRPC`, `.httpSSE`
-- [ ] `PermissionDecision` — enum: `.allow`, `.deny(reason: String?)`
-- [ ] Each provider implementation is a concrete actor conforming to this protocol
+- [x] `ProviderTransportType` — enum: `.hookSocket`, `.jsonRPC`, `.httpSSE`
+- [x] `PermissionDecision` — enum: `.allow`, `.deny(reason: String?)`
+- [x] Each provider implementation is a concrete actor conforming to this protocol
 
 #### Typed throws candidates
 
 Use `throws(ErrorType)` (SE-0413) in these closed error domains:
 
-- [ ] **`ProviderAdapter.start()`** → `throws(ProviderStartupError)`:
+- [x] **`ProviderAdapter.start()`** → `throws(ProviderStartupError)`:
 
   ```swift
   package enum ProviderStartupError: Error, Sendable {
@@ -1097,7 +1097,7 @@ Use `throws(ErrorType)` (SE-0413) in these closed error domains:
 
   This is a closed domain — all startup failure modes are known. Callers can exhaustively match without a generic `catch`.
 
-- [ ] **`ClaudeEventNormalizer.normalize()`** → `throws(EventNormalizationError)`:
+- [x] **`ClaudeEventNormalizer.normalize()`** → `throws(EventNormalizationError)`:
 
   ```swift
   package enum EventNormalizationError: Error, Sendable {
@@ -1107,7 +1107,7 @@ Use `throws(ErrorType)` (SE-0413) in these closed error domains:
   }
   ```
 
-- [ ] **`ClaudeHookInstaller.install()`** → `throws(HookInstallError)`:
+- [x] **`ClaudeHookInstaller.install()`** → `throws(HookInstallError)`:
 
   ```swift
   package enum HookInstallError: Error, Sendable {
@@ -1128,13 +1128,13 @@ Use `throws(ErrorType)` (SE-0413) in these closed error domains:
 OIProviders/ProviderRegistry.swift
 ```
 
-- [ ] `ProviderRegistry` — actor that:
-  - [ ] Holds registered `[ProviderID: any ProviderAdapter]` — `any` is correct here for runtime heterogeneity across provider types
-  - [ ] Starts/stops all adapters
-  - [ ] Merges all provider event streams into a single `AsyncStream<ProviderEvent>`
-  - [ ] Provides lookup by ID
-- [ ] Use `withTaskGroup` to start all adapters concurrently
-- [ ] Use **`withThrowingDiscardingTaskGroup`** (SE-0381) to merge event streams — this is a long-running event loop that runs for the app's lifetime and doesn't collect results. `withDiscardingTaskGroup` prevents memory leaks from accumulated child task results:
+- [x] `ProviderRegistry` — actor that:
+  - [x] Holds registered `[ProviderID: any ProviderAdapter]` — `any` is correct here for runtime heterogeneity across provider types
+  - [x] Starts/stops all adapters
+  - [x] Merges all provider event streams into a single `AsyncStream<ProviderEvent>`
+  - [x] Provides lookup by ID
+- [x] Use `withTaskGroup` to start all adapters concurrently
+- [x] Use **`withThrowingDiscardingTaskGroup`** (SE-0381) to merge event streams — this is a long-running event loop that runs for the app's lifetime and doesn't collect results. `withDiscardingTaskGroup` prevents memory leaks from accumulated child task results:
 
   ```swift
   func mergedEvents() -> AsyncStream<ProviderEvent> {
@@ -1160,18 +1160,18 @@ OIProviders/ProviderRegistry.swift
   }
   ```
 
-- [ ] Always set `onTermination` on the merged stream's continuation to cancel child tasks on consumer disconnect
+- [x] Always set `onTermination` on the merged stream's continuation to cancel child tasks on consumer disconnect
 
 **`any` vs `some` guidance for provider references**: The registry stores `any ProviderAdapter` because it holds a heterogeneous collection of different concrete adapter types. However, within provider-specific code (e.g., inside `ClaudeProviderAdapter`), always use concrete types or `some ProviderAdapter` — reserve `any` for the registry's heterogeneous collection. Start concrete → move to `some` → resort to `any` only when necessary.
 
 ### 1.7 Write Core Model Tests
 
-- [ ] Test `SessionPhase` transitions: valid, invalid, terminal state, same-state no-op
-- [ ] Test `JSONValue` encoding/decoding round-trips
-- [ ] Test `PermissionContext.displaySummary` for various tool inputs
-- [ ] Test `ChatHistoryItem` construction and deduplication
-- [ ] Test `TokenUsageSnapshot` aggregation
-- [ ] Use parameterized tests (`@Test(arguments:)`) for transition matrix
+- [x] Test `SessionPhase` transitions: valid, invalid, terminal state, same-state no-op
+- [x] Test `JSONValue` encoding/decoding round-trips
+- [x] Test `PermissionContext.displaySummary` for various tool inputs
+- [x] Test `ChatHistoryItem` construction and deduplication
+- [x] Test `TokenUsageSnapshot` aggregation
+- [x] Use parameterized tests (`@Test(arguments:)`) for transition matrix
 
 ---
 
