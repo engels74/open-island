@@ -5,24 +5,24 @@ import Testing
 
 struct TagUsageExampleTests {
     @Test(.tags(.claude))
-    func claudeTaggedFilterCorrectly() {
+    func `claude tagged filter correctly`() {
         // Run with: swift test --filter .tags:claude
         #expect(Bool(true))
     }
 
     @Test(.tags(.socket))
-    func socketTaggedTransportLayer() {
+    func `socket tagged transport layer`() {
         // Run with: swift test --filter .tags:socket
         #expect(Bool(true))
     }
 
     @Test(.tags(.ui))
-    func uiTaggedViewLayer() {
+    func `ui tagged view layer`() {
         #expect(Bool(true))
     }
 
     @Test(.tags(.claude, .socket))
-    func multipleTagsOnSingleTest() {
+    func `multiple tags on single test`() {
         // Tests can carry multiple tags for cross-cutting filtering
         #expect(Bool(true))
     }
@@ -32,19 +32,19 @@ struct TagUsageExampleTests {
 
 struct ProviderTagExamples {
     @Test(.tags(.codex))
-    func codexSpecificBehavior() {
+    func `codex specific behavior`() {
         let transport = "jsonRPC"
         #expect(transport == "jsonRPC")
     }
 
     @Test(.tags(.gemini))
-    func geminiSpecificBehavior() {
+    func `gemini specific behavior`() {
         let transport = "hookSocket"
         #expect(transport == "hookSocket")
     }
 
     @Test(.tags(.opencode))
-    func openCodeSpecificBehavior() {
+    func `open code specific behavior`() {
         let transport = "httpSSE"
         #expect(transport == "httpSSE")
     }
