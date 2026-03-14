@@ -4,13 +4,13 @@ import Testing
 @Suite(.tempDirectory)
 struct TempDirectoryTraitTests {
     @Test
-    func createsAUniqueTemporaryDirectory() throws {
+    func `creates A unique temporary directory`() throws {
         let url = try TempDirectoryTrait.url
         #expect(FileManager.default.fileExists(atPath: url.path))
     }
 
     @Test
-    func directoryIsWritable() throws {
+    func `directory is writable`() throws {
         let url = try TempDirectoryTrait.url
         let file = url.appendingPathComponent("test.txt")
         try Data("hello".utf8).write(to: file)
@@ -18,7 +18,7 @@ struct TempDirectoryTraitTests {
     }
 
     @Test
-    func eachTestGetsAUniqueDirectory() throws {
+    func `each test gets A unique directory`() throws {
         let url = try TempDirectoryTrait.url
         #expect(url.lastPathComponent.hasPrefix("OICoreTests-"))
     }

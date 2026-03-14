@@ -4,20 +4,20 @@ import Testing
 @Suite(.mockHTTPServer)
 struct MockHTTPServerTraitTests {
     @Test
-    func serverListensOnAPort() throws {
+    func `server listens on A port`() throws {
         let port = try MockHTTPServerTrait.port
         #expect(port > 0)
     }
 
     @Test
-    func baseURLIsWellFormed() throws {
+    func `base URL is well formed`() throws {
         let url = try MockHTTPServerTrait.baseURL
         #expect(url.scheme == "http")
         #expect(url.host == "127.0.0.1")
     }
 
     @Test
-    func serverRespondsToHTTPRequest() async throws {
+    func `server responds to HTTP request`() async throws {
         let url = try MockHTTPServerTrait.baseURL
         let (data, response) = try await URLSession.shared.data(from: url)
         let httpResponse = try #require(response as? HTTPURLResponse)

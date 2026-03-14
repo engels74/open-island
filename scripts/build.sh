@@ -1,6 +1,6 @@
 #!/bin/bash
 # Build Open Island with ad-hoc signing.
-# Prefer calling via: make build-release
+# Prefer calling via: just build-release
 # This script is also called directly by CI workflows.
 set -eo pipefail
 
@@ -28,7 +28,7 @@ check_version_sync() {
 
         if [ -n "$current_version" ] && [ "$latest_tag" != "$current_version" ]; then
             echo "⚠️  Warning: Local version ($current_version) differs from latest tag ($latest_tag)"
-            echo "   Run: make set-version V=$latest_tag"
+            echo "   Run: just set-version $latest_tag"
             echo ""
         fi
     fi
@@ -96,4 +96,4 @@ echo ""
 echo "=== Build Complete ==="
 echo "App exported to: $EXPORT_PATH/$DISPLAY_NAME.app"
 echo ""
-echo "Next: make dmg (or ./scripts/create-release.sh --skip-notarization)"
+echo "Next: just dmg (or ./scripts/create-release.sh --skip-notarization)"

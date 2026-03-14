@@ -14,7 +14,7 @@ concurrency:
 jobs:
   test:
     name: Test
-    runs-on: macos-16
+    runs-on: macos-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     steps:
@@ -27,6 +27,20 @@ jobs:
         uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: latest-stable
+
+      - name: Verify Swift version
+        run: |
+          swift --version
+          SWIFT_VERSION=$(swift --version 2>&1 | sed -n 's/.*Apple Swift version \([0-9]*\.[0-9]*\).*/\1/p')
+          if [[ -z "$SWIFT_VERSION" ]]; then
+            echo "::error::Could not detect Swift version from 'swift --version' output"
+            exit 1
+          fi
+          echo "Detected Swift $SWIFT_VERSION"
+          if [[ "$(echo "$SWIFT_VERSION < 6.2" | bc)" -eq 1 ]]; then
+            echo "::error::Swift 6.2+ required. Found $SWIFT_VERSION"
+            exit 1
+          fi
 
       - name: Install just
         run: brew install just
@@ -51,7 +65,7 @@ jobs:
   build:
     name: Build DMG
     needs: test
-    runs-on: macos-16
+    runs-on: macos-latest
 
     outputs:
       version: ${{ steps.version.outputs.version }}

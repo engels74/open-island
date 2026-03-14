@@ -1,4 +1,8 @@
 # Pre-commit configuration for open-island
+# Hook revisions — update with: just update-hooks (runs prek autoupdate)
+# SwiftFormat and SwiftLint use language: system — the rev pins the hook
+# definition only; the actual binary version is whatever is installed.
+#
 # Install: prek install --hook-type pre-commit
 # Run all: prek run --all-files
 

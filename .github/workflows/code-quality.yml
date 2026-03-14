@@ -14,10 +14,7 @@ concurrency:
 jobs:
   lint:
     name: Lint & Format
-    # macOS 16 runner for Xcode 17 / Swift 6.2 toolchain.
-    # If macos-16 is unavailable, fall back to macos-15 with xcode-version: latest-stable
-    # and verify Swift 6.2 support. See CONTRIBUTING.md § CI Runners.
-    runs-on: macos-16
+    runs-on: macos-latest
     if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
 
     steps:
@@ -32,7 +29,7 @@ jobs:
       - name: Verify Swift version
         run: |
           swift --version
-          SWIFT_VERSION=$(swift --version 2>&1 | grep -oE '[0-9]+\.[0-9]+' | head -1)
+          SWIFT_VERSION=$(swift --version 2>&1 | sed -n 's/.*Apple Swift version \([0-9]*\.[0-9]*\).*/\1/p')
           echo "Detected Swift $SWIFT_VERSION"
           if [[ "$(echo "$SWIFT_VERSION < 6.2" | bc)" -eq 1 ]]; then
             echo "::error::Swift 6.2+ required. Found $SWIFT_VERSION"
@@ -41,6 +38,7 @@ jobs:
 
       - name: Install tools (latest)
         run: |
+          brew update
           brew install just swiftformat swiftlint shellcheck
           echo "just: $(just --version)"
           echo "SwiftFormat: $(swiftformat --version)"
@@ -53,7 +51,7 @@ jobs:
         run: just lint
 
       - name: Run prek checks
-        uses: j178/pre-commit-action@v1
+        uses: j178/prek-action@v1
         with:
           extra-args: --all-files --hook-stage manual
         env:
