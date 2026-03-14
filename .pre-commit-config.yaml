@@ -1,6 +1,8 @@
 # Pre-commit configuration for open-island
-# Install: prek install --hook-type pre-commit --hook-type pre-push
+# Install: prek install --hook-type pre-commit
 # Run all: prek run --all-files
+
+default_stages: [pre-commit]
 
 default_language_version:
   python: python3
@@ -82,9 +84,6 @@ repos:
         args: [--fix]
         files: \.(md|markdown)$
         exclude: ^(\.augment/|LICENSE\.md|docs/)
-
-# Pre-push hooks
-default_stages: [pre-commit]
 
 ci:
   skip: [swiftformat, swiftlint]

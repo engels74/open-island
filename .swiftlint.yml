@@ -161,7 +161,7 @@ custom_rules:
 
   no_observable_object:
     name: "No ObservableObject"
-    regex: "\\b(ObservableObject|@Published|@StateObject|@ObservedObject|@EnvironmentObject)\\b"
+    regex: "(?<!\\w)(ObservableObject|@Published|@StateObject|@ObservedObject|@EnvironmentObject)\\b"
     message: "Use @Observable / @Bindable / @State / @Environment instead (Swift 6.2 Observation)"
     severity: error
     match_kinds:
