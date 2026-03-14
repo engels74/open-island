@@ -56,8 +56,6 @@ package enum ToolEventProcessor {
             .interrupted
         }
 
-        let duration = result?.duration ?? event.startedAt.distance(to: Date.now)
-
         return ToolCallItem(
             id: event.id,
             name: event.name,

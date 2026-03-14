@@ -61,6 +61,9 @@ package actor SessionStore {
     /// UUID-keyed continuations for multi-subscriber broadcast (§2.2).
     var continuations: [UUID: AsyncStream<[SessionState]>.Continuation] = [:]
 
+    /// Per-session tool trackers for tool lifecycle management (§2.4).
+    var toolTrackers: [String: ToolTracker] = [:]
+
     /// Handle for the periodic health-check task (§2.5).
     var healthCheckTask: Task<Void, Never>?
 

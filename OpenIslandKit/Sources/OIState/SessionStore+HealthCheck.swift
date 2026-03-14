@@ -13,6 +13,7 @@ extension SessionStore {
     /// sessions (where the provider reports the session is gone) are
     /// transitioned to `.ended`.
     package func startHealthCheck(registry: ProviderRegistry) {
+        healthCheckTask?.cancel()
         healthCheckTask = Task {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(3))

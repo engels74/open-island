@@ -76,11 +76,33 @@ extension SessionStore {
 extension SessionStore {
     private func handleToolEvent(_ event: ProviderEvent) {
         switch event {
-        case let .toolStarted(sessionID, _):
-            touchSession(sessionID)
+        case let .toolStarted(sessionID, toolEvent):
+            var tracker = toolTrackers[sessionID, default: ToolTracker()]
+            let item = ToolEventProcessor.processToolStarted(toolEvent, tracker: &tracker)
+            toolTrackers[sessionID] = tracker
 
-        case let .toolCompleted(sessionID, _, _):
-            touchSession(sessionID)
+            if var session = sessions[sessionID] {
+                session.activeTools.append(item)
+                session.lastActivityAt = Date()
+                sessions[sessionID] = session
+                publishState()
+            }
+
+        case let .toolCompleted(sessionID, toolEvent, toolResult):
+            var tracker = toolTrackers[sessionID, default: ToolTracker()]
+            let item = ToolEventProcessor.processToolCompleted(toolEvent, result: toolResult, tracker: &tracker)
+            toolTrackers[sessionID] = tracker
+
+            if var session = sessions[sessionID], let item {
+                if let index = session.activeTools.firstIndex(where: { $0.id == item.id }) {
+                    session.activeTools[index] = item
+                } else {
+                    session.activeTools.append(item)
+                }
+                session.lastActivityAt = Date()
+                sessions[sessionID] = session
+                publishState()
+            }
 
         default:
             break
@@ -128,6 +150,7 @@ extension SessionStore {
                     totalTokens: total,
                     timestamp: Date(),
                 )
+                session.lastActivityAt = Date()
                 sessions[sessionID] = session
                 publishState()
             }
