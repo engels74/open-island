@@ -27,7 +27,9 @@ extension SessionStore {
             transitionSession(sessionID, to: .processing)
 
         case .toolStarted,
-             .toolCompleted:
+             .toolCompleted,
+             .subagentStarted,
+             .subagentStopped:
             handleToolEvent(event)
 
         case .permissionRequested,
@@ -41,8 +43,6 @@ extension SessionStore {
             handleDataUpdateEvent(event)
 
         case .notification,
-             .subagentStarted,
-             .subagentStopped,
              .diffUpdated,
              .modelResponse:
             handleActivityEvent(event)
@@ -103,6 +103,18 @@ extension SessionStore {
                 sessions[sessionID] = session
                 publishState()
             }
+
+        case let .subagentStarted(sessionID, taskID: taskID, parentToolID: parentToolID):
+            var tracker = toolTrackers[sessionID, default: ToolTracker()]
+            ToolEventProcessor.processSubagentStarted(taskID: taskID, parentToolID: parentToolID, tracker: &tracker)
+            toolTrackers[sessionID] = tracker
+            touchSession(sessionID)
+
+        case let .subagentStopped(sessionID, taskID: taskID):
+            var tracker = toolTrackers[sessionID, default: ToolTracker()]
+            ToolEventProcessor.processSubagentStopped(taskID: taskID, tracker: &tracker)
+            toolTrackers[sessionID] = tracker
+            touchSession(sessionID)
 
         default:
             break
@@ -168,12 +180,6 @@ extension SessionStore {
     private func handleActivityEvent(_ event: ProviderEvent) {
         switch event {
         case .notification(let sessionID, message: _):
-            touchSession(sessionID)
-
-        case .subagentStarted(let sessionID, taskID: _, parentToolID: _):
-            touchSession(sessionID)
-
-        case .subagentStopped(let sessionID, taskID: _):
             touchSession(sessionID)
 
         case .diffUpdated(let sessionID, unifiedDiff: _):
