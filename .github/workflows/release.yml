@@ -36,7 +36,7 @@ jobs:
       - name: Verify Swift version
         run: |
           swift --version
-          SWIFT_VERSION=$(swift --version 2>&1 | grep -oE '[0-9]+\.[0-9]+' | head -1)
+          SWIFT_VERSION=$(swift --version 2>&1 | sed -n 's/.*Apple Swift version \([0-9]*\.[0-9]*\).*/\1/p')
           if [[ -z "$SWIFT_VERSION" ]]; then
             echo "::error::Could not detect Swift version from 'swift --version' output"
             exit 1
