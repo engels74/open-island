@@ -14,10 +14,7 @@ concurrency:
 jobs:
   lint:
     name: Lint & Format
-    # macOS 16 runner for Xcode 17 / Swift 6.2 toolchain.
-    # If macos-16 is unavailable, fall back to macos-15 with xcode-version: latest-stable
-    # and verify Swift 6.2 support. See CONTRIBUTING.md § CI Runners.
-    runs-on: macos-16
+    runs-on: macos-latest
     if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
 
     steps:
