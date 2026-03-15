@@ -68,7 +68,7 @@ package struct ClaudeHookInstaller: Sendable {
 
         // 4. Update settings.json
         let settingsURL = configDir.appendingPathComponent("settings.json")
-        let command = "\(python) \(scriptDest.path)"
+        let command = "\(Self.shellQuote(python)) \(Self.shellQuote(scriptDest.path))"
         try self.updateSettings(at: settingsURL, command: command)
 
         // 5. Remove deprecated hook entries from previous installations
@@ -192,6 +192,13 @@ package struct ClaudeHookInstaller: Sendable {
         }
 
         try Self.writeSettingsJSON(root, to: settingsURL)
+    }
+
+    /// Shell-quote a path for safe embedding in a command string.
+    /// Uses single quotes to prevent glob/variable expansion, with
+    /// embedded single quotes escaped as `'\''`.
+    private static func shellQuote(_ path: String) -> String {
+        "'\(path.replacingOccurrences(of: "'", with: "'\\''"))'"
     }
 
     private static func defaultClaudeConfigDir() -> URL {

@@ -98,7 +98,7 @@ package actor ClaudeConversationParser {
         handle.seek(toFileOffset: state.lastFileOffset)
         let data = handle.readDataToEndOfFile()
 
-        state.lastFileSize = currentFileSize
+        state.lastFileSize = state.lastFileOffset + UInt64(data.count)
 
         guard !data.isEmpty else {
             self.sessions[sessionID] = state
@@ -121,7 +121,7 @@ package actor ClaudeConversationParser {
             return []
         }
 
-        state.lastFileOffset = currentFileSize
+        state.lastFileOffset += UInt64(data.count)
 
         var newItems: [ChatHistoryItem] = []
         let baseIndex = state.chatItems.count

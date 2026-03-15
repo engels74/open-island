@@ -203,6 +203,22 @@ package final class ClaudeHookSocketServer: Sendable {
 
     private let state: Mutex<ServerState>
 
+    /// Lightweight check for PermissionRequest events without full JSON decoding.
+    private static func isPermissionRequest(_ data: Data) -> Bool {
+        guard let str = String(data: data, encoding: .utf8) else { return false }
+        return str.contains("\"hook_event_name\":\"PermissionRequest\"")
+            || str.contains("\"hook_event_name\": \"PermissionRequest\"")
+    }
+
+    /// Extract the request ID from raw JSON data for PermissionRequest events.
+    private static func extractRequestID(from data: Data) -> String? {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return nil
+        }
+        // Try session_id first as a unique identifier, then fall back to tool_use_id
+        return json["session_id"] as? String ?? json["tool_use_id"] as? String
+    }
+
     /// Create a Unix domain socket, bind, and listen.
     private func createAndBindSocket() throws(SocketServerError) -> Int32 {
         let fd = Darwin.socket(AF_UNIX, SOCK_STREAM, 0)
@@ -255,15 +271,36 @@ package final class ClaudeHookSocketServer: Sendable {
             let clientFD = Darwin.accept(serverFD, nil, nil)
             guard clientFD >= 0 else { break }
 
-            // Read client data on the same queue
-            self.readClient(fd: clientFD, continuation: continuation)
+            let data = self.readClient(fd: clientFD)
+
+            guard !data.isEmpty else {
+                Darwin.close(clientFD)
+                continue
+            }
+
+            let result = continuation.yield(data)
+            if case .dropped = result {
+                self.logBufferWarning()
+            }
+
+            // Hold the connection open for PermissionRequest events so the
+            // Python hook script can receive the approve/deny response.
+            if Self.isPermissionRequest(data) {
+                let socketFD = SocketFD(clientFD)
+                let requestID = Self.extractRequestID(from: data) ?? UUID().uuidString
+                let connection = PermissionConnection(clientFD: socketFD, requestID: requestID)
+                self.registerPermissionConnection(connection)
+            } else {
+                Darwin.close(clientFD)
+            }
         }
     }
 
-    private func readClient(
-        fd: Int32,
-        continuation: AsyncStream<Data>.Continuation,
-    ) {
+    /// Read all available data from a client socket.
+    ///
+    /// Returns the raw data without closing the fd — the caller decides
+    /// whether to close or hold the connection open.
+    private func readClient(fd: Int32) -> Data {
         var accumulated = Data()
         let bufferSize = 8192
         let buffer = UnsafeMutableRawPointer.allocate(byteCount: bufferSize, alignment: 1)
@@ -289,17 +326,7 @@ package final class ClaudeHookSocketServer: Sendable {
             }
         }
 
-        if !accumulated.isEmpty {
-            let result = continuation.yield(accumulated)
-            if case .dropped = result {
-                // Buffer is full — consumer too slow
-                self.logBufferWarning()
-            }
-        }
-
-        // Close client connection (non-permission requests)
-        // Permission connections are kept open by the caller via registerPermissionConnection
-        Darwin.close(fd)
+        return accumulated
     }
 
     private func logBufferWarning() {
