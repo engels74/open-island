@@ -131,7 +131,14 @@ if command -v create-dmg &> /dev/null; then
         --app-drop-link 450 200 \
         --hide-extension "$DISPLAY_NAME.app" \
         "$DMG_PATH" \
-        "$APP_PATH"
+        "$APP_PATH" \
+        || true
+
+    # Verify DMG was actually created
+    if [ ! -f "$DMG_PATH" ]; then
+        echo "ERROR: DMG was not created at $DMG_PATH"
+        exit 1
+    fi
 else
     echo "Using hdiutil (install create-dmg for prettier DMG: brew install create-dmg)"
     hdiutil create -volname "$DISPLAY_NAME" \
@@ -344,3 +351,5 @@ echo "  - DMG: $DMG_PATH"
 [ -f "$RELEASE_DIR/appcast/appcast.xml" ] && echo "  - Appcast: $RELEASE_DIR/appcast/appcast.xml"
 [ -n "$GITHUB_DOWNLOAD_URL" ] && echo "  - GitHub: https://github.com/$GITHUB_REPO/releases/tag/v$VERSION"
 [ -f "$WEBSITE_PUBLIC/appcast.xml" ] && echo "  - Website: $WEBSITE_PUBLIC/appcast.xml"
+
+exit 0

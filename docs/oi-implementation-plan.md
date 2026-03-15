@@ -636,9 +636,9 @@ workflow YAML. This ensures local development and CI always run the same command
 | `build-release` | Release build, export .app to `build/export/` | `ci.yml`, `release.yml` |
 | `build-package` | Build SPM package independently via `swift build` | `ci.yml` |
 | `resolve` | Resolve SPM dependencies explicitly | `ci.yml` |
-| `test` | Run all tests (Xcode scheme + SPM package) | — |
-| `test-ci` | Run tests with CI settings (no retry, result bundle) | `ci.yml`, `release.yml` |
-| `test-package` | Run SPM package tests via `swift test` | via `test` / `test-ci` |
+| `test` | Run all tests (SPM package tests) | — |
+| `test-ci` | Run tests with CI settings | `ci.yml`, `release.yml` |
+| `test-package` | Run SPM package tests via `swift test` | — |
 | `format` | SwiftFormat auto-fix | — |
 | `format-check` | SwiftFormat lint (no modification, CI-safe) | `code-quality.yml` |
 | `lint` | SwiftLint strict mode | `code-quality.yml` |
@@ -670,7 +670,7 @@ workflow YAML. This ensures local development and CI always run the same command
 The project does not use any of Make's actual build-system features (dependency graphs, incremental file-based rebuilds) — every target would be `.PHONY`. `just` is the right tool for a task-runner role.
 
 - [x] The justfile defines shared configuration variables (`scheme`, `package_dir`, `build_dir`, etc.) used by all recipes — these are the canonical source for project naming
-- [x] `test-ci` differs from `test` in: no retry on failure, always produces `.xcresult` bundle for artifact upload, combined stdout/stderr for log capture
+- [x] `test-ci` differs from `test` in: combined stdout/stderr for log capture (both use `swift test` as the sole test runner)
 
 ---
 
@@ -859,15 +859,13 @@ The `.pre-commit-config.yaml` in Phase 0.3.1 pins specific `rev` values for all 
 
 Phase 0.4 establishes the testing infrastructure. This section specifies how tests run in CI:
 
-- [x] **Xcode scheme tests**: `xcodebuild test` runs all test targets included in the `OpenIsland` scheme. Ensure the scheme's "Test" action includes: `OICoreTests`, `OIStateTests`, `OIProvidersTests`, and any future test targets. Check the scheme's test plan in Xcode before the first CI run.
+- [x] **SPM package tests in CI**: all test targets (`OICoreTests`, `OIStateTests`, `OIProvidersTests`) run via `swift test` in the `OpenIslandKit` directory. `xcodebuild test` cannot discover SPM test targets from local packages via CLI, so `swift test` is the sole test runner for both CI and local development. The scheme's TestAction includes these targets for Xcode GUI use only.
 
-- [x] **SPM package tests**: `swift test` in the `OpenIslandKit` directory runs all test targets defined in `Package.swift`. This catches package-level issues independently of Xcode.
+- [x] **Test result artifacts**: `swift test` does not produce `.xcresult` bundles. The CI workflow's "Upload test results" step will be a no-op until Xcode-native test targets (e.g., UI tests) are added. Test output is captured in CI logs directly.
 
-- [x] **Test result artifacts**: the `test-ci` justfile recipe produces a `.xcresult` bundle at `build/TestResults.xcresult`. This is uploaded as a CI artifact (14-day retention) for debugging test failures. The `.xcresult` bundle contains full test logs, screenshots (for UI tests), and performance metrics.
+- [x] **No test retries in CI**: `swift test` has no retry mechanism. Flaky tests must be fixed, not retried.
 
-- [x] **No test retries in CI**: `test-ci` uses `-retry-tests-on-failure NO` to prevent flaky tests from silently passing. Flaky tests must be fixed, not retried.
-
-- [x] **Parallel testing**: enabled via `-parallel-testing-enabled YES`. Suites using `.serialized` trait (Phase 0.4) will still run serially as configured.
+- [x] **Parallel testing**: `swift test` runs test targets in parallel by default. Suites using `.serialized` trait (Phase 0.4) will still run serially as configured.
 
 - [x] **Test execution in release workflow**: the release workflow runs the full test suite (`just test-ci`) as a prerequisite before building. A release cannot be published if tests fail. This is a deliberate gate — even if the same commit passed CI earlier, the release runs tests independently for isolation.
 

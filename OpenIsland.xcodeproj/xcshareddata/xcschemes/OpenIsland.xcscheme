@@ -29,6 +29,38 @@
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
       shouldUseLaunchSchemeArgsEnv = "YES"
       shouldAutocreateTestPlan = "YES">
+      <Testables>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "OICoreTests"
+               BuildableName = "OICoreTests"
+               BlueprintName = "OICoreTests"
+               ReferencedContainer = "container:OpenIslandKit">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "OIStateTests"
+               BuildableName = "OIStateTests"
+               BlueprintName = "OIStateTests"
+               ReferencedContainer = "container:OpenIslandKit">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "OIProvidersTests"
+               BuildableName = "OIProvidersTests"
+               BlueprintName = "OIProvidersTests"
+               ReferencedContainer = "container:OpenIslandKit">
+            </BuildableReference>
+         </TestableReference>
+      </Testables>
    </TestAction>
    <LaunchAction
       buildConfiguration = "Debug"

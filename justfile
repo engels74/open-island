@@ -60,30 +60,15 @@ test-package:
 
 # ─── Test ────────────────────────────────────────────────────────────────────
 
-# Run all test suites (Xcode scheme tests + SPM package tests)
+# Run all test suites (SPM package tests)
 test:
-    @echo "=== Running Xcode scheme tests ==="
-    xcodebuild test {{ xcode_common }} \
-        -configuration Debug \
-        {{ xcode_sign }} \
-        -parallel-testing-enabled YES \
-        -resultBundlePath {{ build_dir }}/TestResults.xcresult
-    @echo ""
     @echo "=== Running SPM package tests ==="
-    just test-package
+    cd {{ package_dir }} && swift test
     @echo ""
     @echo "All tests passed."
 
-# Run tests with CI-specific settings (no retry, result bundle)
+# Run tests with CI-specific settings
 test-ci:
-    @echo "=== Running Xcode scheme tests (CI) ==="
-    xcodebuild test {{ xcode_common }} \
-        -configuration Debug \
-        {{ xcode_sign }} \
-        -parallel-testing-enabled YES \
-        -retry-tests-on-failure NO \
-        -resultBundlePath {{ build_dir }}/TestResults.xcresult
-    @echo ""
     @echo "=== Running SPM package tests (CI) ==="
     cd {{ package_dir }} && swift test 2>&1
     @echo ""
