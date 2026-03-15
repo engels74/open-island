@@ -7,7 +7,7 @@ package import Foundation
 /// The installer:
 /// 1. Detects (or accepts) a Python 3 runtime path
 /// 2. Copies the bundled `open-island-claude-hook.py` to `~/.claude/hooks/`
-/// 3. Registers hook commands in `~/.claude/settings.json` for all 18 event types
+/// 3. Registers hook commands in `~/.claude/settings.json` for all 17 event types
 /// 4. Supports deduplication, uninstallation, and status checking
 package struct ClaudeHookInstaller: Sendable {
     // MARK: Package
@@ -16,8 +16,8 @@ package struct ClaudeHookInstaller: Sendable {
     package static let allHookEventTypes: [String] = [
         // Session lifecycle
         "SessionStart", "SessionEnd",
-        // Agentic loop
-        "UserPromptSubmit", "PreToolUse", "PostToolUse", "PostToolUseFailure",
+        // Agentic loop (PreToolUse excluded — upstream bug #15897)
+        "UserPromptSubmit", "PostToolUse", "PostToolUseFailure",
         "PermissionRequest", "Stop", "Notification",
         // Team
         "SubagentStart", "SubagentStop", "TeammateIdle", "TaskCompleted",
@@ -70,6 +70,9 @@ package struct ClaudeHookInstaller: Sendable {
         let settingsURL = configDir.appendingPathComponent("settings.json")
         let command = "\(python) \(scriptDest.path)"
         try self.updateSettings(at: settingsURL, command: command)
+
+        // 5. Remove deprecated hook entries from previous installations
+        try self.removeDeprecatedHookEntries(at: settingsURL)
     }
 
     /// Remove all Open Island hooks from Claude Code.
@@ -145,6 +148,51 @@ package struct ClaudeHookInstaller: Sendable {
     // MARK: Private
 
     // MARK: - Private helpers
+
+    /// Hook event types no longer registered but cleaned up from previous installations.
+    /// PreToolUse: excluded due to Claude Code bug #15897 (updatedInput lost in parallel hooks).
+    private static let deprecatedHookEventTypes: [String] = [
+        "PreToolUse",
+    ]
+
+    /// Remove Open Island entries for deprecated hook event types from settings.json.
+    /// This cleans up stale entries left by previous versions that registered these events.
+    private static func removeDeprecatedHookEntries(
+        at settingsURL: URL,
+    ) throws(HookInstallError) {
+        guard FileManager.default.fileExists(atPath: settingsURL.path) else { return }
+
+        var root = try readSettingsJSON(at: settingsURL)
+        guard var hooks = root["hooks"] as? [String: Any] else { return }
+
+        var modified = false
+        for eventType in Self.deprecatedHookEventTypes {
+            guard var entries = hooks[eventType] as? [[String: Any]] else { continue }
+            let before = entries.count
+            entries.removeAll { entry in
+                guard let cmd = entry["command"] as? String else { return false }
+                return cmd.contains(Self.hookScriptName)
+            }
+            if entries.count != before {
+                modified = true
+                if entries.isEmpty {
+                    hooks.removeValue(forKey: eventType)
+                } else {
+                    hooks[eventType] = entries
+                }
+            }
+        }
+
+        guard modified else { return }
+
+        if hooks.isEmpty {
+            root.removeValue(forKey: "hooks")
+        } else {
+            root["hooks"] = hooks
+        }
+
+        try Self.writeSettingsJSON(root, to: settingsURL)
+    }
 
     private static func defaultClaudeConfigDir() -> URL {
         FileManager.default.homeDirectoryForCurrentUser
@@ -243,7 +291,9 @@ package struct ClaudeHookInstaller: Sendable {
 
         guard var hooks = root["hooks"] as? [String: Any] else { return }
 
-        for eventType in self.allHookEventTypes {
+        // Remove from active and deprecated event types
+        let allEventTypes = self.allHookEventTypes + self.deprecatedHookEventTypes
+        for eventType in allEventTypes {
             guard var entries = hooks[eventType] as? [[String: Any]] else { continue }
             entries.removeAll { entry in
                 guard let cmd = entry["command"] as? String else { return false }

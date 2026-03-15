@@ -40,7 +40,7 @@ private enum HookInstallerTestHelpers {
 @Suite(.tags(.claude), .serialized)
 struct ClaudeHookInstallerInstallTests {
     @Test
-    func `install writes settings json with all 18 event types`() async throws {
+    func `install writes settings json with all 17 event types`() async throws {
         let tempDir = try HookInstallerTestHelpers.makeTempClaudeDir()
         defer { HookInstallerTestHelpers.cleanup(tempDir) }
 
@@ -59,7 +59,8 @@ struct ClaudeHookInstallerInstallTests {
         )
         let hooks = try #require(json["hooks"] as? [String: Any])
 
-        #expect(hooks.count == 18)
+        #expect(hooks.count == 17)
+        #expect(hooks["PreToolUse"] == nil)
 
         for eventType in ClaudeHookInstaller.allHookEventTypes {
             let entries = try #require(hooks[eventType] as? [[String: Any]])
@@ -211,7 +212,7 @@ struct ClaudeHookInstallerInstallTests {
         let settingsURL = tempDir.appendingPathComponent("settings.json")
         let existingJSON: [String: Any] = [
             "hooks": [
-                "PreToolUse": [
+                "PostToolUse": [
                     ["type": "command", "command": "/usr/local/bin/some-other-tool"],
                 ],
             ],
@@ -231,13 +232,60 @@ struct ClaudeHookInstallerInstallTests {
             try JSONSerialization.jsonObject(with: data) as? [String: Any],
         )
         let hooks = try #require(json["hooks"] as? [String: Any])
-        let preToolEntries = try #require(hooks["PreToolUse"] as? [[String: Any]])
+        let postToolEntries = try #require(hooks["PostToolUse"] as? [[String: Any]])
 
-        #expect(preToolEntries.count == 2)
+        #expect(postToolEntries.count == 2)
 
-        let commands = preToolEntries.compactMap { $0["command"] as? String }
+        let commands = postToolEntries.compactMap { $0["command"] as? String }
         #expect(commands.contains("/usr/local/bin/some-other-tool"))
         #expect(commands.contains { $0.contains(ClaudeHookInstaller.hookScriptName) })
+    }
+
+    @Test
+    func `install removes stale PreToolUse entries from previous version`() async throws {
+        let tempDir = try HookInstallerTestHelpers.makeTempClaudeDir()
+        defer { HookInstallerTestHelpers.cleanup(tempDir) }
+
+        // Simulate a previous installation that registered PreToolUse
+        let settingsURL = tempDir.appendingPathComponent("settings.json")
+        let hookScript = ClaudeHookInstaller.hookScriptName
+        let staleJSON: [String: Any] = [
+            "hooks": [
+                "PreToolUse": [
+                    ["type": "command", "command": "/usr/bin/python3 /path/to/\(hookScript)"],
+                    ["type": "command", "command": "/usr/local/bin/some-other-tool"],
+                ],
+                "SessionStart": [
+                    ["type": "command", "command": "/usr/bin/python3 /path/to/\(hookScript)"],
+                ],
+            ],
+        ]
+        let staleData = try JSONSerialization.data(withJSONObject: staleJSON)
+        try staleData.write(to: settingsURL)
+
+        let scriptURL = try HookInstallerTestHelpers.createFakeScript(in: tempDir)
+        try await ClaudeHookInstaller.install(
+            pythonPath: "/usr/bin/python3",
+            claudeConfigDir: tempDir,
+            bundledScriptURL: scriptURL,
+        )
+
+        let data = try Data(contentsOf: settingsURL)
+        let json = try #require(
+            try JSONSerialization.jsonObject(with: data) as? [String: Any],
+        )
+        let hooks = try #require(json["hooks"] as? [String: Any])
+
+        // Our PreToolUse entry should be removed, third-party entry preserved
+        let preToolEntries = try #require(hooks["PreToolUse"] as? [[String: Any]])
+        #expect(preToolEntries.count == 1)
+        #expect(preToolEntries[0]["command"] as? String == "/usr/local/bin/some-other-tool")
+
+        // SessionStart should still have our hook (updated)
+        let sessionEntries = try #require(hooks["SessionStart"] as? [[String: Any]])
+        #expect(sessionEntries.count == 1)
+        let cmd = try #require(sessionEntries[0]["command"] as? String)
+        #expect(cmd.contains(hookScript))
     }
 }
 
