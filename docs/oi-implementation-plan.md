@@ -1258,12 +1258,12 @@ OIState/SessionStore+HealthCheck.swift
 
 ### 2.6 SessionStore Tests
 
-- [ ] Test event processing for each `SessionEvent` case
-- [ ] Test multi-subscriber broadcast: 2+ consumers see same state
-- [ ] Test zombie session cleanup
-- [ ] Test audit trail ring buffer behavior
-- [ ] Test concurrent event processing (use `withTaskGroup` to fire events simultaneously)
-- [ ] Use `confirmation` from Swift Testing for async event verification
+- [x] Test event processing for each `SessionEvent` case
+- [x] Test multi-subscriber broadcast: 2+ consumers see same state
+- [x] Test zombie session cleanup
+- [x] Test audit trail ring buffer behavior
+- [x] Test concurrent event processing (use `withTaskGroup` to fire events simultaneously)
+- [x] Use `confirmation` from Swift Testing for async event verification
 
 ---
 
@@ -1301,15 +1301,15 @@ Four handler types are available: `command` (shell scripts), `http` (POST to end
 OIProviders/Claude/ClaudeHookSocketServer.swift
 ```
 
-- [ ] Port `HookSocketServer` from claude-island
-- [ ] GCD-based Unix domain socket server at `/tmp/open-island-claude.sock`
-- [ ] Non-blocking accept via `DispatchSource.makeReadSource`
-- [ ] **`@preconcurrency import Dispatch`** at the top of this file — GCD types predate Swift concurrency and will trigger Sendable diagnostics in strict mode. Add a comment: `// @preconcurrency: DispatchSource, DispatchQueue predate Sendable annotations`
-- [ ] `Mutex<PermissionsState>` for permission tracking (Sendable-safe)
-- [ ] Permission socket lifecycle: keep client socket open for `PermissionRequest`, 5-minute timeout
-- [ ] Emit raw `ClaudeHookEvent` structs to a callback
-- [ ] **Always set `onTermination`** on any `AsyncStream` continuations used to bridge GCD callbacks → async streams, to ensure socket cleanup on consumer disconnect
-- [ ] **Buffering policy**: use `.bufferingOldest(128)` for the event stream from the socket — events are sequential and order-matters, so dropping the oldest events silently would cause incorrect state reconstruction. `.bufferingOldest` with a generous capacity preserves event ordering under load while bounded memory. Log a warning if the buffer fills (indicates consumer is too slow).
+- [x] Port `HookSocketServer` from claude-island
+- [x] GCD-based Unix domain socket server at `/tmp/open-island-claude.sock`
+- [x] Non-blocking accept via `DispatchSource.makeReadSource`
+- [x] **`@preconcurrency import Dispatch`** at the top of this file — GCD types predate Swift concurrency and will trigger Sendable diagnostics in strict mode. Add a comment: `// @preconcurrency: DispatchSource, DispatchQueue predate Sendable annotations`
+- [x] `Mutex<PermissionsState>` for permission tracking (Sendable-safe)
+- [x] Permission socket lifecycle: keep client socket open for `PermissionRequest`, 5-minute timeout
+- [x] Emit raw `ClaudeHookEvent` structs to a callback
+- [x] **Always set `onTermination`** on any `AsyncStream` continuations used to bridge GCD callbacks → async streams, to ensure socket cleanup on consumer disconnect
+- [x] **Buffering policy**: use `.bufferingOldest(128)` for the event stream from the socket — events are sequential and order-matters, so dropping the oldest events silently would cause incorrect state reconstruction. `.bufferingOldest` with a generous capacity preserves event ordering under load while bounded memory. Log a warning if the buffer fills (indicates consumer is too slow).
 
 #### `~Copyable` socket file descriptor wrapper
 
@@ -1355,21 +1355,21 @@ OIProviders/Claude/ClaudeHookEvent.swift
 OIProviders/Claude/ClaudeEventNormalizer.swift
 ```
 
-- [ ] `ClaudeHookEvent` — raw struct matching the hook script's JSON payload:
-  - [ ] Common fields (all events): `session_id`, `transcript_path`, `cwd`, `permission_mode`, `hook_event_name`
-  - [ ] `PreToolUse` fields: `tool_name`, `tool_input` (with tool-specific schemas for Bash, Write, Edit, Read, Glob, Grep, WebFetch, WebSearch, Task, and MCP tools), `tool_use_id`
-  - [ ] `PermissionRequest` fields: same as `PreToolUse` plus decision response schema
-  - [ ] `PostToolUse`/`PostToolUseFailure` fields: tool result, error info
-  - [ ] `SessionStart` fields: session type (startup, resume, clear, compact)
-  - [ ] `SubagentStart`/`SubagentStop` fields: task ID, parent context
-  - [ ] `PreCompact` fields: compaction reason, message count
-  - [ ] `Notification` fields: notification type, message content
-- [ ] `ClaudeEventNormalizer` — maps `ClaudeHookEvent` → `ProviderEvent`
-  - [ ] Uses `throws(EventNormalizationError)` for closed error domain (see Phase 1.5)
-  - [ ] Maps all 18 hook event types (including unregistered PreToolUse) to the appropriate `ProviderEvent` cases
-  - [ ] Handles `PreToolUse` tool input schema variations per tool type
-  - [ ] Extracts permission context from `PermissionRequest` events
-- [ ] Handle all Claude-specific event types: `Setup`, `SessionStart`, `SessionEnd`, `UserPromptSubmit`, `PreToolUse` *(not registered but handled for backward compat)*, `PostToolUse`, `PostToolUseFailure`, `PermissionRequest`, `Stop`, `Notification`, `SubagentStart`, `SubagentStop`, `TeammateIdle`, `TaskCompleted`, `PreCompact`, `ConfigChange`, `WorktreeCreate`, `WorktreeRemove`
+- [x] `ClaudeHookEvent` — raw struct matching the hook script's JSON payload:
+  - [x] Common fields (all events): `session_id`, `transcript_path`, `cwd`, `permission_mode`, `hook_event_name`
+  - [x] `PreToolUse` fields: `tool_name`, `tool_input` (with tool-specific schemas for Bash, Write, Edit, Read, Glob, Grep, WebFetch, WebSearch, Task, and MCP tools), `tool_use_id`
+  - [x] `PermissionRequest` fields: same as `PreToolUse` plus decision response schema
+  - [x] `PostToolUse`/`PostToolUseFailure` fields: tool result, error info
+  - [x] `SessionStart` fields: session type (startup, resume, clear, compact)
+  - [x] `SubagentStart`/`SubagentStop` fields: task ID, parent context
+  - [x] `PreCompact` fields: compaction reason, message count
+  - [x] `Notification` fields: notification type, message content
+- [x] `ClaudeEventNormalizer` — maps `ClaudeHookEvent` → `ProviderEvent`
+  - [x] Uses `throws(EventNormalizationError)` for closed error domain (see Phase 1.5)
+  - [x] Maps all 18 hook event types (including unregistered PreToolUse) to the appropriate `ProviderEvent` cases
+  - [x] Handles `PreToolUse` tool input schema variations per tool type
+  - [x] Extracts permission context from `PermissionRequest` events
+- [x] Handle all Claude-specific event types: `Setup`, `SessionStart`, `SessionEnd`, `UserPromptSubmit`, `PreToolUse` *(not registered but handled for backward compat)*, `PostToolUse`, `PostToolUseFailure`, `PermissionRequest`, `Stop`, `Notification`, `SubagentStart`, `SubagentStop`, `TeammateIdle`, `TaskCompleted`, `PreCompact`, `ConfigChange`, `WorktreeCreate`, `WorktreeRemove`
 
 ### 3.3 Python Hook Script
 
@@ -1377,14 +1377,14 @@ OIProviders/Claude/ClaudeEventNormalizer.swift
 Resources/Hooks/Claude/open-island-claude-hook.py
 ```
 
-- [ ] Port `claude-island-state.py` with updated socket path (`/tmp/open-island-claude.sock`)
-- [ ] Keep the same protocol: JSON over Unix socket, blocking for permission responses
-- [ ] Update the hook event names to match `open-island` naming
-- [ ] Output `{}` (empty JSON) to stdout on all non-permission exit paths — prevents parallel hook interference when Claude Code merges stdout from multiple hooks (e.g., RTK's `rtk-rewrite.sh`)
-- [ ] Handle `PermissionRequest` hooks specially: read JSON from stdin, forward to socket, **block waiting** for approve/deny response from the Swift app, then output the decision JSON to stdout:
-  - [ ] Allow response: `{"decision": {"behavior": "allow"}}`
-  - [ ] Deny response: `{"decision": {"behavior": "deny", "message": "reason", "interrupt": true}}`
-- [ ] `PreToolUse` hooks can optionally set `permissionDecision` to `"allow"`, `"deny"`, or `"ask"` in `hookSpecificOutput` for policy-based auto-approval — **Note**: PreToolUse is not currently registered due to [upstream bug #15897](https://github.com/anthropics/claude-code/issues/15897); re-enable when the bug is fixed
+- [x] Port `claude-island-state.py` with updated socket path (`/tmp/open-island-claude.sock`)
+- [x] Keep the same protocol: JSON over Unix socket, blocking for permission responses
+- [x] Update the hook event names to match `open-island` naming
+- [x] Output `{}` (empty JSON) to stdout on all non-permission exit paths — prevents parallel hook interference when Claude Code merges stdout from multiple hooks (e.g., RTK's `rtk-rewrite.sh`)
+- [x] Handle `PermissionRequest` hooks specially: read JSON from stdin, forward to socket, **block waiting** for approve/deny response from the Swift app, then output the decision JSON to stdout:
+  - [x] Allow response: `{"decision": {"behavior": "allow"}}`
+  - [x] Deny response: `{"decision": {"behavior": "deny", "message": "reason", "interrupt": true}}`
+- [x] `PreToolUse` hooks can optionally set `permissionDecision` to `"allow"`, `"deny"`, or `"ask"` in `hookSpecificOutput` for policy-based auto-approval — **Note**: PreToolUse is not currently registered due to [upstream bug #15897](https://github.com/anthropics/claude-code/issues/15897); re-enable when the bug is fixed
 
 ### 3.4 Hook Installer
 
@@ -1392,17 +1392,17 @@ Resources/Hooks/Claude/open-island-claude-hook.py
 OIProviders/Claude/ClaudeHookInstaller.swift
 ```
 
-- [ ] Port `HookInstaller` logic:
-  - [ ] Copy bundled Python script to `~/.claude/hooks/`
-  - [ ] Detect Python runtime via `PythonRuntimeDetector`
-  - [ ] Update `~/.claude/settings.json` with hook config for all 17 registered event types (PreToolUse excluded — bug #15897)
-  - [ ] Register hooks for all four categories: session lifecycle (`SessionStart`, `SessionEnd`), agentic loop (`UserPromptSubmit`, `PostToolUse`, `PostToolUseFailure`, `PermissionRequest`, `Stop`, `Notification`), team (`SubagentStart`, `SubagentStop`, `TeammateIdle`, `TaskCompleted`), maintenance (`PreCompact`, `ConfigChange`, `WorktreeCreate`, `WorktreeRemove`)
-  - [ ] Clean up stale PreToolUse entries from previous installations during `install()`
-  - [ ] Use `command` handler type for all events (the only type that supports lifecycle/maintenance events, and the most appropriate for the notch overlay use case)
-- [ ] Handle deduplication, legacy format migration, uninstallation
-- [ ] Make this async with cancellation support
-- [ ] Uses `throws(HookInstallError)` for closed error domain (see Phase 1.5)
-- [ ] Note: hooks are snapshot-loaded at Claude Code session start — installing hooks while a Claude session is running requires the user to restart their session. Display a notification if hooks are installed/updated while active Claude sessions are detected.
+- [x] Port `HookInstaller` logic:
+  - [x] Copy bundled Python script to `~/.claude/hooks/`
+  - [x] Detect Python runtime via `PythonRuntimeDetector`
+  - [x] Update `~/.claude/settings.json` with hook config for all 17 registered event types (PreToolUse excluded — bug #15897)
+  - [x] Register hooks for all four categories: session lifecycle (`SessionStart`, `SessionEnd`), agentic loop (`UserPromptSubmit`, `PostToolUse`, `PostToolUseFailure`, `PermissionRequest`, `Stop`, `Notification`), team (`SubagentStart`, `SubagentStop`, `TeammateIdle`, `TaskCompleted`), maintenance (`PreCompact`, `ConfigChange`, `WorktreeCreate`, `WorktreeRemove`)
+  - [x] Clean up stale PreToolUse entries from previous installations during `install()`
+  - [x] Use `command` handler type for all events (the only type that supports lifecycle/maintenance events, and the most appropriate for the notch overlay use case)
+- [x] Handle deduplication, legacy format migration, uninstallation
+- [x] Make this async with cancellation support
+- [x] Uses `throws(HookInstallError)` for closed error domain (see Phase 1.5)
+- [x] Note: hooks are snapshot-loaded at Claude Code session start — installing hooks while a Claude session is running requires the user to restart their session. Display a notification if hooks are installed/updated while active Claude sessions are detected.
 
 ### 3.5 Claude Conversation Parser
 
@@ -1410,16 +1410,16 @@ OIProviders/Claude/ClaudeHookInstaller.swift
 OIProviders/Claude/ClaudeConversationParser.swift
 ```
 
-- [ ] Actor that reads Claude Code's JSONL conversation files incrementally
-- [ ] **Session log location**: `~/.claude/projects/<project-name>/<session-uuid>.jsonl`
-- [ ] **Sessions index**: `~/.claude/projects/<project-name>/sessions-index.json` — contains summaries, message counts, git branches, timestamps; useful for populating session list on app launch
-- [ ] Track `lastFileOffset` per session, detect file truncation
-- [ ] Parse user messages, assistant messages (text, tool_use, thinking blocks), tool results
-- [ ] Handle `/clear` detection (resets session state)
-- [ ] Emit parsed `[ChatHistoryItem]` via `ProviderEvent.chatUpdated`
-- [ ] Large file handling: tail-based parsing for files > 10MB
-- [ ] The `transcript_path` field from every hook event provides the absolute path to the active session's JSONL file — use this for direct file tailing rather than directory scanning
-- [ ] The file handle used for incremental reading is another candidate for a `~Copyable` wrapper (see Phase 3.1 pattern) — evaluate whether the ownership model adds value here or if the actor's isolation is sufficient
+- [x] Actor that reads Claude Code's JSONL conversation files incrementally
+- [x] **Session log location**: `~/.claude/projects/<project-name>/<session-uuid>.jsonl`
+- [x] **Sessions index**: `~/.claude/projects/<project-name>/sessions-index.json` — contains summaries, message counts, git branches, timestamps; useful for populating session list on app launch
+- [x] Track `lastFileOffset` per session, detect file truncation
+- [x] Parse user messages, assistant messages (text, tool_use, thinking blocks), tool results
+- [x] Handle `/clear` detection (resets session state)
+- [x] Emit parsed `[ChatHistoryItem]` via `ProviderEvent.chatUpdated`
+- [x] Large file handling: tail-based parsing for files > 10MB
+- [x] The `transcript_path` field from every hook event provides the absolute path to the active session's JSONL file — use this for direct file tailing rather than directory scanning
+- [x] The file handle used for incremental reading is another candidate for a `~Copyable` wrapper (see Phase 3.1 pattern) — evaluate whether the ownership model adds value here or if the actor's isolation is sufficient
 
 ### 3.6 Claude Provider Adapter (Composition)
 
@@ -1427,23 +1427,23 @@ OIProviders/Claude/ClaudeConversationParser.swift
 OIProviders/Claude/ClaudeProviderAdapter.swift
 ```
 
-- [ ] Actor conforming to `ProviderAdapter`
-- [ ] `transportType: .hookSocket`
-- [ ] Composes: `ClaudeHookSocketServer` + `ClaudeHookInstaller` + `ClaudeConversationParser`
-- [ ] `start()`: install hooks, start socket server, begin file watching. Uses `throws(ProviderStartupError)`.
-- [ ] `stop()`: stop socket server, cancel file watchers
-- [ ] `events()`: merge socket events + file change events into single `AsyncStream<ProviderEvent>` — **always set `onTermination`** on the merged stream's continuation to cancel internal tasks and close the socket listener when consumers disconnect. Use `.bufferingOldest(128)` to preserve event ordering (same rationale as Phase 3.1).
-- [ ] `respondToPermission()`: delegate to socket server's held-open connection. The connection is kept alive for up to 5 minutes waiting for the user's decision. Write the approval/denial JSON and close the connection.
-- [ ] `isSessionAlive()`: check PID via `kill(pid, 0)`
+- [x] Actor conforming to `ProviderAdapter`
+- [x] `transportType: .hookSocket`
+- [x] Composes: `ClaudeHookSocketServer` + `ClaudeHookInstaller` + `ClaudeConversationParser`
+- [x] `start()`: install hooks, start socket server, begin file watching. Uses `throws(ProviderStartupError)`.
+- [x] `stop()`: stop socket server, cancel file watchers
+- [x] `events()`: merge socket events + file change events into single `AsyncStream<ProviderEvent>` — **always set `onTermination`** on the merged stream's continuation to cancel internal tasks and close the socket listener when consumers disconnect. Use `.bufferingOldest(128)` to preserve event ordering (same rationale as Phase 3.1).
+- [x] `respondToPermission()`: delegate to socket server's held-open connection. The connection is kept alive for up to 5 minutes waiting for the user's decision. Write the approval/denial JSON and close the connection.
+- [x] `isSessionAlive()`: check PID via `kill(pid, 0)`
 
 ### 3.7 Integration Test: Claude Adapter End-to-End
 
-- [ ] Mock socket client sending Claude hook events (all 18 event types)
-- [ ] Verify `ProviderEvent` stream emits correct normalized events
-- [ ] Test permission flow: request → response → socket write
-- [ ] Test conversation parsing with sample JSONL fixtures from `~/.claude/projects/` format
-- [ ] Test hook installer: verify settings.json is correctly updated with all event hooks
-- [ ] Test session lifecycle: start → process → tool use → permission → approval → stop → end
+- [x] Mock socket client sending Claude hook events (all 18 event types)
+- [x] Verify `ProviderEvent` stream emits correct normalized events
+- [x] Test permission flow: request → response → socket write
+- [x] Test conversation parsing with sample JSONL fixtures from `~/.claude/projects/` format
+- [x] Test hook installer: verify settings.json is correctly updated with all event hooks
+- [x] Test session lifecycle: start → process → tool use → permission → approval → stop → end
 
 ---
 
