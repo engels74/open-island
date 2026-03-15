@@ -191,8 +191,21 @@ package struct ModuleLayoutSettingsView: View {
     private func moveModule(_ moduleID: String, to placement: ModulePlacement) {
         var config = self.registry.layoutConfig
 
-        guard let index = config.entries.firstIndex(where: { $0.moduleID == moduleID }) else {
-            return
+        let index: Int
+        if let existing = config.entries.firstIndex(where: { $0.moduleID == moduleID }) {
+            index = existing
+        } else {
+            // Entry missing (layout not yet reconciled). Create one using the
+            // module's defaults so the drag-and-drop still works.
+            guard let module = self.registry.allModules.first(where: { $0.id == moduleID }) else {
+                return
+            }
+            config.entries.append(ModuleLayoutEntry(
+                moduleID: moduleID,
+                side: module.defaultSide,
+                order: module.defaultOrder,
+            ))
+            index = config.entries.count - 1
         }
 
         switch placement {

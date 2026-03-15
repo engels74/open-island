@@ -62,6 +62,7 @@ package final class NotchViewModel {
         ModuleLayoutEngine.layout(
             modules: self.registry.allModules,
             context: self.visibilityContext,
+            config: self.registry.layoutConfig,
         )
     }
 

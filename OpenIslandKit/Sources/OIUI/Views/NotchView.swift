@@ -8,7 +8,7 @@ package import SwiftUI
 
 //
 // The closed-state notch width is computed by `ModuleLayoutEngine` in OIModules.
-// `ModuleLayoutEngine.layout(modules:context:)` returns a `ModuleLayoutResult`
+// `ModuleLayoutEngine.layout(modules:context:config:)` returns a `ModuleLayoutResult`
 // whose `totalExpansionWidth` determines how far the notch extends beyond the
 // device notch rect. The `closedSize` used in this view must be derived from that
 // same result so that the SwiftUI visual boundary matches the AppKit hit-test

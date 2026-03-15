@@ -81,8 +81,10 @@ package struct ModuleLayoutResult: Sendable {
 /// ## Layout algorithm
 ///
 /// 1. Filter modules to those visible in the current context.
-/// 2. Partition visible modules into left and right sides.
-/// 3. Sort each side by `defaultOrder` (ascending).
+/// 2. Exclude user-hidden modules and partition by effective side/order
+///    (when a `ModuleLayoutConfig` is provided), or fall back to
+///    `defaultSide`/`defaultOrder`.
+/// 3. Sort each side by effective order (ascending).
 /// 4. Compute natural width per side: outer-edge inset (6pt) + sum of module
 ///    widths + inter-module spacing (8pt between adjacent modules).
 /// 5. Enforce symmetry: `symmetricSideWidth = max(left, right)`.
@@ -106,21 +108,38 @@ package enum ModuleLayoutEngine {
     /// - Parameters:
     ///   - modules: All registered modules (visible and invisible).
     ///   - context: The current visibility context used to filter modules.
+    ///   - config: Optional layout config for user-customized side/order/hidden
+    ///     overrides. When provided, hidden modules are excluded and effective
+    ///     side/order from the config are used instead of module defaults.
     /// - Returns: A `ModuleLayoutResult` with per-module positions and total width.
     ///   Returns a zero-width result when no modules are visible.
     package static func layout(
         modules: [any NotchModule],
         context: ModuleVisibilityContext,
+        config: ModuleLayoutConfig? = nil,
     ) -> ModuleLayoutResult {
         let visible = modules.filter { $0.isVisible(context: context) }
 
-        let leftModules = visible
-            .filter { $0.defaultSide == .left }
-            .sorted { $0.defaultOrder < $1.defaultOrder }
+        let leftModules: [any NotchModule]
+        let rightModules: [any NotchModule]
 
-        let rightModules = visible
-            .filter { $0.defaultSide == .right }
-            .sorted { $0.defaultOrder < $1.defaultOrder }
+        if let config {
+            leftModules = visible
+                .filter { !config.isHidden($0.id) && config.effectiveSide(for: $0) == .left }
+                .sorted { config.effectiveOrder(for: $0) < config.effectiveOrder(for: $1) }
+
+            rightModules = visible
+                .filter { !config.isHidden($0.id) && config.effectiveSide(for: $0) == .right }
+                .sorted { config.effectiveOrder(for: $0) < config.effectiveOrder(for: $1) }
+        } else {
+            leftModules = visible
+                .filter { $0.defaultSide == .left }
+                .sorted { $0.defaultOrder < $1.defaultOrder }
+
+            rightModules = visible
+                .filter { $0.defaultSide == .right }
+                .sorted { $0.defaultOrder < $1.defaultOrder }
+        }
 
         let (leftLayouts, leftNatural) = Self.computeSideLayouts(
             modules: leftModules,

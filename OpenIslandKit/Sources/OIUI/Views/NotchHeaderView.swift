@@ -83,14 +83,14 @@ package struct NotchHeaderView: View {
     private var closedHeader: some View {
         HStack(spacing: 0) {
             // Left-side modules
-            self.closedModuleRow(modules: self.closedLeftModules)
+            self.closedModuleRow(modules: self.closedLeftModules, side: .left)
 
             // Notch spacer — fills the device notch width in the center
             Spacer(minLength: 0)
                 .frame(width: self.viewModel.geometry.deviceNotchRect.width)
 
             // Right-side modules
-            self.closedModuleRow(modules: self.closedRightModules)
+            self.closedModuleRow(modules: self.closedRightModules, side: .right)
         }
     }
 
@@ -174,8 +174,12 @@ package struct NotchHeaderView: View {
     }
 
     /// Renders a horizontal row of modules with the layout engine's spacing.
+    ///
+    /// The outer-edge inset is applied only on the side facing away from the
+    /// device notch, matching the layout engine's width model (which does not
+    /// include a trailing/inner inset).
     @ViewBuilder
-    private func closedModuleRow(modules: [any NotchModule]) -> some View {
+    private func closedModuleRow(modules: [any NotchModule], side: ModuleSide) -> some View {
         if modules.isEmpty {
             EmptyView()
         } else {
@@ -185,7 +189,7 @@ package struct NotchHeaderView: View {
                         .frame(width: module.preferredWidth())
                 }
             }
-            .padding(.horizontal, ModuleLayoutEngine.outerEdgeInset)
+            .padding(side == .left ? .leading : .trailing, ModuleLayoutEngine.outerEdgeInset)
         }
     }
 }
