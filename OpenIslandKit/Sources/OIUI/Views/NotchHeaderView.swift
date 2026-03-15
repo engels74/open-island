@@ -1,4 +1,5 @@
 import OICore
+import OIModules
 import OIWindow
 package import SwiftUI
 
@@ -6,9 +7,10 @@ package import SwiftUI
 
 /// Header bar for the notch overlay that adapts between closed and opened states.
 ///
-/// In closed state, shows a minimal centered capsule indicator.
-/// In opened state, shows navigation controls, a mascot icon, activity indicator,
-/// and a title that adapts to the current content type.
+/// In closed state, renders real modules from the registry: left modules + notch
+/// spacer + right modules. In opened state, shows navigation controls, an activity
+/// indicator, and a title that adapts to the current content type. Modules with
+/// `showInExpandedHeader == true` also appear in the opened header.
 package struct NotchHeaderView: View {
     // MARK: Lifecycle
 
@@ -52,16 +54,55 @@ package struct NotchHeaderView: View {
         }
     }
 
+    /// The render context passed to modules when building their views.
+    private var renderContext: ModuleRenderContext {
+        ModuleRenderContext(
+            animationNamespace: self.headerNamespace,
+            activeProviderCount: self.viewModel.visibilityContext.activeProviders.count,
+        )
+    }
+
+    /// Visible left-side modules for the closed state, sorted by effective order.
+    private var closedLeftModules: [any NotchModule] {
+        self.viewModel.registry.effectiveModules(for: .left)
+            .filter { $0.isVisible(context: self.viewModel.visibilityContext) }
+    }
+
+    /// Visible right-side modules for the closed state, sorted by effective order.
+    private var closedRightModules: [any NotchModule] {
+        self.viewModel.registry.effectiveModules(for: .right)
+            .filter { $0.isVisible(context: self.viewModel.visibilityContext) }
+    }
+
+    /// Modules that declare `showInExpandedHeader == true`, visible in the opened header.
+    private var expandedHeaderModules: [any NotchModule] {
+        self.viewModel.registry.allModules
+            .filter { $0.showInExpandedHeader && $0.isVisible(context: self.viewModel.visibilityContext) }
+            .sorted { $0.defaultOrder < $1.defaultOrder }
+    }
+
     // MARK: - Closed State
 
     private var closedHeader: some View {
-        HStack {
-            Spacer()
-            Capsule()
-                .fill(.white.opacity(0.3))
-                .frame(width: 32, height: 4)
-                .matchedGeometryEffect(id: "activity", in: self.headerNamespace)
-            Spacer()
+        HStack(spacing: 0) {
+            // Left-side modules — framed to the symmetric width so the
+            // visual boundary matches the layout engine's width contract.
+            self.closedModuleRow(modules: self.closedLeftModules, side: .left)
+                .frame(
+                    width: self.viewModel.moduleLayout.symmetricSideWidth,
+                    alignment: .leading,
+                )
+
+            // Notch spacer — fills the device notch width in the center
+            Spacer(minLength: 0)
+                .frame(width: self.viewModel.geometry.deviceNotchRect.width)
+
+            // Right-side modules — mirrored symmetric width.
+            self.closedModuleRow(modules: self.closedRightModules, side: .right)
+                .frame(
+                    width: self.viewModel.moduleLayout.symmetricSideWidth,
+                    alignment: .trailing,
+                )
         }
     }
 
@@ -117,12 +158,12 @@ package struct NotchHeaderView: View {
 
     private var trailingControls: some View {
         HStack(spacing: 8) {
-            self.activityIndicator
+            // Expanded-header modules (if any)
+            ForEach(self.expandedHeaderModules, id: \.id) { module in
+                module.makeBody(context: self.renderContext)
+            }
 
-            // Mascot icon placeholder
-            Image(systemName: "circle.fill")
-                .font(.system(size: 16))
-                .foregroundStyle(.tertiary)
+            self.activityIndicator
 
             // Settings button
             Button {
@@ -143,18 +184,55 @@ package struct NotchHeaderView: View {
             .controlSize(.small)
             .matchedGeometryEffect(id: "activity", in: self.headerNamespace)
     }
+
+    /// Renders a horizontal row of modules with the layout engine's spacing.
+    ///
+    /// The outer-edge inset is applied only on the side facing away from the
+    /// device notch, matching the layout engine's width model (which does not
+    /// include a trailing/inner inset).
+    @ViewBuilder
+    private func closedModuleRow(modules: [any NotchModule], side: ModuleSide) -> some View {
+        if modules.isEmpty {
+            EmptyView()
+        } else {
+            HStack(spacing: ModuleLayoutEngine.interModuleSpacing) {
+                ForEach(modules, id: \.id) { module in
+                    module.makeBody(context: self.renderContext)
+                        .frame(width: module.preferredWidth())
+                }
+            }
+            .padding(side == .left ? .leading : .trailing, ModuleLayoutEngine.outerEdgeInset)
+        }
+    }
 }
 
 // MARK: - Previews
 
+/// Creates a preview-ready registry with common built-in modules.
+@MainActor
+private func previewRegistry() -> ModuleRegistry {
+    let registry = ModuleRegistry()
+    registry.register(MascotModule(activeProviders: [.claude]))
+    registry.register(PermissionIndicatorModule())
+    registry.register(ActivitySpinnerModule())
+    registry.register(ReadyCheckmarkModule())
+    registry.register(SessionDotsModule())
+    registry.register(TimerModule(startDate: Date().addingTimeInterval(-125)))
+    return registry
+}
+
+private let previewGeometry = NotchGeometry(
+    notchSize: CGSize(width: 200, height: 36),
+    screenFrame: CGRect(x: 0, y: 0, width: 1728, height: 1117),
+)
+
 #Preview("Opened — Instances") {
     NotchHeaderView(
         viewModel: {
-            let vm = NotchViewModel(
-                geometry: NotchGeometry(
-                    notchSize: CGSize(width: 200, height: 36),
-                    screenFrame: CGRect(x: 0, y: 0, width: 1728, height: 1117),
-                ),
+            let vm = NotchViewModel(geometry: previewGeometry, registry: previewRegistry())
+            vm.visibilityContext = ModuleVisibilityContext(
+                isProcessing: true,
+                activeProviders: [.claude],
             )
             vm.notchOpen(reason: .click)
             return vm
@@ -168,11 +246,10 @@ package struct NotchHeaderView: View {
 #Preview("Opened — Chat") {
     NotchHeaderView(
         viewModel: {
-            let vm = NotchViewModel(
-                geometry: NotchGeometry(
-                    notchSize: CGSize(width: 200, height: 36),
-                    screenFrame: CGRect(x: 0, y: 0, width: 1728, height: 1117),
-                ),
+            let vm = NotchViewModel(geometry: previewGeometry, registry: previewRegistry())
+            vm.visibilityContext = ModuleVisibilityContext(
+                isProcessing: true,
+                activeProviders: [.claude],
             )
             vm.notchOpen(reason: .click)
             vm.switchContent(.chat(SessionState(
@@ -195,12 +272,7 @@ package struct NotchHeaderView: View {
 #Preview("Opened — Settings") {
     NotchHeaderView(
         viewModel: {
-            let vm = NotchViewModel(
-                geometry: NotchGeometry(
-                    notchSize: CGSize(width: 200, height: 36),
-                    screenFrame: CGRect(x: 0, y: 0, width: 1728, height: 1117),
-                ),
-            )
+            let vm = NotchViewModel(geometry: previewGeometry, registry: previewRegistry())
             vm.notchOpen(reason: .click)
             vm.switchContent(.menu)
             return vm
@@ -211,14 +283,25 @@ package struct NotchHeaderView: View {
     .preferredColorScheme(.dark)
 }
 
-#Preview("Closed") {
+#Preview("Closed — With Modules") {
     NotchHeaderView(
-        viewModel: NotchViewModel(
-            geometry: NotchGeometry(
-                notchSize: CGSize(width: 200, height: 36),
-                screenFrame: CGRect(x: 0, y: 0, width: 1728, height: 1117),
-            ),
-        ),
+        viewModel: {
+            let vm = NotchViewModel(geometry: previewGeometry, registry: previewRegistry())
+            vm.visibilityContext = ModuleVisibilityContext(
+                isProcessing: true,
+                activeProviders: [.claude],
+            )
+            return vm
+        }(),
+    )
+    .frame(width: 400)
+    .background(.black)
+    .preferredColorScheme(.dark)
+}
+
+#Preview("Closed — Empty") {
+    NotchHeaderView(
+        viewModel: NotchViewModel(geometry: previewGeometry),
     )
     .frame(width: 200)
     .background(.black)

@@ -1548,7 +1548,7 @@ OIUI/ViewModels/NotchViewModel.swift
   - [x] `contentType: NotchContentType` (`.instances`, `.chat(SessionState)`, `.menu`)
   - [x] `openReason: NotchOpenReason` (`.click`, `.hover`, `.notification`, `.boot`)
   - [x] `geometry: NotchGeometry`
-  - [ ] `layoutEngine: ModuleLayoutEngine`
+  - [x] `layoutEngine: ModuleLayoutEngine`
 - [x] Computed `openedSize` varying by content type. Each content type computes its own preferred size. For the settings menu, each expandable picker row contributes its expansion height to the total panel height — the panel grows and shrinks as the user opens and closes selectors. Track a `selectorUpdateToken` (or similar mechanism) that triggers view re-computation when any selector's expansion state changes. Without this, the settings panel either clips content or has permanent empty space.
 - [x] `makeStatusStream() -> AsyncStream<NotchStatus>` — factory method for window controller subscription. Single-consumer by convention: calling the factory again finishes the previous stream to prevent leaks. Uses `.bufferingNewest(1)`.
 - [x] Methods: `notchOpen(reason:)`, `notchClose()`, `switchContent(_:)`
@@ -1637,16 +1637,16 @@ OIUI/ViewModels/SessionMonitor.swift
 OIModules/NotchModule.swift
 ```
 
-- [ ] Protocol with associated `ID == String`:
-  - [ ] `defaultSide: ModuleSide` (`.left`, `.right`)
-  - [ ] `defaultOrder: Int`
-  - [ ] `showInExpandedHeader: Bool`
-  - [ ] `func isVisible(context: ModuleVisibilityContext) -> Bool`
-  - [ ] `func preferredWidth() -> CGFloat`
-  - [ ] `@ViewBuilder func makeBody(context: ModuleRenderContext) -> some View`
-- [ ] `ModuleVisibilityContext` — struct with `isProcessing`, `hasPendingPermission`, `hasWaitingForInput`, `activeProviders: Set<ProviderID>`, `aggregateProviderState: [ProviderID: ProviderActivitySummary]` — modules can make provider-aware decisions (e.g., show Codex risk level, show Claude-specific indicators) without coupling to a specific provider's identity
-- [ ] `ModuleRenderContext` — struct with animation namespace, color settings, etc.
-- [ ] Both `ModuleVisibilityContext` and `ModuleRenderContext` must be `Sendable` value types that the layout engine can construct without reaching into global singletons — this keeps the module system testable in isolation
+- [x] Protocol with associated `ID == String`:
+  - [x] `defaultSide: ModuleSide` (`.left`, `.right`)
+  - [x] `defaultOrder: Int`
+  - [x] `showInExpandedHeader: Bool`
+  - [x] `func isVisible(context: ModuleVisibilityContext) -> Bool`
+  - [x] `func preferredWidth() -> CGFloat`
+  - [x] `func makeBody(context: ModuleRenderContext) -> AnyView` (see design note below — `some View` via SE-0352 did not compile through `any NotchModule`)
+- [x] `ModuleVisibilityContext` — struct with `isProcessing`, `hasPendingPermission`, `hasWaitingForInput`, `activeProviders: Set<ProviderID>`, `aggregateProviderState: [ProviderID: ProviderActivitySummary]` — modules can make provider-aware decisions (e.g., show Codex risk level, show Claude-specific indicators) without coupling to a specific provider's identity
+- [x] `ModuleRenderContext` — struct with animation namespace, color settings, etc. (`@MainActor`-isolated for `Namespace.ID`)
+- [x] Both `ModuleVisibilityContext` and `ModuleRenderContext` must be `Sendable` value types that the layout engine can construct without reaching into global singletons — this keeps the module system testable in isolation (`ModuleVisibilityContext` is `Sendable`; `ModuleRenderContext` is `@MainActor`-isolated since `Namespace.ID` is not `Sendable`)
 
 > **Design note on `makeBody` return type**: The protocol uses `some View` with `@ViewBuilder` rather than `AnyView`. Since modules are stored heterogeneously in the registry, the `ModuleRegistry` uses `any NotchModule` for the collection. When `makeBody` is called through `any NotchModule`, the return type becomes an opaque type opened from an existential — this works in Swift 6 thanks to SE-0352 (implicitly opened existentials), but **only** if the call site can handle the opened type (e.g., inside a `@ViewBuilder` context in `NotchHeaderView`).
 >
@@ -1658,12 +1658,12 @@ OIModules/NotchModule.swift
 OIModules/ModuleLayoutEngine.swift
 ```
 
-- [ ] Computes closed-state layout from registered modules
-- [ ] Filters visible modules per side
-- [ ] Computes symmetric side widths (max of left/right)
-- [ ] Total expansion width = `symmetricSideWidth × 2`
-- [ ] Inter-module spacing: 8px, outer edge inset: 6px
-- [ ] **Hit-test / visual sync contract**: the `PassThroughHostingView` (Phase 4.2) and the SwiftUI `NotchView` (Phase 5.3) must both use `ModuleLayoutEngine` as the single source of truth for closed-state width. Add a documented contract (code comment in both locations pointing to the other) or a shared method that both layers consume, to prevent visual bounds and interaction bounds from drifting apart.
+- [x] Computes closed-state layout from registered modules
+- [x] Filters visible modules per side
+- [x] Computes symmetric side widths (max of left/right)
+- [x] Total expansion width = `symmetricSideWidth × 2`
+- [x] Inter-module spacing: 8px, outer edge inset: 6px
+- [x] **Hit-test / visual sync contract**: the `PassThroughHostingView` (Phase 4.2) and the SwiftUI `NotchView` (Phase 5.3) must both use `ModuleLayoutEngine` as the single source of truth for closed-state width. Add a documented contract (code comment in both locations pointing to the other) or a shared method that both layers consume, to prevent visual bounds and interaction bounds from drifting apart.
 
 ### 6.3 ModuleRegistry
 
@@ -1671,9 +1671,9 @@ OIModules/ModuleLayoutEngine.swift
 OIModules/ModuleRegistry.swift
 ```
 
-- [ ] `@Observable` singleton holding all registered modules
-- [ ] Dynamic registration — providers can add custom modules at runtime
-- [ ] Updates session-dependent modules (e.g., session dots) when state changes
+- [x] `@Observable` singleton holding all registered modules
+- [x] Dynamic registration — providers can add custom modules at runtime
+- [x] Updates session-dependent modules (e.g., session dots) when state changes
 
 ### 6.4 Built-in Modules
 
@@ -1686,8 +1686,8 @@ OIModules/BuiltIn/SessionDotsModule.swift      — right, order 2
 OIModules/BuiltIn/TimerModule.swift            — right, order 3
 ```
 
-- [ ] `MascotModule` replaces `ClawdModule` — shows provider-appropriate icon (crab for Claude, diamond for Codex, Gemini symbol for Gemini CLI, OpenCode logo for OpenCode), or a generic icon when multi-provider sessions are active
-- [ ] Each module is a small struct conforming to `NotchModule`
+- [x] `MascotModule` replaces `ClawdModule` — shows provider-appropriate icon (crab for Claude, diamond for Codex, Gemini symbol for Gemini CLI, OpenCode logo for OpenCode), or a generic icon when multi-provider sessions are active
+- [x] Each module is a small struct conforming to `NotchModule`
 
 ### 6.5 Module Layout Persistence
 
@@ -1695,17 +1695,17 @@ OIModules/BuiltIn/TimerModule.swift            — right, order 3
 OIModules/ModuleLayoutConfig.swift
 ```
 
-- [ ] `Codable` struct persisted to `UserDefaults`
-- [ ] Stores per-module: side, order overrides
-- [ ] Allows user customization of module arrangement
-- [ ] On launch, prune module IDs from the persisted config that no longer exist in the registry (stale modules from uninstalled providers)
-- [ ] Add any newly registered modules (from new providers or app updates) at their default positions
+- [x] `Codable` struct persisted to `UserDefaults`
+- [x] Stores per-module: side, order overrides
+- [x] Allows user customization of module arrangement
+- [x] On launch, prune module IDs from the persisted config that no longer exist in the registry (stale modules from uninstalled providers)
+- [x] Add any newly registered modules (from new providers or app updates) at their default positions
 
 ### 6.6 Module System Tests
 
-- [ ] Test layout engine with various module visibility combinations
-- [ ] Test symmetric width calculation
-- [ ] Test config persistence round-trip
+- [x] Test layout engine with various module visibility combinations
+- [x] Test symmetric width calculation
+- [x] Test config persistence round-trip
 
 ### 6.7 Module Layout Settings View
 
@@ -1713,12 +1713,12 @@ OIModules/ModuleLayoutConfig.swift
 OIModules/Views/ModuleLayoutSettingsView.swift
 ```
 
-- [ ] Three-column drag-and-drop interface: **Left**, **Right**, **Hidden**
-- [ ] Each column is a drop destination; modules are draggable between columns
-- [ ] Visual feedback: insertion indicators at drop position, highlighted drop zones on hover
-- [ ] Empty-state placeholders for columns with no modules
-- [ ] Reset-to-defaults button restoring the factory layout
-- [ ] Config persistence round-trip: changes immediately saved to `ModuleLayoutConfig` (Phase 6.5) and reflected in the closed-state layout
+- [x] Three-column drag-and-drop interface: **Left**, **Right**, **Hidden**
+- [x] Each column is a drop destination; modules are draggable between columns
+- [x] Visual feedback: insertion indicators at drop position, highlighted drop zones on hover
+- [x] Empty-state placeholders for columns with no modules
+- [x] Reset-to-defaults button restoring the factory layout
+- [x] Config persistence round-trip: changes immediately saved to `ModuleLayoutConfig` (Phase 6.5) and reflected in the closed-state layout
 - [ ] Test: drag module between columns → verify layout config updates → verify closed-state view reflects change
 
 ---

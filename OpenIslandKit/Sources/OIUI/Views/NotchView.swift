@@ -1,9 +1,21 @@
 import OICore
+import OIModules
 import OIState
 import OIWindow
 package import SwiftUI
 
 // MARK: - NotchView
+
+//
+// The closed-state notch width is computed by `ModuleLayoutEngine` in OIModules.
+// `ModuleLayoutEngine.layout(modules:context:config:)` returns a `ModuleLayoutResult`
+// whose `totalExpansionWidth` determines how far the notch extends beyond the
+// device notch rect. The `closedSize` used in this view must be derived from that
+// same result so that the SwiftUI visual boundary matches the AppKit hit-test
+// boundary set on `PassThroughHostingView` (OIWindow). Never compute closed-state
+// width independently.
+//
+// Counterpart: see the matching contract comment in `PassThroughHostingView.swift` (OIWindow).
 
 /// Root SwiftUI view for the notch overlay.
 ///
@@ -59,10 +71,17 @@ package struct NotchView: View {
     private var viewModel: NotchViewModel
     private var sessionMonitor: SessionMonitor
 
-    /// The notch size when closed, derived from the device notch rect.
+    /// The notch size when closed, derived from the device notch rect plus module expansion.
+    ///
+    /// Width includes the device notch plus `totalExpansionWidth` from the layout engine,
+    /// honoring the hit-test / visual sync contract.
     private var closedSize: CGSize {
         let rect = self.viewModel.geometry.deviceNotchRect
-        return CGSize(width: rect.width, height: rect.height)
+        let layout = self.viewModel.moduleLayout
+        return CGSize(
+            width: rect.width + layout.totalExpansionWidth,
+            height: rect.height,
+        )
     }
 
     // MARK: - Animations
@@ -144,11 +163,27 @@ private extension NotchContentType {
 @MainActor
 private extension NotchViewModel {
     static var previewClosed: NotchViewModel {
-        NotchViewModel(geometry: .preview)
+        let registry = ModuleRegistry()
+        registry.register(MascotModule(activeProviders: [.claude]))
+        registry.register(ActivitySpinnerModule())
+        registry.register(SessionDotsModule())
+        let vm = NotchViewModel(geometry: .preview, registry: registry)
+        vm.visibilityContext = ModuleVisibilityContext(
+            isProcessing: true,
+            activeProviders: [.claude],
+        )
+        return vm
     }
 
     static func previewOpened(content: NotchContentType = .instances) -> NotchViewModel {
-        let vm = NotchViewModel(geometry: .preview)
+        let registry = ModuleRegistry()
+        registry.register(MascotModule(activeProviders: [.claude]))
+        registry.register(ActivitySpinnerModule())
+        let vm = NotchViewModel(geometry: .preview, registry: registry)
+        vm.visibilityContext = ModuleVisibilityContext(
+            isProcessing: true,
+            activeProviders: [.claude],
+        )
         vm.switchContent(content)
         vm.notchOpen(reason: .click)
         return vm

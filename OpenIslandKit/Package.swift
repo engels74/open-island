@@ -83,5 +83,10 @@ let package = Package(
             dependencies: ["OIWindow", "OICore"],
             swiftSettings: testSettings,
         ),
+        .testTarget(
+            name: "OIModulesTests",
+            dependencies: ["OIModules", "OICore"],
+            swiftSettings: testSettings,
+        ),
     ],
 )

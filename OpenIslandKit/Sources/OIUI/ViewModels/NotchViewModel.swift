@@ -1,6 +1,7 @@
 package import Foundation
 import Observation
 package import OICore
+package import OIModules
 package import OIWindow
 
 // MARK: - NotchViewModel
@@ -15,12 +16,20 @@ package import OIWindow
 package final class NotchViewModel {
     // MARK: Lifecycle
 
-    package init(geometry: NotchGeometry) {
+    /// Creates a new view model.
+    ///
+    /// Automatically loads any persisted module layout configuration from
+    /// `UserDefaults` and reconciles it against the registry's current modules.
+    package init(geometry: NotchGeometry, registry: ModuleRegistry = ModuleRegistry()) {
         self.geometry = geometry
+        self.registry = registry
         self.status = .closed
         self.contentType = .instances
         self.openReason = .boot
         self.selectorUpdateToken = 0
+
+        // Restore persisted layout so user customizations survive app restarts.
+        registry.applyPersistedLayout()
     }
 
     // MARK: Package
@@ -37,13 +46,32 @@ package final class NotchViewModel {
     /// Screen geometry driving panel position and sizing.
     package var geometry: NotchGeometry
 
-    // TODO: Phase 6 — layoutEngine: ModuleLayoutEngine
+    /// Module registry holding all registered notch modules.
+    package let registry: ModuleRegistry
+
+    /// The current module visibility context used for layout decisions.
+    ///
+    /// Defaults to sensible values. The integration layer will update this
+    /// from live `SessionStore` data in a later phase.
+    package var visibilityContext = ModuleVisibilityContext()
 
     /// Token incremented when a settings-menu selector expands or collapses.
     ///
     /// Observed by SwiftUI to trigger size re-computation of the settings
     /// panel without requiring the view to know about individual selectors.
     package var selectorUpdateToken: UInt64
+
+    /// Computes the closed-state module layout from the current registry and visibility context.
+    ///
+    /// This is the **single source of truth** for closed-state width, consumed by both
+    /// `NotchView` (visual boundary) and `PassThroughHostingView` (hit-test boundary).
+    package var moduleLayout: ModuleLayoutResult {
+        ModuleLayoutEngine.layout(
+            modules: self.registry.allModules,
+            context: self.visibilityContext,
+            config: self.registry.layoutConfig,
+        )
+    }
 
     /// The preferred panel size when the notch is opened.
     ///
