@@ -5,6 +5,7 @@ package enum HookInstallError: Error, Sendable {
     case pythonVersionTooOld(found: String, required: String)
     case settingsFileCorrupted(path: String)
     case writePermissionDenied(path: String)
+    case bundleResourceMissing(path: String)
     case hookAlreadyInstalled
 }
 
@@ -21,6 +22,8 @@ extension HookInstallError: CustomStringConvertible {
             "Claude Code settings file is corrupted: \(path)"
         case let .writePermissionDenied(path):
             "Write permission denied: \(path)"
+        case let .bundleResourceMissing(path):
+            "Required bundle resource not found: \(path)"
         case .hookAlreadyInstalled:
             "Hook is already installed."
         }

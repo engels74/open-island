@@ -34,6 +34,7 @@ struct ClaudeEventNormalizerNilTests {
         NilEventFixture(name: "TaskCompleted", json: #"{"session_id":"s1","hook_event_name":"TaskCompleted"}"#),
         NilEventFixture(name: "WorktreeCreate", json: #"{"session_id":"s1","hook_event_name":"WorktreeCreate"}"#),
         NilEventFixture(name: "WorktreeRemove", json: #"{"session_id":"s1","hook_event_name":"WorktreeRemove"}"#),
+        NilEventFixture(name: "PreToolUse", json: #"{"session_id":"s1","hook_event_name":"PreToolUse"}"#),
     ]
 }
 

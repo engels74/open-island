@@ -35,14 +35,28 @@ package struct SocketFD: ~Copyable {
         return Darwin.read(self.fd, base, buffer.count)
     }
 
-    /// Write bytes from a buffer to the file descriptor.
+    /// Write all bytes from a buffer to the file descriptor.
+    ///
+    /// Retries on short writes (e.g. EINTR) to ensure the full buffer is sent.
     ///
     /// - Parameter data: Buffer of bytes to write. Must be valid only
     ///   within the calling `withUnsafe*` closure scope — never escape.
-    /// - Returns: Number of bytes written, or -1 on error.
+    /// - Returns: Total number of bytes written, or -1 on error.
     borrowing func write(_ data: UnsafeRawBufferPointer) -> Int {
         guard let base = data.baseAddress else { return -1 }
-        return Darwin.write(self.fd, base, data.count)
+        var totalWritten = 0
+        while totalWritten < data.count {
+            let bytesWritten = Darwin.write(
+                self.fd,
+                base.advanced(by: totalWritten),
+                data.count - totalWritten,
+            )
+            if bytesWritten < 0 {
+                return bytesWritten
+            }
+            totalWritten += bytesWritten
+        }
+        return totalWritten
     }
 
     /// Explicitly close the file descriptor, consuming ownership.

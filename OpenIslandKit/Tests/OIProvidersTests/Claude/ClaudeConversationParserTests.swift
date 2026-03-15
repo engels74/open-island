@@ -70,7 +70,8 @@ private func assistantWithThinkingLine(
 private func writeTempJSONL(lines: [String]) throws -> String {
     let path = NSTemporaryDirectory()
         + "claude-test-\(UUID().uuidString).jsonl"
-    let content = lines.joined(separator: "\n")
+    // Standard JSONL: each line terminated by '\n'
+    let content = lines.map { $0 + "\n" }.joined()
     try content.write(
         toFile: path,
         atomically: true,
@@ -84,7 +85,8 @@ private func appendToFile(path: String, line: String) {
     else { return }
     defer { try? handle.close() }
     handle.seekToEndOfFile()
-    if let data = ("\n" + line).data(using: .utf8) {
+    // Append a newline-terminated JSONL line
+    if let data = (line + "\n").data(using: .utf8) {
         handle.write(data)
     }
 }

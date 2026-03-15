@@ -108,20 +108,31 @@ package actor ClaudeConversationParser {
         // If we seeked to a mid-file position for tail-based reading,
         // skip the first partial line (unless we're at offset 0).
         let lines: [Substring]
-        if let content = String(data: data, encoding: .utf8) {
-            let allLines = content.split(separator: "\n", omittingEmptySubsequences: false)
-            if state.lastFileOffset > 0, state.chatItems.isEmpty, currentFileSize > tailThreshold {
-                // Skip first potentially partial line when doing tail-based read
-                lines = Array(allLines.dropFirst())
-            } else {
-                lines = Array(allLines)
-            }
-        } else {
+        guard let content = String(data: data, encoding: .utf8) else {
             self.sessions[sessionID] = state
             return []
         }
 
-        state.lastFileOffset += UInt64(data.count)
+        let allLines = content.split(separator: "\n", omittingEmptySubsequences: false)
+        if state.lastFileOffset > 0, state.chatItems.isEmpty, currentFileSize > tailThreshold {
+            // Skip first potentially partial line when doing tail-based read
+            lines = Array(allLines.dropFirst())
+        } else {
+            lines = Array(allLines)
+        }
+
+        // Advance offset only past complete lines (those terminated by '\n').
+        // A trailing partial line (no final '\n') will be re-read once completed.
+        if content.hasSuffix("\n") {
+            // All lines are complete — advance past everything.
+            state.lastFileOffset += UInt64(data.count)
+        } else if let lastNewline = content.lastIndex(of: "\n") {
+            // Partial line after last '\n' — advance only to the newline boundary.
+            let bytesToLastNewline = content[content.startIndex ... lastNewline]
+                .utf8.count
+            state.lastFileOffset += UInt64(bytesToLastNewline)
+        }
+        // If no newline found at all, don't advance — the entire read is a partial line.
 
         var newItems: [ChatHistoryItem] = []
         let baseIndex = state.chatItems.count

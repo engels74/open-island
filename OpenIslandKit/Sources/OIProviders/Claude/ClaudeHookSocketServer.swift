@@ -201,13 +201,27 @@ package final class ClaudeHookSocketServer: Sendable {
 
     // MARK: Private
 
+    /// Lightweight envelope for extracting `hook_event_name` without full event decoding.
+    private struct HookEventEnvelope: Decodable {
+        // MARK: Internal
+
+        let hookEventName: String
+
+        // MARK: Private
+
+        private enum CodingKeys: String, CodingKey {
+            case hookEventName = "hook_event_name"
+        }
+    }
+
     private let state: Mutex<ServerState>
 
-    /// Lightweight check for PermissionRequest events without full JSON decoding.
+    /// Check whether raw JSON data represents a PermissionRequest event.
     private static func isPermissionRequest(_ data: Data) -> Bool {
-        guard let str = String(data: data, encoding: .utf8) else { return false }
-        return str.contains("\"hook_event_name\":\"PermissionRequest\"")
-            || str.contains("\"hook_event_name\": \"PermissionRequest\"")
+        guard let envelope = try? JSONDecoder().decode(HookEventEnvelope.self, from: data) else {
+            return false
+        }
+        return envelope.hookEventName == "PermissionRequest"
     }
 
     /// Extract the request ID from raw JSON data for PermissionRequest events.

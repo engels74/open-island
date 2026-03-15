@@ -183,7 +183,7 @@ package struct ClaudeHookInstaller: Sendable {
                 withExtension: "py",
             )
             else {
-                throw .writePermissionDenied(path: "Bundle.module/open-island-claude-hook.py")
+                throw .bundleResourceMissing(path: "Bundle.module/open-island-claude-hook.py")
             }
             return url
         }
