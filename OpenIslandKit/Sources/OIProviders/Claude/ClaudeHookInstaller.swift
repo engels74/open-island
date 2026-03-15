@@ -5,7 +5,7 @@ package import Foundation
 /// Installs and manages the Open Island hook script for Claude Code.
 ///
 /// The installer:
-/// 1. Detects (or accepts) a Python 3 runtime path
+/// 1. Detects (or accepts) a hook runtime via ``HookRuntimeDetector``
 /// 2. Copies the bundled `open-island-claude-hook.py` to `~/.claude/hooks/`
 /// 3. Registers hook commands in `~/.claude/settings.json` for all 17 event types
 /// 4. Supports deduplication, uninstallation, and status checking
@@ -32,23 +32,23 @@ package struct ClaudeHookInstaller: Sendable {
 
     /// Install hooks for Claude Code.
     ///
-    /// - Parameter pythonPath: Explicit path to a Python 3 interpreter.
-    ///   If `nil`, ``PythonRuntimeDetector/detect()`` is used.
+    /// - Parameter hookCommand: Explicit hook command override.
+    ///   If `nil`, ``HookRuntimeDetector/detect()`` is used.
     /// - Parameter claudeConfigDir: Override for the Claude config directory.
     ///   Defaults to `~/.claude`.
     /// - Parameter bundledScriptURL: Override for the bundled script location (for testing).
     package static func install(
-        pythonPath: String? = nil,
+        hookCommand: HookCommand? = nil,
         claudeConfigDir: URL? = nil,
         bundledScriptURL: URL? = nil,
     ) async throws(HookInstallError) {
         try Task.checkCancellation()
 
-        // 1. Resolve Python path
-        let python: String = if let pythonPath {
-            pythonPath
+        // 1. Resolve hook command
+        let resolvedCommand = if let hookCommand {
+            hookCommand
         } else {
-            try PythonRuntimeDetector.detect()
+            try HookRuntimeDetector.detect()
         }
 
         let configDir = claudeConfigDir ?? self.defaultClaudeConfigDir()
@@ -68,11 +68,8 @@ package struct ClaudeHookInstaller: Sendable {
 
         // 4. Update settings.json
         let settingsURL = configDir.appendingPathComponent("settings.json")
-        let command = "\(Self.shellQuote(python)) \(Self.shellQuote(scriptDest.path))"
+        let command = resolvedCommand.commandString(scriptPath: scriptDest.path)
         try self.updateSettings(at: settingsURL, command: command)
-
-        // 5. Remove deprecated hook entries from previous installations
-        try self.removeDeprecatedHookEntries(at: settingsURL)
     }
 
     /// Remove all Open Island hooks from Claude Code.
@@ -148,58 +145,6 @@ package struct ClaudeHookInstaller: Sendable {
     // MARK: Private
 
     // MARK: - Private helpers
-
-    /// Hook event types no longer registered but cleaned up from previous installations.
-    /// PreToolUse: excluded due to Claude Code bug #15897 (updatedInput lost in parallel hooks).
-    private static let deprecatedHookEventTypes: [String] = [
-        "PreToolUse",
-    ]
-
-    /// Remove Open Island entries for deprecated hook event types from settings.json.
-    /// This cleans up stale entries left by previous versions that registered these events.
-    private static func removeDeprecatedHookEntries(
-        at settingsURL: URL,
-    ) throws(HookInstallError) {
-        guard FileManager.default.fileExists(atPath: settingsURL.path) else { return }
-
-        var root = try readSettingsJSON(at: settingsURL)
-        guard var hooks = root["hooks"] as? [String: Any] else { return }
-
-        var modified = false
-        for eventType in Self.deprecatedHookEventTypes {
-            guard var entries = hooks[eventType] as? [[String: Any]] else { continue }
-            let before = entries.count
-            entries.removeAll { entry in
-                guard let cmd = entry["command"] as? String else { return false }
-                return cmd.contains(Self.hookScriptName)
-            }
-            if entries.count != before {
-                modified = true
-                if entries.isEmpty {
-                    hooks.removeValue(forKey: eventType)
-                } else {
-                    hooks[eventType] = entries
-                }
-            }
-        }
-
-        guard modified else { return }
-
-        if hooks.isEmpty {
-            root.removeValue(forKey: "hooks")
-        } else {
-            root["hooks"] = hooks
-        }
-
-        try Self.writeSettingsJSON(root, to: settingsURL)
-    }
-
-    /// Shell-quote a path for safe embedding in a command string.
-    /// Uses single quotes to prevent glob/variable expansion, with
-    /// embedded single quotes escaped as `'\''`.
-    private static func shellQuote(_ path: String) -> String {
-        "'\(path.replacingOccurrences(of: "'", with: "'\\''"))'"
-    }
 
     private static func defaultClaudeConfigDir() -> URL {
         FileManager.default.homeDirectoryForCurrentUser
@@ -298,9 +243,7 @@ package struct ClaudeHookInstaller: Sendable {
 
         guard var hooks = root["hooks"] as? [String: Any] else { return }
 
-        // Remove from active and deprecated event types
-        let allEventTypes = self.allHookEventTypes + self.deprecatedHookEventTypes
-        for eventType in allEventTypes {
+        for eventType in self.allHookEventTypes {
             guard var entries = hooks[eventType] as? [[String: Any]] else { continue }
             entries.removeAll { entry in
                 guard let cmd = entry["command"] as? String else { return false }

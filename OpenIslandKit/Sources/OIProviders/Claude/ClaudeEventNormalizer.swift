@@ -31,8 +31,7 @@ package enum ClaudeEventNormalizer {
              "ConfigChange",
              "Notification":
             return self.normalizeSession(event)
-        case "PreToolUse",
-             "PostToolUse",
+        case "PostToolUse",
              "PostToolUseFailure",
              "PermissionRequest":
             return try self.normalizeTool(event)
@@ -73,9 +72,6 @@ package enum ClaudeEventNormalizer {
     ) throws(EventNormalizationError) -> ProviderEvent {
         let sid = event.sessionID
         switch event.hookEventName {
-        case "PreToolUse":
-            let toolEvent = try makeToolEvent(from: event)
-            return .toolStarted(sid, toolEvent)
         case "PostToolUse":
             let toolEvent = try makeToolEvent(from: event)
             let result = self.makeToolResult(from: event, isSuccess: true)

@@ -47,7 +47,7 @@ struct ClaudeHookInstallerInstallTests {
         let scriptURL = try HookInstallerTestHelpers.createFakeScript(in: tempDir)
 
         try await ClaudeHookInstaller.install(
-            pythonPath: "/usr/bin/python3",
+            hookCommand: .python(path: "/usr/bin/python3"),
             claudeConfigDir: tempDir,
             bundledScriptURL: scriptURL,
         )
@@ -81,7 +81,7 @@ struct ClaudeHookInstallerInstallTests {
         let scriptURL = try HookInstallerTestHelpers.createFakeScript(in: tempDir)
 
         try await ClaudeHookInstaller.install(
-            pythonPath: "/usr/bin/python3",
+            hookCommand: .python(path: "/usr/bin/python3"),
             claudeConfigDir: tempDir,
             bundledScriptURL: scriptURL,
         )
@@ -104,7 +104,7 @@ struct ClaudeHookInstallerInstallTests {
         #expect(!FileManager.default.fileExists(atPath: hooksDir.path))
 
         try await ClaudeHookInstaller.install(
-            pythonPath: "/usr/bin/python3",
+            hookCommand: .python(path: "/usr/bin/python3"),
             claudeConfigDir: tempDir,
             bundledScriptURL: scriptURL,
         )
@@ -120,12 +120,12 @@ struct ClaudeHookInstallerInstallTests {
         let scriptURL = try HookInstallerTestHelpers.createFakeScript(in: tempDir)
 
         try await ClaudeHookInstaller.install(
-            pythonPath: "/usr/bin/python3",
+            hookCommand: .python(path: "/usr/bin/python3"),
             claudeConfigDir: tempDir,
             bundledScriptURL: scriptURL,
         )
         try await ClaudeHookInstaller.install(
-            pythonPath: "/usr/bin/python3",
+            hookCommand: .python(path: "/usr/bin/python3"),
             claudeConfigDir: tempDir,
             bundledScriptURL: scriptURL,
         )
@@ -144,19 +144,19 @@ struct ClaudeHookInstallerInstallTests {
     }
 
     @Test
-    func `install updates python path on reinstall`() async throws {
+    func `install updates hook command on reinstall`() async throws {
         let tempDir = try HookInstallerTestHelpers.makeTempClaudeDir()
         defer { HookInstallerTestHelpers.cleanup(tempDir) }
 
         let scriptURL = try HookInstallerTestHelpers.createFakeScript(in: tempDir)
 
         try await ClaudeHookInstaller.install(
-            pythonPath: "/usr/bin/python3",
+            hookCommand: .python(path: "/usr/bin/python3"),
             claudeConfigDir: tempDir,
             bundledScriptURL: scriptURL,
         )
         try await ClaudeHookInstaller.install(
-            pythonPath: "/usr/local/bin/python3",
+            hookCommand: .python(path: "/usr/local/bin/python3"),
             claudeConfigDir: tempDir,
             bundledScriptURL: scriptURL,
         )
@@ -189,7 +189,7 @@ struct ClaudeHookInstallerInstallTests {
 
         let scriptURL = try HookInstallerTestHelpers.createFakeScript(in: tempDir)
         try await ClaudeHookInstaller.install(
-            pythonPath: "/usr/bin/python3",
+            hookCommand: .python(path: "/usr/bin/python3"),
             claudeConfigDir: tempDir,
             bundledScriptURL: scriptURL,
         )
@@ -222,7 +222,7 @@ struct ClaudeHookInstallerInstallTests {
 
         let scriptURL = try HookInstallerTestHelpers.createFakeScript(in: tempDir)
         try await ClaudeHookInstaller.install(
-            pythonPath: "/usr/bin/python3",
+            hookCommand: .python(path: "/usr/bin/python3"),
             claudeConfigDir: tempDir,
             bundledScriptURL: scriptURL,
         )
@@ -240,53 +240,6 @@ struct ClaudeHookInstallerInstallTests {
         #expect(commands.contains("/usr/local/bin/some-other-tool"))
         #expect(commands.contains { $0.contains(ClaudeHookInstaller.hookScriptName) })
     }
-
-    @Test
-    func `install removes stale PreToolUse entries from previous version`() async throws {
-        let tempDir = try HookInstallerTestHelpers.makeTempClaudeDir()
-        defer { HookInstallerTestHelpers.cleanup(tempDir) }
-
-        // Simulate a previous installation that registered PreToolUse
-        let settingsURL = tempDir.appendingPathComponent("settings.json")
-        let hookScript = ClaudeHookInstaller.hookScriptName
-        let staleJSON: [String: Any] = [
-            "hooks": [
-                "PreToolUse": [
-                    ["type": "command", "command": "/usr/bin/python3 /path/to/\(hookScript)"],
-                    ["type": "command", "command": "/usr/local/bin/some-other-tool"],
-                ],
-                "SessionStart": [
-                    ["type": "command", "command": "/usr/bin/python3 /path/to/\(hookScript)"],
-                ],
-            ],
-        ]
-        let staleData = try JSONSerialization.data(withJSONObject: staleJSON)
-        try staleData.write(to: settingsURL)
-
-        let scriptURL = try HookInstallerTestHelpers.createFakeScript(in: tempDir)
-        try await ClaudeHookInstaller.install(
-            pythonPath: "/usr/bin/python3",
-            claudeConfigDir: tempDir,
-            bundledScriptURL: scriptURL,
-        )
-
-        let data = try Data(contentsOf: settingsURL)
-        let json = try #require(
-            try JSONSerialization.jsonObject(with: data) as? [String: Any],
-        )
-        let hooks = try #require(json["hooks"] as? [String: Any])
-
-        // Our PreToolUse entry should be removed, third-party entry preserved
-        let preToolEntries = try #require(hooks["PreToolUse"] as? [[String: Any]])
-        #expect(preToolEntries.count == 1)
-        #expect(preToolEntries[0]["command"] as? String == "/usr/local/bin/some-other-tool")
-
-        // SessionStart should still have our hook (updated)
-        let sessionEntries = try #require(hooks["SessionStart"] as? [[String: Any]])
-        #expect(sessionEntries.count == 1)
-        let cmd = try #require(sessionEntries[0]["command"] as? String)
-        #expect(cmd.contains(hookScript))
-    }
 }
 
 // MARK: - ClaudeHookInstallerUninstallTests
@@ -300,7 +253,7 @@ struct ClaudeHookInstallerUninstallTests {
 
         let scriptURL = try HookInstallerTestHelpers.createFakeScript(in: tempDir)
         try await ClaudeHookInstaller.install(
-            pythonPath: "/usr/bin/python3",
+            hookCommand: .python(path: "/usr/bin/python3"),
             claudeConfigDir: tempDir,
             bundledScriptURL: scriptURL,
         )
@@ -321,7 +274,7 @@ struct ClaudeHookInstallerUninstallTests {
 
         let scriptURL = try HookInstallerTestHelpers.createFakeScript(in: tempDir)
         try await ClaudeHookInstaller.install(
-            pythonPath: "/usr/bin/python3",
+            hookCommand: .python(path: "/usr/bin/python3"),
             claudeConfigDir: tempDir,
             bundledScriptURL: scriptURL,
         )
@@ -344,7 +297,7 @@ struct ClaudeHookInstallerUninstallTests {
 
         let scriptURL = try HookInstallerTestHelpers.createFakeScript(in: tempDir)
         try await ClaudeHookInstaller.install(
-            pythonPath: "/usr/bin/python3",
+            hookCommand: .python(path: "/usr/bin/python3"),
             claudeConfigDir: tempDir,
             bundledScriptURL: scriptURL,
         )
@@ -399,7 +352,7 @@ struct ClaudeHookInstallerUninstallTests {
 
         let scriptURL = try HookInstallerTestHelpers.createFakeScript(in: tempDir)
         try await ClaudeHookInstaller.install(
-            pythonPath: "/usr/bin/python3",
+            hookCommand: .python(path: "/usr/bin/python3"),
             claudeConfigDir: tempDir,
             bundledScriptURL: scriptURL,
         )
@@ -414,7 +367,7 @@ struct ClaudeHookInstallerUninstallTests {
 
         let scriptURL = try HookInstallerTestHelpers.createFakeScript(in: tempDir)
         try await ClaudeHookInstaller.install(
-            pythonPath: "/usr/bin/python3",
+            hookCommand: .python(path: "/usr/bin/python3"),
             claudeConfigDir: tempDir,
             bundledScriptURL: scriptURL,
         )
@@ -435,7 +388,7 @@ struct ClaudeHookInstallerUninstallTests {
 
         await #expect(throws: HookInstallError.self) {
             try await ClaudeHookInstaller.install(
-                pythonPath: "/usr/bin/python3",
+                hookCommand: .python(path: "/usr/bin/python3"),
                 claudeConfigDir: tempDir,
                 bundledScriptURL: scriptURL,
             )
@@ -452,7 +405,7 @@ struct ClaudeHookInstallerUninstallTests {
 
         let scriptURL = try HookInstallerTestHelpers.createFakeScript(in: tempDir)
         try await ClaudeHookInstaller.install(
-            pythonPath: "/usr/bin/python3",
+            hookCommand: .python(path: "/usr/bin/python3"),
             claudeConfigDir: tempDir,
             bundledScriptURL: scriptURL,
         )
@@ -465,14 +418,63 @@ struct ClaudeHookInstallerUninstallTests {
     }
 }
 
-// MARK: - PythonRuntimeDetectorTests
+// MARK: - HookRuntimeDetectorTests
 
 @Suite(.tags(.claude))
-struct PythonRuntimeDetectorTests {
+struct HookRuntimeDetectorTests {
     @Test
-    func `detect finds python3`() throws {
-        let path = try PythonRuntimeDetector.detect()
-        #expect(!path.isEmpty)
-        #expect(path.contains("python"))
+    func `detect returns a valid hook command`() throws {
+        let command = try HookRuntimeDetector.detect()
+        switch command {
+        case let .uv(path):
+            #expect(!path.isEmpty)
+        case let .python(path):
+            #expect(!path.isEmpty)
+            #expect(path.contains("python"))
+        }
+    }
+}
+
+// MARK: - HookCommandTests
+
+@Suite(.tags(.claude))
+struct HookCommandTests {
+    @Test
+    func `uv commandString produces uv run command`() {
+        let command = HookCommand.uv(path: "/usr/local/bin/uv")
+        let result = command.commandString(scriptPath: "/home/user/.claude/hooks/hook.py")
+
+        #expect(result.contains("uv"))
+        #expect(result.contains("run"))
+        #expect(result.contains("--python"))
+        #expect(result.contains(">=3.14"))
+        #expect(result.contains("hook.py"))
+    }
+
+    @Test
+    func `python commandString produces direct python command`() {
+        let command = HookCommand.python(path: "/usr/bin/python3")
+        let result = command.commandString(scriptPath: "/home/user/.claude/hooks/hook.py")
+
+        #expect(result.contains("python3"))
+        #expect(result.contains("hook.py"))
+        #expect(!result.contains("uv"))
+    }
+
+    @Test
+    func `commandString shell-quotes paths with spaces`() {
+        let command = HookCommand.python(path: "/path with spaces/python3")
+        let result = command.commandString(scriptPath: "/script path/hook.py")
+
+        #expect(result.contains("'/path with spaces/python3'"))
+        #expect(result.contains("'/script path/hook.py'"))
+    }
+
+    @Test
+    func `commandString shell-quotes paths with single quotes`() {
+        let command = HookCommand.python(path: "/path'quoted/python3")
+        let result = command.commandString(scriptPath: "/script/hook.py")
+
+        #expect(result.contains("'\\''"))
     }
 }

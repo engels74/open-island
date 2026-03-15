@@ -21,7 +21,7 @@ struct IntegrationFixture: Sendable, CustomTestStringConvertible {
     }
 }
 
-// MARK: - All 18 Fixtures
+// MARK: - All 17 Fixtures
 
 private let allIntegrationFixtures: [IntegrationFixture] = [
     // Session events → mapped
@@ -60,12 +60,7 @@ private let allIntegrationFixtures: [IntegrationFixture] = [
         json: #"{"session_id":"int-1","hook_event_name":"Notification","message":"heads up"}"#,
         expectedCase: "notification",
     ),
-    // Tool events → mapped
-    IntegrationFixture(
-        eventName: "PreToolUse",
-        json: #"{"session_id":"int-1","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"ls"},"tool_use_id":"tu-1"}"#,
-        expectedCase: "toolStarted",
-    ),
+    // Tool events → mapped (PreToolUse excluded — upstream bug #15897, falls through to unknownEventType)
     IntegrationFixture(
         eventName: "PostToolUse",
         json: #"{"session_id":"int-1","hook_event_name":"PostToolUse","tool_name":"Read","tool_use_id":"tu-2","tool_result":{"content":"data"}}"#,
@@ -121,10 +116,10 @@ private let allIntegrationFixtures: [IntegrationFixture] = [
     ),
 ]
 
-/// Subset: only fixtures that produce a ProviderEvent (13 of 18).
+/// Subset: only fixtures that produce a ProviderEvent (12 of 17).
 private let mappedFixtures = allIntegrationFixtures.filter { $0.expectedCase != nil }
 
-/// Subset: only fixtures that produce nil (5 of 18).
+/// Subset: only fixtures that produce nil (5 of 17).
 private let nilMappedFixtures = allIntegrationFixtures.filter { $0.expectedCase == nil }
 
 // MARK: - ClaudeIntegrationTests
@@ -150,10 +145,10 @@ struct ClaudeIntegrationTests {
         try await Task.sleep(for: .milliseconds(50))
 
         // Send a realistic multi-event session sequence
+        // (PreToolUse excluded — upstream bug #15897, no longer normalized)
         let events = [
             #"{"session_id":"lifecycle-1","hook_event_name":"SessionStart","cwd":"/proj","session_type":"startup"}"#,
             #"{"session_id":"lifecycle-1","hook_event_name":"UserPromptSubmit"}"#,
-            #"{"session_id":"lifecycle-1","hook_event_name":"PreToolUse","tool_name":"Bash","tool_use_id":"tu-1","tool_input":{"command":"ls"}}"#,
             #"{"session_id":"lifecycle-1","hook_event_name":"PostToolUse""#
                 + #","tool_name":"Bash","tool_use_id":"tu-1","tool_result":{"output":"file.txt"}}"#,
             #"{"session_id":"lifecycle-1","hook_event_name":"Stop"}"#,
@@ -166,17 +161,16 @@ struct ClaudeIntegrationTests {
             try await Task.sleep(for: .milliseconds(20))
         }
 
-        // Collect all 6 events
+        // Collect all 5 events
         var received: [String] = []
         for await event in stream {
             received.append(providerEventCaseName(event))
-            if received.count == 6 { break }
+            if received.count == 5 { break }
         }
 
         #expect(received == [
             "sessionStarted",
             "userPromptSubmitted",
-            "toolStarted",
             "toolCompleted",
             "waitingForInput",
             "sessionEnded",
@@ -391,46 +385,27 @@ struct ClaudeIntegrationTests {
         let stream = adapter.events()
         try await Task.sleep(for: .milliseconds(50))
 
-        // PreToolUse with detailed fields
-        let preToolJSON = #"{"session_id":"fields-1","hook_event_name":"PreToolUse""#
-            + #","tool_name":"Edit","tool_use_id":"edit-001""#
-            + #","tool_input":{"file_path":"/src/main.swift","old_string":"foo","new_string":"bar"}}"#
-            + "\n"
-        sendToSocket(path: path, data: Data(preToolJSON.utf8))
-
-        try await Task.sleep(for: .milliseconds(20))
-
-        // PostToolUse with result
+        // PostToolUse with detailed fields
         let postToolJSON =
             #"{"session_id":"fields-1","hook_event_name":"PostToolUse","tool_name":"Edit","tool_use_id":"edit-001","tool_result":{"success":true}}"# +
             "\n"
         sendToSocket(path: path, data: Data(postToolJSON.utf8))
 
-        var events: [ProviderEvent] = []
+        var received: ProviderEvent?
         for await event in stream {
-            events.append(event)
-            if events.count == 2 { break }
+            received = event
+            break
         }
-
-        // Verify PreToolUse fields
-        guard case let .toolStarted(sid1, toolEvent1) = events[0] else {
-            Issue.record("Expected .toolStarted")
-            return
-        }
-        #expect(sid1 == "fields-1")
-        #expect(toolEvent1.name == "Edit")
-        #expect(toolEvent1.id == "edit-001")
-        #expect(toolEvent1.input?["file_path"]?.stringValue == "/src/main.swift")
-        #expect(toolEvent1.input?["old_string"]?.stringValue == "foo")
-        #expect(toolEvent1.input?["new_string"]?.stringValue == "bar")
 
         // Verify PostToolUse fields
-        guard case let .toolCompleted(sid2, toolEvent2, result) = events[1] else {
+        let event = try #require(received)
+        guard case let .toolCompleted(sid, toolEvent, result) = event else {
             Issue.record("Expected .toolCompleted")
             return
         }
-        #expect(sid2 == "fields-1")
-        #expect(toolEvent2.name == "Edit")
+        #expect(sid == "fields-1")
+        #expect(toolEvent.name == "Edit")
+        #expect(toolEvent.id == "edit-001")
         #expect(result?.isSuccess == true)
     }
 

@@ -161,36 +161,6 @@ struct ClaudeEventNormalizerToolTests {
     // MARK: Internal
 
     @Test
-    func `PreToolUse normalizes to toolStarted`() throws {
-        let event = try decode("""
-        {"session_id":"s1","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"echo hi"},"tool_use_id":"tu-1"}
-        """)
-        let result = try ClaudeEventNormalizer.normalize(event)
-        guard case let .toolStarted(sid, toolEvent) = result else {
-            Issue.record("Expected .toolStarted, got \(String(describing: result))")
-            return
-        }
-        #expect(sid == "s1")
-        #expect(toolEvent.name == "Bash")
-        #expect(toolEvent.id == "tu-1")
-        #expect(toolEvent.input?["command"]?.stringValue == "echo hi")
-    }
-
-    @Test
-    func `PreToolUse without tool_name throws missingRequiredField`() throws {
-        let event = try decode(#"{"session_id":"s1","hook_event_name":"PreToolUse"}"#)
-        do {
-            _ = try ClaudeEventNormalizer.normalize(event)
-            Issue.record("Expected error to be thrown")
-        } catch {
-            guard case .missingRequiredField("tool_name") = error else {
-                Issue.record("Expected .missingRequiredField(\"tool_name\"), got \(error)")
-                return
-            }
-        }
-    }
-
-    @Test
     func `PostToolUse normalizes to toolCompleted with success`() throws {
         let event = try decode("""
         {"session_id":"s1","hook_event_name":"PostToolUse","tool_name":"Read","tool_use_id":"tu-2","tool_result":{"content":"data"}}
