@@ -75,6 +75,7 @@ package final class NotchWindowController: NSWindowController {
     package func show(reason: OpenReason) {
         guard let panel = self.window else { return }
 
+        self.hostingView.activeHitRect = nil
         self.hostingView.isInteractive = true
         panel.ignoresMouseEvents = false
         panel.orderFrontRegardless()
@@ -90,8 +91,35 @@ package final class NotchWindowController: NSWindowController {
         guard let panel = self.window else { return }
 
         self.hostingView.isInteractive = false
+        self.hostingView.activeHitRect = nil
         panel.ignoresMouseEvents = true
         panel.orderOut(nil)
+    }
+
+    /// Subscribes to a boolean stream that drives panel interactivity.
+    ///
+    /// The OIUI layer adapts `NotchViewModel.makeStatusStream()` into a
+    /// `Bool` stream (`true` = opened, `false` = closed) and passes it here.
+    /// The controller toggles `ignoresMouseEvents` and `isInteractive` on
+    /// each status change.
+    ///
+    /// Calling this again cancels the previous subscription.
+    package func subscribeToStatusStream(_ stream: AsyncStream<Bool>) {
+        self.statusTask?.cancel()
+        self.statusTask = Task { @MainActor [weak self] in
+            for await isOpened in stream {
+                guard let self, !Task.isCancelled else { break }
+                if isOpened {
+                    self.hostingView.activeHitRect = nil
+                    self.hostingView.isInteractive = true
+                    self.window?.ignoresMouseEvents = false
+                } else {
+                    self.hostingView.isInteractive = false
+                    self.hostingView.activeHitRect = nil
+                    self.window?.ignoresMouseEvents = true
+                }
+            }
+        }
     }
 
     /// Repositions the panel for updated screen geometry.
@@ -130,4 +158,7 @@ package final class NotchWindowController: NSWindowController {
 
     /// Whether the boot animation has already played this session.
     private var hasPlayedBootAnimation: Bool
+
+    /// Task consuming the status stream from ``subscribeToStatusStream(_:)``.
+    private var statusTask: Task<Void, Never>?
 }

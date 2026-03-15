@@ -1474,7 +1474,7 @@ OIUI/Window/PassThroughHostingView.swift
 - [x] `NSHostingView` subclass overriding `hitTest(_:)`
 - [x] Closed state: returns `nil` for all points (pass-through to menu bar)
 - [x] Opened state: delegates to `NSHostingView` hit testing; `NotchPanel.sendEvent` handles pass-through for points with no SwiftUI content
-- [ ] Dynamic hit rect computed from `NotchViewModel.status` *(depends on Phase 5)*
+- [x] Dynamic hit rect computed from `NotchViewModel.status` *(depends on Phase 5)*
 
 ### 4.3 NotchWindowController
 
@@ -1483,11 +1483,11 @@ OIUI/Window/NotchWindowController.swift
 ```
 
 - [x] `NSWindowController` managing panel lifecycle
-- [ ] Subscribe to `NotchViewModel.makeStatusStream()` to toggle `ignoresMouseEvents` *(depends on Phase 5)*
+- [x] Subscribe to `NotchViewModel.makeStatusStream()` to toggle `ignoresMouseEvents` *(depends on Phase 5)*
 - [x] **Conditional focus activation per open reason**: the window controller must differentiate between user-initiated opens (`.click`, `.hover`) and programmatic opens (`.notification`, `.boot`):
   - [x] **User-initiated** (click, hover): activate the app (`NSApp.activate`), make the panel key — the user intends to interact
   - [x] **Programmatic** (notification, boot): skip activation, leave user's focus undisturbed — the notch appears as an unobtrusive overlay
-  - [ ] Add test coverage for both paths: verify `NSApp.isActive` state and panel key status after each open reason
+  - [x] Add test coverage for both paths: verify `NSApp.isActive` state and panel key status after each open reason
 - [x] **Boot animation**: orchestrate a brief open-then-close sequence on first launch (0.3s delay to open, hold 1.0s, then close). This teaches the user where the notch is. Trigger via `notchOpen(reason: .boot)` / `notchClose()` on the view model — the controller owns the timing, the view layer handles the animation.
 
 ### 4.4 NotchGeometry
@@ -1543,16 +1543,16 @@ OIUI/Window/ScreenObserver.swift
 OIUI/ViewModels/NotchViewModel.swift
 ```
 
-- [ ] `@Observable` class managing:
-  - [ ] `status: NotchStatus` (`.closed`, `.opened`, `.popping`)
-  - [ ] `contentType: NotchContentType` (`.instances`, `.chat(SessionState)`, `.menu`)
-  - [ ] `openReason: NotchOpenReason` (`.click`, `.hover`, `.notification`, `.boot`)
-  - [ ] `geometry: NotchGeometry`
+- [x] `@Observable` class managing:
+  - [x] `status: NotchStatus` (`.closed`, `.opened`, `.popping`)
+  - [x] `contentType: NotchContentType` (`.instances`, `.chat(SessionState)`, `.menu`)
+  - [x] `openReason: NotchOpenReason` (`.click`, `.hover`, `.notification`, `.boot`)
+  - [x] `geometry: NotchGeometry`
   - [ ] `layoutEngine: ModuleLayoutEngine`
-- [ ] Computed `openedSize` varying by content type. Each content type computes its own preferred size. For the settings menu, each expandable picker row contributes its expansion height to the total panel height — the panel grows and shrinks as the user opens and closes selectors. Track a `selectorUpdateToken` (or similar mechanism) that triggers view re-computation when any selector's expansion state changes. Without this, the settings panel either clips content or has permanent empty space.
-- [ ] `makeStatusStream() -> AsyncStream<NotchStatus>` — factory method for window controller subscription. Single-consumer by convention: calling the factory again finishes the previous stream to prevent leaks. Uses `.bufferingNewest(1)`.
-- [ ] Methods: `notchOpen(reason:)`, `notchClose()`, `switchContent(_:)`
-- [ ] **State preservation across open/close cycles**: remember the current `contentType` (including which session's chat was displayed) when closing. Restore on next open so the user returns to where they left off.
+- [x] Computed `openedSize` varying by content type. Each content type computes its own preferred size. For the settings menu, each expandable picker row contributes its expansion height to the total panel height — the panel grows and shrinks as the user opens and closes selectors. Track a `selectorUpdateToken` (or similar mechanism) that triggers view re-computation when any selector's expansion state changes. Without this, the settings panel either clips content or has permanent empty space.
+- [x] `makeStatusStream() -> AsyncStream<NotchStatus>` — factory method for window controller subscription. Single-consumer by convention: calling the factory again finishes the previous stream to prevent leaks. Uses `.bufferingNewest(1)`.
+- [x] Methods: `notchOpen(reason:)`, `notchClose()`, `switchContent(_:)`
+- [x] **State preservation across open/close cycles**: remember the current `contentType` (including which session's chat was displayed) when closing. Restore on next open so the user returns to where they left off.
 
 ### 5.2 Event Monitors
 
@@ -1561,12 +1561,12 @@ OIUI/Events/EventMonitor.swift
 OIUI/Events/EventMonitors.swift
 ```
 
-- [ ] `NSEvent` global monitor wrapper
-- [ ] Mouse position tracking for hover detection
-- [ ] Mouse movement monitor throttled to ~50ms intervals to avoid flooding the event system with position updates
-- [ ] Mouse drag tracking (for drag interactions within the opened panel)
-- [ ] Click-outside detection for dismissal
-- [ ] Keyboard shortcut handling
+- [x] `NSEvent` global monitor wrapper
+- [x] Mouse position tracking for hover detection
+- [x] Mouse movement monitor throttled to ~50ms intervals to avoid flooding the event system with position updates
+- [x] Mouse drag tracking (for drag interactions within the opened panel)
+- [x] Click-outside detection for dismissal
+- [x] Keyboard shortcut handling
 
 ### 5.3 NotchView (Root SwiftUI View)
 
@@ -1574,20 +1574,20 @@ OIUI/Events/EventMonitors.swift
 OIUI/Views/NotchView.swift
 ```
 
-- [ ] Root `ZStack` with `NotchShape` clip mask and shadow
-- [ ] Header row (always visible): left modules + notch spacer + right modules
-- [ ] Content view (when opened): switches on `contentType`
-- [ ] Reactive states: `isVisible`, `isHovering`, `isBouncing`
-- [ ] Animations:
-  - [ ] Open: `.spring(response: 0.42, dampingFraction: 0.8)`
-  - [ ] Close: `.spring(response: 0.45, dampingFraction: 1.0)`
-  - [ ] **Asymmetric content transitions**: insertion uses `.scale(anchor: .top).combined(with: .opacity)` (expansive entry); removal uses a fast `.opacity` fade (snappy exit)
-  - [ ] **Layered animation strategy**: use distinct animation curves for different visual properties:
-    - [ ] Spring for container size changes (width/height between content types)
-    - [ ] Smooth for activity-state changes
-    - [ ] Separate spring for bounce/pop animations
-    - [ ] This creates a polished feel where different elements move at different rates
-- [ ] Include `#Preview` blocks in every SwiftUI view file. Create preview helpers providing mock `SessionState`, `NotchViewModel`, and `ModuleRenderContext` for self-contained previews. `#Preview` replaces the legacy `PreviewProvider` protocol.
+- [x] Root `ZStack` with `NotchShape` clip mask and shadow
+- [x] Header row (always visible): left modules + notch spacer + right modules
+- [x] Content view (when opened): switches on `contentType`
+- [x] Reactive states: `isVisible`, `isHovering`, `isBouncing`
+- [x] Animations:
+  - [x] Open: `.spring(response: 0.42, dampingFraction: 0.8)`
+  - [x] Close: `.spring(response: 0.45, dampingFraction: 1.0)`
+  - [x] **Asymmetric content transitions**: insertion uses `.scale(anchor: .top).combined(with: .opacity)` (expansive entry); removal uses a fast `.opacity` fade (snappy exit)
+  - [x] **Layered animation strategy**: use distinct animation curves for different visual properties:
+    - [x] Spring for container size changes (width/height between content types)
+    - [x] Smooth for activity-state changes
+    - [x] Separate spring for bounce/pop animations
+    - [x] This creates a polished feel where different elements move at different rates
+- [x] Include `#Preview` blocks in every SwiftUI view file. Create preview helpers providing mock `SessionState`, `NotchViewModel`, and `ModuleRenderContext` for self-contained previews. `#Preview` replaces the legacy `PreviewProvider` protocol.
 
 ### 5.4 NotchHeaderView
 
@@ -1595,14 +1595,14 @@ OIUI/Views/NotchView.swift
 OIUI/Views/NotchHeaderView.swift
 ```
 
-- [ ] **Height adaptation**: in the closed state, the header row height matches the physical notch height. In the opened state, it expands to a fixed comfortable height for interactive elements (buttons, text).
-- [ ] **Closed state**: shows the full module layout — left modules + notch spacer + right modules (from `ModuleLayoutEngine`)
-- [ ] **Opened state**: shows only modules with `showInExpandedHeader = true`, plus:
-  - [ ] Menu toggle button (gear icon → settings)
-  - [ ] Context-dependent navigation: back button (when in sub-view like chat detail) or close button (chevron)
-  - [ ] Mascot icon (provider-aware — show relevant icon based on active sessions)
-  - [ ] Activity spinner with `matchedGeometryEffect` between closed/opened states
-  - [ ] Title text adapting to content type
+- [x] **Height adaptation**: in the closed state, the header row height matches the physical notch height. In the opened state, it expands to a fixed comfortable height for interactive elements (buttons, text).
+- [x] **Closed state**: shows the full module layout — left modules + notch spacer + right modules (from `ModuleLayoutEngine`)
+- [x] **Opened state**: shows only modules with `showInExpandedHeader = true`, plus:
+  - [x] Menu toggle button (gear icon → settings)
+  - [x] Context-dependent navigation: back button (when in sub-view like chat detail) or close button (chevron)
+  - [x] Mascot icon (provider-aware — show relevant icon based on active sessions)
+  - [x] Activity spinner with `matchedGeometryEffect` between closed/opened states
+  - [x] Title text adapting to content type
 
 ### 5.5 Basic Instances View (Placeholder)
 
@@ -1610,10 +1610,10 @@ OIUI/Views/NotchHeaderView.swift
 OIUI/Views/InstancesView.swift
 ```
 
-- [ ] List of active sessions from `SessionMonitor`
-- [ ] Each row shows: provider icon, project name, phase indicator, elapsed time
-- [ ] Tap to open chat view for that session
-- [ ] Empty state when no sessions active
+- [x] List of active sessions from `SessionMonitor`
+- [x] Each row shows: provider icon, project name, phase indicator, elapsed time
+- [x] Tap to open chat view for that session
+- [x] Empty state when no sessions active
 
 ### 5.6 SessionMonitor (UI Bridge)
 
@@ -1621,11 +1621,11 @@ OIUI/Views/InstancesView.swift
 OIUI/ViewModels/SessionMonitor.swift
 ```
 
-- [ ] `@Observable` class on MainActor
-- [ ] Subscribes to `SessionStore.sessionsStream()`
-- [ ] Updates `instances: [SessionState]` array (filters out ended sessions)
-- [ ] Convenience methods: `approvePermission()`, `denyPermission()`, `archiveSession()`
-- [ ] Bridges provider registry for permission responses
+- [x] `@Observable` class on MainActor
+- [x] Subscribes to `SessionStore.sessionsStream()`
+- [x] Updates `instances: [SessionState]` array (filters out ended sessions)
+- [x] Convenience methods: `approvePermission()`, `denyPermission()`, `archiveSession()`
+- [x] Bridges provider registry for permission responses
 
 ---
 

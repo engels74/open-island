@@ -36,10 +36,23 @@ package final class PassThroughHostingView: NSHostingView<AnyView> {
     /// - `true`: default `NSHostingView` hit testing (SwiftUI content is interactive).
     package var isInteractive: Bool
 
+    /// Optional rect limiting where hit tests succeed when `isInteractive` is `true`.
+    ///
+    /// When set, `hitTest(_:)` returns `nil` for points outside this rect even if
+    /// `isInteractive` is `true`. Use this for the closed state to accept hits only
+    /// within the notch area (enabling hover detection) while passing through
+    /// everywhere else.
+    ///
+    /// When `nil`, the full view area is interactive (the default for the opened state).
+    package var activeHitRect: CGRect?
+
     // MARK: - Hit Testing
 
     override package func hitTest(_ point: NSPoint) -> NSView? {
         guard self.isInteractive else { return nil }
+        if let rect = self.activeHitRect, !rect.contains(point) {
+            return nil
+        }
         return super.hitTest(point)
     }
 }
