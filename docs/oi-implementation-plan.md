@@ -1273,11 +1273,11 @@ OIState/SessionStore+HealthCheck.swift
 
 ### 3.0 Claude Code Integration Architecture
 
-Claude Code's monitoring architecture centers on **shell/Python hook scripts** registered in `settings.json` that receive JSON on stdin and return JSON on stdout. The system supports **18 distinct hook event types** organized across four categories:
+Claude Code's monitoring architecture centers on **shell/Python hook scripts** registered in `settings.json` that receive JSON on stdin and return JSON on stdout. The system supports **17 registered hook event types** organized across four categories (PreToolUse is excluded from registration due to [upstream bug #15897](https://github.com/anthropics/claude-code/issues/15897) but still handled by the normalizer for backward compatibility):
 
 **Session lifecycle events**: `Setup` (fires on `claude --init`), `SessionStart` (startup, resume, clear, compact), `SessionEnd` (exit, logout, prompt exit)
 
-**Agentic loop events**: `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `PermissionRequest` (v2.0.45+), `Stop`, `Notification`
+**Agentic loop events**: `UserPromptSubmit`, ~~`PreToolUse`~~ *(not registered — bug #15897)*, `PostToolUse`, `PostToolUseFailure`, `PermissionRequest` (v2.0.45+), `Stop`, `Notification`
 
 **Team/subagent events**: `SubagentStart`, `SubagentStop`, `TeammateIdle`, `TaskCompleted`
 
@@ -1366,10 +1366,10 @@ OIProviders/Claude/ClaudeEventNormalizer.swift
   - [ ] `Notification` fields: notification type, message content
 - [ ] `ClaudeEventNormalizer` — maps `ClaudeHookEvent` → `ProviderEvent`
   - [ ] Uses `throws(EventNormalizationError)` for closed error domain (see Phase 1.5)
-  - [ ] Maps all 18 hook event types to the appropriate `ProviderEvent` cases
+  - [ ] Maps all 18 hook event types (including unregistered PreToolUse) to the appropriate `ProviderEvent` cases
   - [ ] Handles `PreToolUse` tool input schema variations per tool type
   - [ ] Extracts permission context from `PermissionRequest` events
-- [ ] Handle all Claude-specific event types: `Setup`, `SessionStart`, `SessionEnd`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `PermissionRequest`, `Stop`, `Notification`, `SubagentStart`, `SubagentStop`, `TeammateIdle`, `TaskCompleted`, `PreCompact`, `ConfigChange`, `WorktreeCreate`, `WorktreeRemove`
+- [ ] Handle all Claude-specific event types: `Setup`, `SessionStart`, `SessionEnd`, `UserPromptSubmit`, `PreToolUse` *(not registered but handled for backward compat)*, `PostToolUse`, `PostToolUseFailure`, `PermissionRequest`, `Stop`, `Notification`, `SubagentStart`, `SubagentStop`, `TeammateIdle`, `TaskCompleted`, `PreCompact`, `ConfigChange`, `WorktreeCreate`, `WorktreeRemove`
 
 ### 3.3 Python Hook Script
 
@@ -1384,7 +1384,7 @@ Resources/Hooks/Claude/open-island-claude-hook.py
 - [ ] Handle `PermissionRequest` hooks specially: read JSON from stdin, forward to socket, **block waiting** for approve/deny response from the Swift app, then output the decision JSON to stdout:
   - [ ] Allow response: `{"decision": {"behavior": "allow"}}`
   - [ ] Deny response: `{"decision": {"behavior": "deny", "message": "reason", "interrupt": true}}`
-- [ ] `PreToolUse` hooks can optionally set `permissionDecision` to `"allow"`, `"deny"`, or `"ask"` in `hookSpecificOutput` for policy-based auto-approval
+- [ ] `PreToolUse` hooks can optionally set `permissionDecision` to `"allow"`, `"deny"`, or `"ask"` in `hookSpecificOutput` for policy-based auto-approval — **Note**: PreToolUse is not currently registered due to [upstream bug #15897](https://github.com/anthropics/claude-code/issues/15897); re-enable when the bug is fixed
 
 ### 3.4 Hook Installer
 
@@ -1395,8 +1395,9 @@ OIProviders/Claude/ClaudeHookInstaller.swift
 - [ ] Port `HookInstaller` logic:
   - [ ] Copy bundled Python script to `~/.claude/hooks/`
   - [ ] Detect Python runtime via `PythonRuntimeDetector`
-  - [ ] Update `~/.claude/settings.json` with hook config for all 18 event types
-  - [ ] Register hooks for all four categories: session lifecycle (`SessionStart`, `SessionEnd`), agentic loop (`UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `PermissionRequest`, `Stop`, `Notification`), team (`SubagentStart`, `SubagentStop`, `TeammateIdle`, `TaskCompleted`), maintenance (`PreCompact`, `ConfigChange`, `WorktreeCreate`, `WorktreeRemove`)
+  - [ ] Update `~/.claude/settings.json` with hook config for all 17 registered event types (PreToolUse excluded — bug #15897)
+  - [ ] Register hooks for all four categories: session lifecycle (`SessionStart`, `SessionEnd`), agentic loop (`UserPromptSubmit`, `PostToolUse`, `PostToolUseFailure`, `PermissionRequest`, `Stop`, `Notification`), team (`SubagentStart`, `SubagentStop`, `TeammateIdle`, `TaskCompleted`), maintenance (`PreCompact`, `ConfigChange`, `WorktreeCreate`, `WorktreeRemove`)
+  - [ ] Clean up stale PreToolUse entries from previous installations during `install()`
   - [ ] Use `command` handler type for all events (the only type that supports lifecycle/maintenance events, and the most appropriate for the notch overlay use case)
 - [ ] Handle deduplication, legacy format migration, uninstallation
 - [ ] Make this async with cancellation support
