@@ -89,7 +89,7 @@ package final class EventMonitor {
             let monitor = NSEvent.addLocalMonitorForEvents(
                 matching: self.mask,
             ) { event in
-                handler(event) ?? event
+                handler(event)
             }
             self._monitors.withLock { $0.local = monitor }
         }

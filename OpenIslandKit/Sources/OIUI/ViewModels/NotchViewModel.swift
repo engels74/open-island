@@ -43,7 +43,7 @@ package final class NotchViewModel {
     ///
     /// Observed by SwiftUI to trigger size re-computation of the settings
     /// panel without requiring the view to know about individual selectors.
-    @ObservationIgnored package var selectorUpdateToken: UInt64
+    package var selectorUpdateToken: UInt64
 
     /// The preferred panel size when the notch is opened.
     ///
