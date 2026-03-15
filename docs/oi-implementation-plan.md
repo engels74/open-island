@@ -1461,6 +1461,11 @@ OIUI/Window/NotchPanel.swift
 - [ ] Level set above menu bar
 - [ ] `becomesKeyOnlyIfNeeded = true`
 - [ ] If the `OIAppKitBridge` module from Phase 0.7 is feasible, this class lives there with `@preconcurrency import AppKit` confined to that module. Otherwise, use **`@preconcurrency import AppKit`** on this file with a comment: `// @preconcurrency: NSPanel, NSWindow predate Sendable annotations`
+- [ ] **Click-through re-posting**: override `sendEvent(_:)` on `NotchPanel` to detect clicks that fall outside the content area (content view's hit test returns `nil`). When detected:
+  - [ ] Temporarily set `ignoresMouseEvents = true`
+  - [ ] Re-post the click as a `CGEvent` at the correct screen coordinates
+  - [ ] Convert from AppKit's bottom-up coordinate system to CoreGraphics' top-down system
+  - [ ] Without this mechanism, clicks on the menu bar or another app's window while the notch is expanded are silently swallowed
 
 ### 4.2 PassThroughHostingView
 
@@ -1481,7 +1486,11 @@ OIUI/Window/NotchWindowController.swift
 
 - [ ] `NSWindowController` managing panel lifecycle
 - [ ] Subscribe to `NotchViewModel.makeStatusStream()` to toggle `ignoresMouseEvents`
-- [ ] Opened by notification → don't steal focus (`NSApp.activate` skipped)
+- [ ] **Conditional focus activation per open reason**: the window controller must differentiate between user-initiated opens (`.click`, `.hover`) and programmatic opens (`.notification`, `.boot`):
+  - [ ] **User-initiated** (click, hover): activate the app (`NSApp.activate`), make the panel key — the user intends to interact
+  - [ ] **Programmatic** (notification, boot): skip activation, leave user's focus undisturbed — the notch appears as an unobtrusive overlay
+  - [ ] Add test coverage for both paths: verify `NSApp.isActive` state and panel key status after each open reason
+- [ ] **Boot animation**: orchestrate a brief open-then-close sequence on first launch (0.3s delay to open, hold 1.0s, then close). This teaches the user where the notch is. Trigger via `notchOpen(reason: .boot)` / `notchClose()` on the view model — the controller owns the timing, the view layer handles the animation.
 
 ### 4.4 NotchGeometry
 
@@ -1489,11 +1498,13 @@ OIUI/Window/NotchWindowController.swift
 OIWindow/NotchGeometry.swift
 ```
 
-- [ ] Pure struct with geometry calculations:
+- [ ] Pure `Sendable` struct with geometry calculations (pure value type with no mutable state):
   - [ ] `deviceNotchRect` — hardware notch rect in window coordinates
   - [ ] `screenRect`, `windowHeight` (fixed 750px)
   - [ ] `isPointInNotch(_:)` with ±10px/±5px padding
+  - [ ] `isPointInsidePanel(_:, size:)` for hit-test acceptance in the opened state
   - [ ] `isPointOutsidePanel(_:, size:)` for click-outside dismiss
+  - [ ] `notchRectInScreenCoordinates` and `panelRectInScreenCoordinates(size:)` for global mouse-position hit testing — must account for screen origin differences between built-in and external monitors
 - [ ] `NSScreen` extensions: `notchSize`, `hasPhysicalNotch`, `isBuiltinDisplay`, `builtin`
 
 ### 4.5 NotchShape (Custom SwiftUI Shape)
@@ -1537,12 +1548,13 @@ OIUI/ViewModels/NotchViewModel.swift
 - [ ] `@Observable` class managing:
   - [ ] `status: NotchStatus` (`.closed`, `.opened`, `.popping`)
   - [ ] `contentType: NotchContentType` (`.instances`, `.chat(SessionState)`, `.menu`)
-  - [ ] `openReason: NotchOpenReason` (`.hover`, `.notification`, `.boot`, `.unknown`)
+  - [ ] `openReason: NotchOpenReason` (`.click`, `.hover`, `.notification`, `.boot`)
   - [ ] `geometry: NotchGeometry`
   - [ ] `layoutEngine: ModuleLayoutEngine`
-- [ ] Computed `openedSize` varying by content type
-- [ ] `makeStatusStream()` for window controller subscription
+- [ ] Computed `openedSize` varying by content type. Each content type computes its own preferred size. For the settings menu, each expandable picker row contributes its expansion height to the total panel height — the panel grows and shrinks as the user opens and closes selectors. Track a `selectorUpdateToken` (or similar mechanism) that triggers view re-computation when any selector's expansion state changes. Without this, the settings panel either clips content or has permanent empty space.
+- [ ] `makeStatusStream() -> AsyncStream<NotchStatus>` — factory method for window controller subscription. Single-consumer by convention: calling the factory again finishes the previous stream to prevent leaks. Uses `.bufferingNewest(1)`.
 - [ ] Methods: `notchOpen(reason:)`, `notchClose()`, `switchContent(_:)`
+- [ ] **State preservation across open/close cycles**: remember the current `contentType` (including which session's chat was displayed) when closing. Restore on next open so the user returns to where they left off.
 
 ### 5.2 Event Monitors
 
@@ -1553,6 +1565,8 @@ OIUI/Events/EventMonitors.swift
 
 - [ ] `NSEvent` global monitor wrapper
 - [ ] Mouse position tracking for hover detection
+- [ ] Mouse movement monitor throttled to ~50ms intervals to avoid flooding the event system with position updates
+- [ ] Mouse drag tracking (for drag interactions within the opened panel)
 - [ ] Click-outside detection for dismissal
 - [ ] Keyboard shortcut handling
 
@@ -1569,8 +1583,12 @@ OIUI/Views/NotchView.swift
 - [ ] Animations:
   - [ ] Open: `.spring(response: 0.42, dampingFraction: 0.8)`
   - [ ] Close: `.spring(response: 0.45, dampingFraction: 1.0)`
-  - [ ] Content transitions: `.scale.combined(with: .opacity)`
-- [ ] Boot animation: open briefly after 0.3s delay, close after 1.0s
+  - [ ] **Asymmetric content transitions**: insertion uses `.scale(anchor: .top).combined(with: .opacity)` (expansive entry); removal uses a fast `.opacity` fade (snappy exit)
+  - [ ] **Layered animation strategy**: use distinct animation curves for different visual properties:
+    - [ ] Spring for container size changes (width/height between content types)
+    - [ ] Smooth for activity-state changes
+    - [ ] Separate spring for bounce/pop animations
+    - [ ] This creates a polished feel where different elements move at different rates
 - [ ] Include `#Preview` blocks in every SwiftUI view file. Create preview helpers providing mock `SessionState`, `NotchViewModel`, and `ModuleRenderContext` for self-contained previews. `#Preview` replaces the legacy `PreviewProvider` protocol.
 
 ### 5.4 NotchHeaderView
@@ -1579,11 +1597,14 @@ OIUI/Views/NotchView.swift
 OIUI/Views/NotchHeaderView.swift
 ```
 
-- [ ] Gear icon → settings
-- [ ] Mascot icon (provider-aware — show relevant icon based on active sessions)
-- [ ] Activity spinner with `matchedGeometryEffect` between closed/opened states
-- [ ] Title text adapting to content type
-- [ ] Close button (animated chevron)
+- [ ] **Height adaptation**: in the closed state, the header row height matches the physical notch height. In the opened state, it expands to a fixed comfortable height for interactive elements (buttons, text).
+- [ ] **Closed state**: shows the full module layout — left modules + notch spacer + right modules (from `ModuleLayoutEngine`)
+- [ ] **Opened state**: shows only modules with `showInExpandedHeader = true`, plus:
+  - [ ] Menu toggle button (gear icon → settings)
+  - [ ] Context-dependent navigation: back button (when in sub-view like chat detail) or close button (chevron)
+  - [ ] Mascot icon (provider-aware — show relevant icon based on active sessions)
+  - [ ] Activity spinner with `matchedGeometryEffect` between closed/opened states
+  - [ ] Title text adapting to content type
 
 ### 5.5 Basic Instances View (Placeholder)
 
@@ -1625,8 +1646,9 @@ OIModules/NotchModule.swift
   - [ ] `func isVisible(context: ModuleVisibilityContext) -> Bool`
   - [ ] `func preferredWidth() -> CGFloat`
   - [ ] `@ViewBuilder func makeBody(context: ModuleRenderContext) -> some View`
-- [ ] `ModuleVisibilityContext` — struct with `isProcessing`, `hasPendingPermission`, `hasWaitingForInput`, provider info
+- [ ] `ModuleVisibilityContext` — struct with `isProcessing`, `hasPendingPermission`, `hasWaitingForInput`, `activeProviders: Set<ProviderID>`, `aggregateProviderState: [ProviderID: ProviderActivitySummary]` — modules can make provider-aware decisions (e.g., show Codex risk level, show Claude-specific indicators) without coupling to a specific provider's identity
 - [ ] `ModuleRenderContext` — struct with animation namespace, color settings, etc.
+- [ ] Both `ModuleVisibilityContext` and `ModuleRenderContext` must be `Sendable` value types that the layout engine can construct without reaching into global singletons — this keeps the module system testable in isolation
 
 > **Design note on `makeBody` return type**: The protocol uses `some View` with `@ViewBuilder` rather than `AnyView`. Since modules are stored heterogeneously in the registry, the `ModuleRegistry` uses `any NotchModule` for the collection. When `makeBody` is called through `any NotchModule`, the return type becomes an opaque type opened from an existential — this works in Swift 6 thanks to SE-0352 (implicitly opened existentials), but **only** if the call site can handle the opened type (e.g., inside a `@ViewBuilder` context in `NotchHeaderView`).
 >
@@ -1643,6 +1665,7 @@ OIModules/ModuleLayoutEngine.swift
 - [ ] Computes symmetric side widths (max of left/right)
 - [ ] Total expansion width = `symmetricSideWidth × 2`
 - [ ] Inter-module spacing: 8px, outer edge inset: 6px
+- [ ] **Hit-test / visual sync contract**: the `PassThroughHostingView` (Phase 4.2) and the SwiftUI `NotchView` (Phase 5.3) must both use `ModuleLayoutEngine` as the single source of truth for closed-state width. Add a documented contract (code comment in both locations pointing to the other) or a shared method that both layers consume, to prevent visual bounds and interaction bounds from drifting apart.
 
 ### 6.3 ModuleRegistry
 
@@ -1677,12 +1700,28 @@ OIModules/ModuleLayoutConfig.swift
 - [ ] `Codable` struct persisted to `UserDefaults`
 - [ ] Stores per-module: side, order overrides
 - [ ] Allows user customization of module arrangement
+- [ ] On launch, prune module IDs from the persisted config that no longer exist in the registry (stale modules from uninstalled providers)
+- [ ] Add any newly registered modules (from new providers or app updates) at their default positions
 
 ### 6.6 Module System Tests
 
 - [ ] Test layout engine with various module visibility combinations
 - [ ] Test symmetric width calculation
 - [ ] Test config persistence round-trip
+
+### 6.7 Module Layout Settings View
+
+```
+OIModules/Views/ModuleLayoutSettingsView.swift
+```
+
+- [ ] Three-column drag-and-drop interface: **Left**, **Right**, **Hidden**
+- [ ] Each column is a drop destination; modules are draggable between columns
+- [ ] Visual feedback: insertion indicators at drop position, highlighted drop zones on hover
+- [ ] Empty-state placeholders for columns with no modules
+- [ ] Reset-to-defaults button restoring the factory layout
+- [ ] Config persistence round-trip: changes immediately saved to `ModuleLayoutConfig` (Phase 6.5) and reflected in the closed-state layout
+- [ ] Test: drag module between columns → verify layout config updates → verify closed-state view reflects change
 
 ---
 
@@ -2096,7 +2135,7 @@ OIUI/Views/SettingsMenuView.swift
   - [ ] Codex: app-server binary path, approval policy override, sandbox mode display
   - [ ] Gemini CLI: hook installation status, AfterModel throttle interval, headless mode toggle
   - [ ] OpenCode: server port/URL, mDNS discovery toggle, connection status indicator
-- [ ] Module layout customization
+- [ ] Module layout customization — see Phase 6.7
 - [ ] About / version info
 
 ### 9.3 Sound System
