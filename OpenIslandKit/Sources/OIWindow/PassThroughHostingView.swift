@@ -3,6 +3,18 @@ package import SwiftUI
 
 // MARK: - PassThroughHostingView
 
+// MARK: Hit-test / visual sync contract
+
+//
+// The closed-state notch width is computed by `ModuleLayoutEngine` in OIModules.
+// `ModuleLayoutEngine.layout(modules:context:)` returns a `ModuleLayoutResult`
+// whose `totalExpansionWidth` determines how far the notch extends beyond the
+// device notch rect. This view's `activeHitRect` must be derived from that same
+// result so that the AppKit hit-test boundary matches the SwiftUI visual boundary
+// rendered by `NotchView` (OIUI). Never compute closed-state width independently.
+//
+// Counterpart: see the matching contract comment in `NotchView.swift` (OIUI).
+
 /// An `NSHostingView` subclass that conditionally passes mouse events through to
 /// the window or desktop behind it.
 ///

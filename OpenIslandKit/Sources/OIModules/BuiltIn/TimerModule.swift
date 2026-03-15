@@ -1,0 +1,94 @@
+package import SwiftUI
+
+// MARK: - TimerModule
+
+/// Shows elapsed time since the last activity started.
+///
+/// Always visible when there are active providers. Displays a compact
+/// `mm:ss` or `h:mm:ss` formatted duration.
+package struct TimerModule: NotchModule {
+    // MARK: Lifecycle
+
+    /// - Parameter startDate: The reference date for elapsed time calculation.
+    ///   Defaults to `nil` (no timer shown until a session starts).
+    package init(startDate: Date? = nil) {
+        self.startDate = startDate
+    }
+
+    // MARK: Package
+
+    package let id = "timer"
+    package let defaultSide = ModuleSide.right
+    package let defaultOrder = 3
+    package let showInExpandedHeader = false
+
+    package func isVisible(context: ModuleVisibilityContext) -> Bool {
+        !context.activeProviders.isEmpty
+    }
+
+    package func preferredWidth() -> CGFloat {
+        40
+    }
+
+    @MainActor
+    package func makeBody(context: ModuleRenderContext) -> AnyView {
+        AnyView(self.body(context: context))
+    }
+
+    // MARK: Private
+
+    /// The reference start date for the timer. `nil` shows "0:00".
+    private let startDate: Date?
+
+    @MainActor
+    @ViewBuilder
+    private func body(context: ModuleRenderContext) -> some View {
+        if let startDate {
+            Text(startDate, style: .timer)
+                .font(.system(size: 10, weight: .medium, design: .monospaced))
+                .foregroundStyle(context.accentColor.opacity(0.8))
+                .monospacedDigit()
+        } else {
+            Text("0:00")
+                .font(.system(size: 10, weight: .medium, design: .monospaced))
+                .foregroundStyle(context.accentColor.opacity(0.5))
+                .monospacedDigit()
+        }
+    }
+}
+
+// MARK: - Preview
+
+#Preview("TimerModule") {
+    HStack(spacing: 16) {
+        _TimerPreviewItem(startDate: nil, label: "No session")
+        _TimerPreviewItem(startDate: Date().addingTimeInterval(-65), label: "1m 5s ago")
+        _TimerPreviewItem(startDate: Date().addingTimeInterval(-3661), label: "~1h ago")
+    }
+    .padding()
+    .background(.black)
+}
+
+// MARK: - _TimerPreviewItem
+
+@MainActor
+private struct _TimerPreviewItem: View {
+    // MARK: Internal
+
+    let startDate: Date?
+    let label: String
+
+    var body: some View {
+        VStack(spacing: 4) {
+            TimerModule(startDate: self.startDate)
+                .makeBody(context: ModuleRenderContext(animationNamespace: self.ns))
+            Text(self.label)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    // MARK: Private
+
+    @Namespace private var ns
+}
