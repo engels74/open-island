@@ -38,6 +38,9 @@ let package = Package(
         .target(
             name: "OIProviders",
             dependencies: ["OICore"],
+            resources: [
+                .copy("Resources/Hooks"),
+            ],
             swiftSettings: upcomingFeatures,
         ),
         .target(
