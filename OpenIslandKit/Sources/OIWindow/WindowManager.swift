@@ -1,4 +1,5 @@
 import Observation
+import Synchronization
 
 // MARK: - WindowControllerHandle
 
@@ -74,18 +75,47 @@ package final class WindowManager {
             // withObservationTracking re-invokes the closure on each change.
             // We loop to keep observing after each update.
             while !Task.isCancelled {
-                let currentGeometry = await withCheckedContinuation { continuation in
-                    withObservationTracking {
-                        _ = self.screenObserver.geometry
-                    } onChange: {
-                        Task { @MainActor [weak self] in
-                            guard let self else {
-                                continuation.resume(returning: nil as NotchGeometry?)
-                                return
+                // Mutex-protected continuation ensures exactly one resume across
+                // the observation onChange callback and the cancellation handler.
+                let state = Mutex<CheckedContinuation<NotchGeometry?, Never>?>(nil)
+
+                let currentGeometry = await withTaskCancellationHandler {
+                    await withCheckedContinuation { continuation in
+                        // Store the continuation; if the task was already cancelled
+                        // before we get here, resume immediately.
+                        let shouldResumeNow = state.withLock { stored -> Bool in
+                            if Task.isCancelled {
+                                return true
                             }
-                            continuation.resume(returning: self.screenObserver.geometry)
+                            stored = continuation
+                            return false
+                        }
+                        if shouldResumeNow {
+                            continuation.resume(returning: nil)
+                            return
+                        }
+
+                        withObservationTracking {
+                            _ = self.screenObserver.geometry
+                        } onChange: {
+                            Task { @MainActor [weak self] in
+                                let cont = state.withLock { stored -> CheckedContinuation<NotchGeometry?, Never>? in
+                                    let captured = stored
+                                    stored = nil
+                                    return captured
+                                }
+                                guard let cont else { return }
+                                cont.resume(returning: self?.screenObserver.geometry)
+                            }
                         }
                     }
+                } onCancel: {
+                    let cont = state.withLock { stored -> CheckedContinuation<NotchGeometry?, Never>? in
+                        let captured = stored
+                        stored = nil
+                        return captured
+                    }
+                    cont?.resume(returning: nil)
                 }
                 guard !Task.isCancelled else { break }
                 self.handleGeometryChange(currentGeometry)

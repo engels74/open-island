@@ -56,16 +56,17 @@ package final class NotchPanel: NSPanel {
     /// Re-posts a mouse event as a `CGEvent` so it reaches whatever is behind this panel.
     ///
     /// AppKit uses bottom-left origin; CoreGraphics uses top-left origin.
-    /// The conversion flips Y relative to the main screen's height.
+    /// The conversion flips Y relative to the primary display's height, because
+    /// `CGEvent` coordinates are in a global space anchored to the top-left of
+    /// the main display.
     private func repostMouseEvent(_ event: NSEvent) {
-        guard let screen = self.screen ?? NSScreen.main else { return }
+        guard let mainScreen = NSScreen.main else { return }
 
         // Convert window-local point → global screen coordinates (AppKit, bottom-left origin).
         let screenPoint = self.convertPoint(toScreen: event.locationInWindow)
 
-        // Flip Y for CoreGraphics (top-left origin).
-        let mainScreenHeight = screen.frame.height + screen.frame.origin.y
-        let cgPoint = CGPoint(x: screenPoint.x, y: mainScreenHeight - screenPoint.y)
+        // Flip Y for CoreGraphics (top-left origin, anchored to primary display).
+        let cgPoint = CGPoint(x: screenPoint.x, y: mainScreen.frame.height - screenPoint.y)
 
         let cgEventType: CGEventType
         switch event.type {

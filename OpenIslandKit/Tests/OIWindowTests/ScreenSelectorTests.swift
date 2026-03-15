@@ -45,6 +45,7 @@ struct ScreenIdentifierTests {
     }
 
     @Test
+    @MainActor
     func `Resolve returns nil for non-existent display ID`() {
         // Display ID 0xDEADBEEF is extremely unlikely to be a real display
         let id = ScreenIdentifier(displayID: 0xDEAD_BEEF)

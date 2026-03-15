@@ -26,6 +26,7 @@ package struct ScreenIdentifier: Sendable, Equatable, Hashable, Codable {
     package let displayID: UInt32
 
     /// Resolves this identifier to a currently connected `NSScreen`, or `nil` if disconnected.
+    @MainActor
     package func resolve() -> NSScreen? {
         NSScreen.screens.first { screen in
             let id = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID
