@@ -52,6 +52,7 @@ package struct SocketFD: ~Copyable {
                 data.count - totalWritten,
             )
             if bytesWritten < 0 {
+                if errno == EINTR { continue }
                 return bytesWritten
             }
             totalWritten += bytesWritten
