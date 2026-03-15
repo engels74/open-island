@@ -86,6 +86,9 @@ package final class NotchPanel: NSPanel {
         )
         else { return }
 
+        cgEvent.flags = CGEventFlags(rawValue: UInt64(event.modifierFlags.rawValue))
+        cgEvent.setIntegerValueField(.mouseEventClickState, value: Int64(event.clickCount))
+
         self.ignoresMouseEvents = true
         cgEvent.post(tap: .cghidEventTap)
 

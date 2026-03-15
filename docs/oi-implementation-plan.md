@@ -1473,8 +1473,8 @@ OIUI/Window/PassThroughHostingView.swift
 
 - [x] `NSHostingView` subclass overriding `hitTest(_:)`
 - [x] Closed state: returns `nil` for all points (pass-through to menu bar)
-- [x] Opened state: returns `nil` for points outside the panel bounds
-- [x] Dynamic hit rect computed from `NotchViewModel.status`
+- [x] Opened state: delegates to `NSHostingView` hit testing; `NotchPanel.sendEvent` handles pass-through for points with no SwiftUI content
+- [ ] Dynamic hit rect computed from `NotchViewModel.status` *(depends on Phase 5)*
 
 ### 4.3 NotchWindowController
 
@@ -1483,11 +1483,11 @@ OIUI/Window/NotchWindowController.swift
 ```
 
 - [x] `NSWindowController` managing panel lifecycle
-- [x] Subscribe to `NotchViewModel.makeStatusStream()` to toggle `ignoresMouseEvents`
+- [ ] Subscribe to `NotchViewModel.makeStatusStream()` to toggle `ignoresMouseEvents` *(depends on Phase 5)*
 - [x] **Conditional focus activation per open reason**: the window controller must differentiate between user-initiated opens (`.click`, `.hover`) and programmatic opens (`.notification`, `.boot`):
   - [x] **User-initiated** (click, hover): activate the app (`NSApp.activate`), make the panel key — the user intends to interact
   - [x] **Programmatic** (notification, boot): skip activation, leave user's focus undisturbed — the notch appears as an unobtrusive overlay
-  - [x] Add test coverage for both paths: verify `NSApp.isActive` state and panel key status after each open reason
+  - [ ] Add test coverage for both paths: verify `NSApp.isActive` state and panel key status after each open reason
 - [x] **Boot animation**: orchestrate a brief open-then-close sequence on first launch (0.3s delay to open, hold 1.0s, then close). This teaches the user where the notch is. Trigger via `notchOpen(reason: .boot)` / `notchClose()` on the view model — the controller owns the timing, the view layer handles the animation.
 
 ### 4.4 NotchGeometry
