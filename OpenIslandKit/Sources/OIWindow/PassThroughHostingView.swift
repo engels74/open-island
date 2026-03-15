@@ -1,0 +1,45 @@
+@preconcurrency package import AppKit
+package import SwiftUI
+
+// MARK: - PassThroughHostingView
+
+/// An `NSHostingView` subclass that conditionally passes mouse events through to
+/// the window or desktop behind it.
+///
+/// When `isInteractive` is `false` (the "closed" state), `hitTest(_:)` returns `nil`
+/// for all points, letting clicks fall through to the menu bar or other windows.
+/// When `isInteractive` is `true` (the "opened" state), `hitTest(_:)` uses the
+/// default `NSHostingView` behavior so SwiftUI content receives events normally.
+///
+/// This works in concert with `NotchPanel`'s `sendEvent(_:)` re-posting: when closed,
+/// the panel sees no hit target and re-posts the event; when opened, hits are handled
+/// by the SwiftUI content.
+@MainActor
+package final class PassThroughHostingView: NSHostingView<AnyView> {
+    // MARK: Lifecycle
+
+    package required init(rootView: AnyView) {
+        self.isInteractive = false
+        super.init(rootView: rootView)
+    }
+
+    @available(*, unavailable)
+    required init?(coder _: NSCoder) {
+        fatalError("init(coder:) is not supported")
+    }
+
+    // MARK: Package
+
+    /// Controls whether the view accepts mouse events.
+    ///
+    /// - `false`: all hit tests return `nil` (pass-through to menu bar).
+    /// - `true`: default `NSHostingView` hit testing (SwiftUI content is interactive).
+    package var isInteractive: Bool
+
+    // MARK: - Hit Testing
+
+    override package func hitTest(_ point: NSPoint) -> NSView? {
+        guard self.isInteractive else { return nil }
+        return super.hitTest(point)
+    }
+}
