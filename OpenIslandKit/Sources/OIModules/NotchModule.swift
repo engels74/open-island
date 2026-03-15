@@ -66,10 +66,12 @@ package struct ModuleRenderContext {
         animationNamespace: Namespace.ID,
         accentColor: Color = .white,
         isHighlighted: Bool = false,
+        activeProviderCount: Int = 0,
     ) {
         self.animationNamespace = animationNamespace
         self.accentColor = accentColor
         self.isHighlighted = isHighlighted
+        self.activeProviderCount = activeProviderCount
     }
 
     // MARK: Package
@@ -82,6 +84,13 @@ package struct ModuleRenderContext {
 
     /// Whether this module's area is visually highlighted (e.g., during hover).
     package let isHighlighted: Bool
+
+    /// Number of active providers, derived from ``ModuleVisibilityContext/activeProviders``.
+    ///
+    /// Modules that display provider-count-dependent content should use this
+    /// value rather than injecting a separate count, keeping visibility and
+    /// rendering in sync with the same source of truth.
+    package let activeProviderCount: Int
 }
 
 // MARK: - NotchModule
@@ -120,7 +129,7 @@ package protocol NotchModule: Identifiable where ID == String {
     /// Preferred side of the notch for this module.
     var defaultSide: ModuleSide { get }
 
-    /// Sort order within its side (lower values appear closer to the notch).
+    /// Sort order within its side (lower values are laid out first from the outer edge inward).
     var defaultOrder: Int { get }
 
     /// Whether this module should also appear in the expanded header.

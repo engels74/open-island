@@ -16,6 +16,10 @@ package import OIWindow
 package final class NotchViewModel {
     // MARK: Lifecycle
 
+    /// Creates a new view model.
+    ///
+    /// Automatically loads any persisted module layout configuration from
+    /// `UserDefaults` and reconciles it against the registry's current modules.
     package init(geometry: NotchGeometry, registry: ModuleRegistry = ModuleRegistry()) {
         self.geometry = geometry
         self.registry = registry
@@ -23,6 +27,9 @@ package final class NotchViewModel {
         self.contentType = .instances
         self.openReason = .boot
         self.selectorUpdateToken = 0
+
+        // Restore persisted layout so user customizations survive app restarts.
+        registry.applyPersistedLayout()
     }
 
     // MARK: Package

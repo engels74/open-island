@@ -21,7 +21,7 @@ package struct ModuleLayoutEntry: Codable, Sendable, Equatable {
     /// Which side of the notch this module is placed on.
     package var side: ModuleSide
 
-    /// Sort order within its side (lower values appear closer to the notch).
+    /// Sort order within its side (lower values are laid out first from the outer edge inward).
     package var order: Int
 
     /// Whether the user has hidden this module.

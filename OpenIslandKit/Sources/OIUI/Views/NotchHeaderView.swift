@@ -56,7 +56,10 @@ package struct NotchHeaderView: View {
 
     /// The render context passed to modules when building their views.
     private var renderContext: ModuleRenderContext {
-        ModuleRenderContext(animationNamespace: self.headerNamespace)
+        ModuleRenderContext(
+            animationNamespace: self.headerNamespace,
+            activeProviderCount: self.viewModel.visibilityContext.activeProviders.count,
+        )
     }
 
     /// Visible left-side modules for the closed state, sorted by effective order.
@@ -82,15 +85,24 @@ package struct NotchHeaderView: View {
 
     private var closedHeader: some View {
         HStack(spacing: 0) {
-            // Left-side modules
+            // Left-side modules — framed to the symmetric width so the
+            // visual boundary matches the layout engine's width contract.
             self.closedModuleRow(modules: self.closedLeftModules, side: .left)
+                .frame(
+                    width: self.viewModel.moduleLayout.symmetricSideWidth,
+                    alignment: .leading,
+                )
 
             // Notch spacer — fills the device notch width in the center
             Spacer(minLength: 0)
                 .frame(width: self.viewModel.geometry.deviceNotchRect.width)
 
-            // Right-side modules
+            // Right-side modules — mirrored symmetric width.
             self.closedModuleRow(modules: self.closedRightModules, side: .right)
+                .frame(
+                    width: self.viewModel.moduleLayout.symmetricSideWidth,
+                    alignment: .trailing,
+                )
         }
     }
 
@@ -204,7 +216,7 @@ private func previewRegistry() -> ModuleRegistry {
     registry.register(PermissionIndicatorModule())
     registry.register(ActivitySpinnerModule())
     registry.register(ReadyCheckmarkModule())
-    registry.register(SessionDotsModule(providerCount: 2))
+    registry.register(SessionDotsModule())
     registry.register(TimerModule(startDate: Date().addingTimeInterval(-125)))
     return registry
 }

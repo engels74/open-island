@@ -126,19 +126,31 @@ package enum ModuleLayoutEngine {
         if let config {
             leftModules = visible
                 .filter { !config.isHidden($0.id) && config.effectiveSide(for: $0) == .left }
-                .sorted { config.effectiveOrder(for: $0) < config.effectiveOrder(for: $1) }
+                .sorted {
+                    let lhs = config.effectiveOrder(for: $0)
+                    let rhs = config.effectiveOrder(for: $1)
+                    return lhs != rhs ? lhs < rhs : $0.id < $1.id
+                }
 
             rightModules = visible
                 .filter { !config.isHidden($0.id) && config.effectiveSide(for: $0) == .right }
-                .sorted { config.effectiveOrder(for: $0) < config.effectiveOrder(for: $1) }
+                .sorted {
+                    let lhs = config.effectiveOrder(for: $0)
+                    let rhs = config.effectiveOrder(for: $1)
+                    return lhs != rhs ? lhs < rhs : $0.id < $1.id
+                }
         } else {
             leftModules = visible
                 .filter { $0.defaultSide == .left }
-                .sorted { $0.defaultOrder < $1.defaultOrder }
+                .sorted {
+                    $0.defaultOrder != $1.defaultOrder ? $0.defaultOrder < $1.defaultOrder : $0.id < $1.id
+                }
 
             rightModules = visible
                 .filter { $0.defaultSide == .right }
-                .sorted { $0.defaultOrder < $1.defaultOrder }
+                .sorted {
+                    $0.defaultOrder != $1.defaultOrder ? $0.defaultOrder < $1.defaultOrder : $0.id < $1.id
+                }
         }
 
         let (leftLayouts, leftNatural) = Self.computeSideLayouts(

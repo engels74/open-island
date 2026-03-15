@@ -48,14 +48,20 @@ package final class ModuleRegistry {
         self.allModules
             .filter { !self.layoutConfig.isHidden($0.id) }
             .filter { self.layoutConfig.effectiveSide(for: $0) == side }
-            .sorted { self.layoutConfig.effectiveOrder(for: $0) < self.layoutConfig.effectiveOrder(for: $1) }
+            .sorted {
+                let lhs = self.layoutConfig.effectiveOrder(for: $0)
+                let rhs = self.layoutConfig.effectiveOrder(for: $1)
+                return lhs != rhs ? lhs < rhs : $0.id < $1.id
+            }
     }
 
     /// Returns modules assigned to the given side, sorted by ``NotchModule/defaultOrder``.
     package func modules(for side: ModuleSide) -> [any NotchModule] {
         self.allModules
             .filter { $0.defaultSide == side }
-            .sorted { $0.defaultOrder < $1.defaultOrder }
+            .sorted {
+                $0.defaultOrder != $1.defaultOrder ? $0.defaultOrder < $1.defaultOrder : $0.id < $1.id
+            }
     }
 
     /// Replaces the layout config and persists to `UserDefaults`.

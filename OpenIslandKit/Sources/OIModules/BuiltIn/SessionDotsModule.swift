@@ -5,14 +5,13 @@ package import SwiftUI
 /// Shows a dot per active provider session, up to a maximum of 5.
 ///
 /// When more than 5 providers are active, displays a count badge instead.
-/// Visible whenever there are active providers.
+/// Visible whenever there are active providers. The rendered count is derived
+/// from ``ModuleRenderContext/activeProviderCount`` — the same source of truth
+/// used by ``isVisible(context:)`` — to prevent visibility/rendering drift.
 package struct SessionDotsModule: NotchModule {
     // MARK: Lifecycle
 
-    /// - Parameter providerCount: Number of active providers to display.
-    package init(providerCount: Int = 0) {
-        self.providerCount = providerCount
-    }
+    package init() {}
 
     // MARK: Package
 
@@ -38,24 +37,21 @@ package struct SessionDotsModule: NotchModule {
 
     private static let maxDots = 5
 
-    /// Number of active providers, injected at construction.
-    private let providerCount: Int
-
     @MainActor
     @ViewBuilder
     private func body(context: ModuleRenderContext) -> some View {
-        // The module receives render context but needs provider count.
-        // We store the count at construction time for the body to use.
-        if self.providerCount <= Self.maxDots {
+        let count = context.activeProviderCount
+
+        if count <= Self.maxDots {
             HStack(spacing: 3) {
-                ForEach(0 ..< self.providerCount, id: \.self) { _ in
+                ForEach(0 ..< count, id: \.self) { _ in
                     Circle()
                         .fill(context.accentColor)
                         .frame(width: 4, height: 4)
                 }
             }
         } else {
-            Text("\(self.providerCount)")
+            Text("\(count)")
                 .font(.system(size: 9, weight: .bold, design: .rounded))
                 .foregroundStyle(context.accentColor)
                 .padding(.horizontal, 4)
@@ -92,8 +88,11 @@ private struct _SessionDotsPreviewItem: View {
 
     var body: some View {
         VStack(spacing: 4) {
-            SessionDotsModule(providerCount: self.count)
-                .makeBody(context: ModuleRenderContext(animationNamespace: self.ns))
+            SessionDotsModule()
+                .makeBody(context: ModuleRenderContext(
+                    animationNamespace: self.ns,
+                    activeProviderCount: self.count,
+                ))
             Text(self.label)
                 .font(.caption2)
                 .foregroundStyle(.secondary)

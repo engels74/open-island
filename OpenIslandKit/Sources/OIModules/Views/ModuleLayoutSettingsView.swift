@@ -185,7 +185,11 @@ package struct ModuleLayoutSettingsView: View {
                     !config.isHidden(module.id) && config.effectiveSide(for: module) == .right
                 }
             }
-            .sorted { config.effectiveOrder(for: $0) < config.effectiveOrder(for: $1) }
+            .sorted {
+                let lhs = config.effectiveOrder(for: $0)
+                let rhs = config.effectiveOrder(for: $1)
+                return lhs != rhs ? lhs < rhs : $0.id < $1.id
+            }
     }
 
     private func moveModule(_ moduleID: String, to placement: ModulePlacement) {

@@ -166,7 +166,7 @@ private extension NotchViewModel {
         let registry = ModuleRegistry()
         registry.register(MascotModule(activeProviders: [.claude]))
         registry.register(ActivitySpinnerModule())
-        registry.register(SessionDotsModule(providerCount: 2))
+        registry.register(SessionDotsModule())
         let vm = NotchViewModel(geometry: .preview, registry: registry)
         vm.visibilityContext = ModuleVisibilityContext(
             isProcessing: true,
