@@ -1453,17 +1453,17 @@ OIProviders/Claude/ClaudeProviderAdapter.swift
 OIUI/Window/NotchPanel.swift
 ```
 
-- [ ] Borderless, non-activating, transparent floating panel
-- [ ] Configuration: `.nonactivatingPanel`, `isOpaque = false`, `backgroundColor = .clear`, `hasShadow = false`
-- [ ] `canJoinAllSpaces`, `.stationary`, `.fullScreenAuxiliary`, `.ignoresCycle`
-- [ ] Level set above menu bar
-- [ ] `becomesKeyOnlyIfNeeded = true`
-- [ ] If the `OIAppKitBridge` module from Phase 0.7 is feasible, this class lives there with `@preconcurrency import AppKit` confined to that module. Otherwise, use **`@preconcurrency import AppKit`** on this file with a comment: `// @preconcurrency: NSPanel, NSWindow predate Sendable annotations`
-- [ ] **Click-through re-posting**: override `sendEvent(_:)` on `NotchPanel` to detect clicks that fall outside the content area (content view's hit test returns `nil`). When detected:
-  - [ ] Temporarily set `ignoresMouseEvents = true`
-  - [ ] Re-post the click as a `CGEvent` at the correct screen coordinates
-  - [ ] Convert from AppKit's bottom-up coordinate system to CoreGraphics' top-down system
-  - [ ] Without this mechanism, clicks on the menu bar or another app's window while the notch is expanded are silently swallowed
+- [x] Borderless, non-activating, transparent floating panel
+- [x] Configuration: `.nonactivatingPanel`, `isOpaque = false`, `backgroundColor = .clear`, `hasShadow = false`
+- [x] `canJoinAllSpaces`, `.stationary`, `.fullScreenAuxiliary`, `.ignoresCycle`
+- [x] Level set above menu bar
+- [x] `becomesKeyOnlyIfNeeded = true`
+- [x] If the `OIAppKitBridge` module from Phase 0.7 is feasible, this class lives there with `@preconcurrency import AppKit` confined to that module. Otherwise, use **`@preconcurrency import AppKit`** on this file with a comment: `// @preconcurrency: NSPanel, NSWindow predate Sendable annotations`
+- [x] **Click-through re-posting**: override `sendEvent(_:)` on `NotchPanel` to detect clicks that fall outside the content area (content view's hit test returns `nil`). When detected:
+  - [x] Temporarily set `ignoresMouseEvents = true`
+  - [x] Re-post the click as a `CGEvent` at the correct screen coordinates
+  - [x] Convert from AppKit's bottom-up coordinate system to CoreGraphics' top-down system
+  - [x] Without this mechanism, clicks on the menu bar or another app's window while the notch is expanded are silently swallowed
 
 ### 4.2 PassThroughHostingView
 
@@ -1471,10 +1471,10 @@ OIUI/Window/NotchPanel.swift
 OIUI/Window/PassThroughHostingView.swift
 ```
 
-- [ ] `NSHostingView` subclass overriding `hitTest(_:)`
-- [ ] Closed state: returns `nil` for all points (pass-through to menu bar)
-- [ ] Opened state: returns `nil` for points outside the panel bounds
-- [ ] Dynamic hit rect computed from `NotchViewModel.status`
+- [x] `NSHostingView` subclass overriding `hitTest(_:)`
+- [x] Closed state: returns `nil` for all points (pass-through to menu bar)
+- [x] Opened state: returns `nil` for points outside the panel bounds
+- [x] Dynamic hit rect computed from `NotchViewModel.status`
 
 ### 4.3 NotchWindowController
 
@@ -1482,13 +1482,13 @@ OIUI/Window/PassThroughHostingView.swift
 OIUI/Window/NotchWindowController.swift
 ```
 
-- [ ] `NSWindowController` managing panel lifecycle
-- [ ] Subscribe to `NotchViewModel.makeStatusStream()` to toggle `ignoresMouseEvents`
-- [ ] **Conditional focus activation per open reason**: the window controller must differentiate between user-initiated opens (`.click`, `.hover`) and programmatic opens (`.notification`, `.boot`):
-  - [ ] **User-initiated** (click, hover): activate the app (`NSApp.activate`), make the panel key — the user intends to interact
-  - [ ] **Programmatic** (notification, boot): skip activation, leave user's focus undisturbed — the notch appears as an unobtrusive overlay
-  - [ ] Add test coverage for both paths: verify `NSApp.isActive` state and panel key status after each open reason
-- [ ] **Boot animation**: orchestrate a brief open-then-close sequence on first launch (0.3s delay to open, hold 1.0s, then close). This teaches the user where the notch is. Trigger via `notchOpen(reason: .boot)` / `notchClose()` on the view model — the controller owns the timing, the view layer handles the animation.
+- [x] `NSWindowController` managing panel lifecycle
+- [x] Subscribe to `NotchViewModel.makeStatusStream()` to toggle `ignoresMouseEvents`
+- [x] **Conditional focus activation per open reason**: the window controller must differentiate between user-initiated opens (`.click`, `.hover`) and programmatic opens (`.notification`, `.boot`):
+  - [x] **User-initiated** (click, hover): activate the app (`NSApp.activate`), make the panel key — the user intends to interact
+  - [x] **Programmatic** (notification, boot): skip activation, leave user's focus undisturbed — the notch appears as an unobtrusive overlay
+  - [x] Add test coverage for both paths: verify `NSApp.isActive` state and panel key status after each open reason
+- [x] **Boot animation**: orchestrate a brief open-then-close sequence on first launch (0.3s delay to open, hold 1.0s, then close). This teaches the user where the notch is. Trigger via `notchOpen(reason: .boot)` / `notchClose()` on the view model — the controller owns the timing, the view layer handles the animation.
 
 ### 4.4 NotchGeometry
 
@@ -1496,14 +1496,14 @@ OIUI/Window/NotchWindowController.swift
 OIWindow/NotchGeometry.swift
 ```
 
-- [ ] Pure `Sendable` struct with geometry calculations (pure value type with no mutable state):
-  - [ ] `deviceNotchRect` — hardware notch rect in window coordinates
-  - [ ] `screenRect`, `windowHeight` (fixed 750px)
-  - [ ] `isPointInNotch(_:)` with ±10px/±5px padding
-  - [ ] `isPointInsidePanel(_:, size:)` for hit-test acceptance in the opened state
-  - [ ] `isPointOutsidePanel(_:, size:)` for click-outside dismiss
-  - [ ] `notchRectInScreenCoordinates` and `panelRectInScreenCoordinates(size:)` for global mouse-position hit testing — must account for screen origin differences between built-in and external monitors
-- [ ] `NSScreen` extensions: `notchSize`, `hasPhysicalNotch`, `isBuiltinDisplay`, `builtin`
+- [x] Pure `Sendable` struct with geometry calculations (pure value type with no mutable state):
+  - [x] `deviceNotchRect` — hardware notch rect in window coordinates
+  - [x] `screenRect`, `windowHeight` (fixed 750px)
+  - [x] `isPointInNotch(_:)` with ±10px/±5px padding
+  - [x] `isPointInsidePanel(_:, size:)` for hit-test acceptance in the opened state
+  - [x] `isPointOutsidePanel(_:, size:)` for click-outside dismiss
+  - [x] `notchRectInScreenCoordinates` and `panelRectInScreenCoordinates(size:)` for global mouse-position hit testing — must account for screen origin differences between built-in and external monitors
+- [x] `NSScreen` extensions: `notchSize`, `hasPhysicalNotch`, `isBuiltinDisplay`, `builtin`
 
 ### 4.5 NotchShape (Custom SwiftUI Shape)
 
@@ -1511,10 +1511,10 @@ OIWindow/NotchGeometry.swift
 OIWindow/NotchShape.swift
 ```
 
-- [ ] Quadratic Bézier curve path drawing the notch outline
-- [ ] Animatable `topCornerRadius` and `bottomCornerRadius` via `AnimatablePair`
-- [ ] Closed radii: top 6, bottom 14
-- [ ] Opened radii: top 19, bottom 24
+- [x] Quadratic Bézier curve path drawing the notch outline
+- [x] Animatable `topCornerRadius` and `bottomCornerRadius` via `AnimatablePair`
+- [x] Closed radii: top 6, bottom 14
+- [x] Opened radii: top 19, bottom 24
 
 ### 4.6 WindowManager & ScreenObserver
 
@@ -1523,15 +1523,15 @@ OIUI/Window/WindowManager.swift
 OIUI/Window/ScreenObserver.swift
 ```
 
-- [ ] `WindowManager`: creates `NotchWindowController` attached to selected screen
-- [ ] `ScreenObserver`: monitors `didChangeScreenParametersNotification` with 500ms debounce
-- [ ] `ScreenSelector`: automatic (built-in display) or user-selected screen, persisted as `ScreenIdentifier`
+- [x] `WindowManager`: creates `NotchWindowController` attached to selected screen
+- [x] `ScreenObserver`: monitors `didChangeScreenParametersNotification` with 500ms debounce
+- [x] `ScreenSelector`: automatic (built-in display) or user-selected screen, persisted as `ScreenIdentifier`
 
 ### 4.7 Window System Tests
 
-- [ ] Test `NotchGeometry` hit testing with known coordinates
-- [ ] Test `NotchShape` path generation (snapshot or bounds checking)
-- [ ] Test screen selector fallback logic
+- [x] Test `NotchGeometry` hit testing with known coordinates
+- [x] Test `NotchShape` path generation (snapshot or bounds checking)
+- [x] Test screen selector fallback logic
 
 ---
 
