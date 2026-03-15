@@ -422,7 +422,9 @@ struct ClaudeHookInstallerUninstallTests {
 
 @Suite(.tags(.claude))
 struct HookRuntimeDetectorTests {
-    @Test
+    // MARK: Internal
+
+    @Test(.enabled(if: hasCompatibleRuntime))
     func `detect returns a valid hook command`() throws {
         let command = try HookRuntimeDetector.detect()
         switch command {
@@ -433,6 +435,11 @@ struct HookRuntimeDetectorTests {
             #expect(path.contains("python"))
         }
     }
+
+    // MARK: Private
+
+    /// Whether `uv` or Python 3.14+ is available on this machine.
+    private static let hasCompatibleRuntime: Bool = (try? HookRuntimeDetector.detect()) != nil
 }
 
 // MARK: - HookCommandTests

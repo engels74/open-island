@@ -21,7 +21,8 @@ package enum ClaudeEventNormalizer {
              "TeammateIdle",
              "TaskCompleted",
              "WorktreeCreate",
-             "WorktreeRemove":
+             "WorktreeRemove",
+             "PreToolUse":
             return nil
         case "SessionStart",
              "SessionEnd",

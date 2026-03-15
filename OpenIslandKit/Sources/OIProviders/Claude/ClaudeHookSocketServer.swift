@@ -211,12 +211,15 @@ package final class ClaudeHookSocketServer: Sendable {
     }
 
     /// Extract the request ID from raw JSON data for PermissionRequest events.
+    ///
+    /// Uses `tool_use_id` to match the ID used by ``ClaudeEventNormalizer`` when
+    /// constructing ``PermissionRequest``, ensuring ``respondToPermission(requestID:data:)``
+    /// can find the held-open connection.
     private static func extractRequestID(from data: Data) -> String? {
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             return nil
         }
-        // Try session_id first as a unique identifier, then fall back to tool_use_id
-        return json["session_id"] as? String ?? json["tool_use_id"] as? String
+        return json["tool_use_id"] as? String
     }
 
     /// Create a Unix domain socket, bind, and listen.
@@ -321,7 +324,7 @@ package final class ClaudeHookSocketServer: Sendable {
             }
 
             // Check if we've received a complete JSON message (newline-delimited)
-            if accumulated.last == UInt8(ascii: "\n") || bytesRead < bufferSize {
+            if accumulated.last == UInt8(ascii: "\n") {
                 break
             }
         }
