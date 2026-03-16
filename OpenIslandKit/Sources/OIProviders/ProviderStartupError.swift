@@ -4,4 +4,6 @@ package enum ProviderStartupError: Error, Sendable {
     case configParseError(path: String, underlying: any Error)
     case socketCreationFailed(path: String)
     case alreadyRunning
+    case jsonRPCHandshakeFailed(underlying: any Error)
+    case httpServerUnreachable(host: String, port: Int)
 }
