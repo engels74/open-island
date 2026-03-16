@@ -1,30 +1,37 @@
 import Darwin
-
-// @preconcurrency: DispatchSource, DispatchQueue predate Sendable annotations
-@preconcurrency import Dispatch
 package import Foundation
-import Synchronization
 
-// MARK: - ClaudeHookSocketServer
+// MARK: - GeminiHookSocketServer
 
-/// GCD-based Unix domain socket server that receives events from Claude Code hook scripts.
+/// GCD-based Unix domain socket server that receives events from Gemini CLI hook scripts.
 ///
 /// Composes the shared ``HookSocketBridge`` for socket lifecycle management and adds
-/// Claude-specific event identification logic via ``ClaudeBridgeDelegate``.
+/// Gemini-specific event identification logic via ``GeminiBridgeDelegate``.
 ///
-/// Events are bridged from GCD callbacks to Swift concurrency via
-/// `AsyncStream.makeStream()` with `.bufferingOldest(128)`.
-package final class ClaudeHookSocketServer: Sendable {
+/// Gemini CLI's `BeforeTool` hook is the permission interception point — the connection
+/// is held open so the app can respond with allow/deny before the tool executes.
+package final class GeminiHookSocketServer: Sendable {
     // MARK: Lifecycle
 
-    package init(socketPath: String = "/tmp/open-island-claude.sock") {
+    package init(socketPath: String = "/tmp/open-island-gemini.sock") {
         self.bridge = HookSocketBridge(
             socketPath: socketPath,
-            queueLabel: "open-island.claude-hook-socket",
+            queueLabel: "open-island.gemini-hook-socket",
         )
     }
 
     // MARK: Package
+
+    /// All Gemini CLI hook event types.
+    package static let allHookEventTypes: [String] = [
+        "SessionStart", "SessionEnd",
+        "BeforeAgent", "AfterAgent",
+        "BeforeModel", "AfterModel",
+        "BeforeToolSelection",
+        "BeforeTool", "AfterTool",
+        "PreCompress",
+        "Notification",
+    ]
 
     /// The Unix domain socket path this server listens on.
     package var socketPath: String {
@@ -39,9 +46,8 @@ package final class ClaudeHookSocketServer: Sendable {
     /// Start listening for connections.
     ///
     /// Returns an `AsyncStream<Data>` of raw JSON payloads received from hook scripts.
-    /// The server emits raw `Data` — event parsing is handled downstream (Task 3.2).
     package func start() throws(SocketServerError) -> AsyncStream<Data> {
-        try self.bridge.start(delegate: ClaudeBridgeDelegate())
+        try self.bridge.start(delegate: GeminiBridgeDelegate())
     }
 
     /// Stop the server and clean up resources.
@@ -49,10 +55,7 @@ package final class ClaudeHookSocketServer: Sendable {
         self.bridge.stop()
     }
 
-    /// Respond to a pending permission request.
-    ///
-    /// Finds the held-open connection for the given request ID, writes the
-    /// JSON response data, and closes the connection.
+    /// Respond to a pending permission request (BeforeTool event).
     ///
     /// - Parameters:
     ///   - requestID: The permission request ID to respond to.
@@ -73,26 +76,37 @@ package final class ClaudeHookSocketServer: Sendable {
     private let bridge: HookSocketBridge
 }
 
-// MARK: - ClaudeBridgeDelegate
+// MARK: - GeminiBridgeDelegate
 
-/// Claude-specific delegate for the shared ``HookSocketBridge``.
+/// Gemini-specific delegate for the shared ``HookSocketBridge``.
 ///
-/// Identifies `PermissionRequest` events and extracts `tool_use_id` as the request ID.
-private struct ClaudeBridgeDelegate: HookSocketBridgeDelegate {
+/// Identifies `BeforeTool` events as the permission interception point and extracts
+/// a unique request ID from the event data. Unlike Claude's `PermissionRequest`,
+/// Gemini uses `BeforeTool` — the hook can deny execution or rewrite arguments
+/// before the tool runs.
+private struct GeminiBridgeDelegate: HookSocketBridgeDelegate {
     // MARK: Internal
 
     func isPermissionRequest(_ data: Data) -> Bool {
         guard let envelope = try? JSONDecoder().decode(HookEventEnvelope.self, from: data) else {
             return false
         }
-        return envelope.hookEventName == "PermissionRequest"
+        // BeforeTool is the permission interception point in Gemini CLI
+        return envelope.hookEventName == "BeforeTool"
     }
 
     func extractRequestID(from data: Data) -> String? {
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             return nil
         }
-        return json["tool_use_id"] as? String
+        // Gemini CLI uses session_id + tool_name + timestamp to identify tool calls.
+        // Construct a composite ID from available fields.
+        if let sessionID = json["session_id"] as? String,
+           let toolName = json["tool_name"] as? String {
+            let timestamp = json["timestamp"] as? String ?? UUID().uuidString
+            return "\(sessionID):\(toolName):\(timestamp)"
+        }
+        return nil
     }
 
     // MARK: Private

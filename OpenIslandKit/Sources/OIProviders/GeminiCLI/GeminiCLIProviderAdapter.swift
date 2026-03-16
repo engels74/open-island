@@ -10,26 +10,31 @@ private struct AdapterState: Sendable {
     var eventStream: AsyncStream<ProviderEvent>?
     var eventContinuation: AsyncStream<ProviderEvent>.Continuation?
     var processingTask: Task<Void, Never>?
+    var lastAfterModelTime: Date?
 }
 
-// MARK: - ClaudeProviderAdapter
+// MARK: - GeminiCLIProviderAdapter
 
-/// Top-level adapter that composes all Claude Code components and conforms to ``ProviderAdapter``.
+/// Top-level adapter that composes all Gemini CLI components and conforms to ``ProviderAdapter``.
 ///
-/// Owns the socket server, event normalizer pipeline, and (when available) hook installer
-/// and conversation parser. Merges socket events into a single ``AsyncStream<ProviderEvent>``.
-package final class ClaudeProviderAdapter: ProviderAdapter, Sendable {
+/// Owns the socket server, event normalizer pipeline, and hook installer.
+/// Merges socket events into a single ``AsyncStream<ProviderEvent>``.
+///
+/// Gemini CLI uses a hook-based transport identical to Claude Code's architecture:
+/// hook scripts send JSON events over a Unix domain socket, with `BeforeTool`
+/// connections held open for permission interception.
+package final class GeminiCLIProviderAdapter: ProviderAdapter, Sendable {
     // MARK: Lifecycle
 
-    package init(socketPath: String = "/tmp/open-island-claude.sock") {
-        self.socketServer = ClaudeHookSocketServer(socketPath: socketPath)
+    package init(socketPath: String = "/tmp/open-island-gemini.sock") {
+        self.socketServer = GeminiHookSocketServer(socketPath: socketPath)
         self.state = Mutex(.init())
     }
 
     // MARK: Package
 
-    package let providerID: ProviderID = .claude
-    package let metadata: ProviderMetadata = .metadata(for: .claude)
+    package let providerID: ProviderID = .geminiCLI
+    package let metadata: ProviderMetadata = .metadata(for: .geminiCLI)
     package let transportType: ProviderTransportType = .hookSocket
 
     package func start() async throws(ProviderStartupError) {
@@ -38,9 +43,8 @@ package final class ClaudeProviderAdapter: ProviderAdapter, Sendable {
             throw .alreadyRunning
         }
 
-        // 1. Install hooks (best-effort — don't fail if already installed or installer unavailable)
-        // TODO: Call ClaudeHookInstaller.install() once Task 3.4 lands
-        // try? await ClaudeHookInstaller.install()
+        // 1. Install hooks (best-effort — don't fail if already installed)
+        try? await GeminiHookInstaller.install()
 
         // 2. Start socket server
         let rawStream: AsyncStream<Data>
@@ -88,6 +92,7 @@ package final class ClaudeProviderAdapter: ProviderAdapter, Sendable {
             state.eventStream = nil
             state.processingTask = nil
             state.isRunning = false
+            state.lastAfterModelTime = nil
             return (cont, task)
         }
 
@@ -132,7 +137,7 @@ package final class ClaudeProviderAdapter: ProviderAdapter, Sendable {
 
     // MARK: Private
 
-    private let socketServer: ClaudeHookSocketServer
+    private let socketServer: GeminiHookSocketServer
     private let state: Mutex<AdapterState>
 
     /// Encode a permission decision to JSON data for the socket response.
@@ -155,26 +160,26 @@ package final class ClaudeProviderAdapter: ProviderAdapter, Sendable {
         return try JSONEncoder().encode(Response(decision: payload))
     }
 
-    /// Decode raw socket data into a ClaudeHookEvent, normalize it, and yield to the stream.
+    /// Decode raw socket data, normalize via ``GeminiEventNormalizer``, and yield to the stream.
     private func processRawEvent(_ data: Data, continuation: AsyncStream<ProviderEvent>.Continuation) {
-        // Decode raw JSON → ClaudeHookEvent
-        let hookEvent: ClaudeHookEvent
-        do {
-            hookEvent = try JSONDecoder().decode(ClaudeHookEvent.self, from: data)
-        } catch {
-            // Malformed JSON — log and skip
-            NSLog("[ClaudeProviderAdapter] Failed to decode hook event: \(error)")
-            return
-        }
+        let lastTime = self.state.withLock { $0.lastAfterModelTime }
 
-        // Normalize → ProviderEvent
         do {
-            if let providerEvent = try ClaudeEventNormalizer.normalize(hookEvent) {
-                continuation.yield(providerEvent)
+            let (events, updatedTime) = try GeminiEventNormalizer.normalize(
+                data,
+                lastAfterModelTime: lastTime,
+            )
+
+            // Update the throttle time if it changed
+            if updatedTime != lastTime {
+                self.state.withLock { $0.lastAfterModelTime = updatedTime }
             }
-            // nil means the event has no ProviderEvent equivalent (e.g., Setup) — skip
+
+            for event in events {
+                continuation.yield(event)
+            }
         } catch {
-            NSLog("[ClaudeProviderAdapter] Failed to normalize event '\(hookEvent.hookEventName)': \(error)")
+            NSLog("[GeminiCLIProviderAdapter] Failed to normalize event: \(error)")
         }
     }
 
@@ -190,12 +195,4 @@ package final class ClaudeProviderAdapter: ProviderAdapter, Sendable {
             .alreadyRunning
         }
     }
-}
-
-// MARK: - PermissionResponseError
-
-/// Errors from responding to a permission request.
-package enum PermissionResponseError: Error, Sendable {
-    /// No held-open connection found for the given request ID.
-    case noConnectionFound(requestID: String)
 }
