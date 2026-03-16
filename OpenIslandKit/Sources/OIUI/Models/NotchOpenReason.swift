@@ -9,6 +9,8 @@ package enum NotchOpenReason: Sendable {
     case hover
     /// A notification triggered the open.
     case notification
+    /// A permission request triggered auto-expand.
+    case permissionRequest
     /// First-launch animation.
     case boot
 }

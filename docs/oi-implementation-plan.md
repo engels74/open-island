@@ -2103,16 +2103,16 @@ OIProviders/OpenCode/OpenCodeServerDiscovery.swift
 OICore/Settings/AppSettings.swift
 ```
 
-- [ ] **`Sendable` struct with static computed properties** backed by `UserDefaults`:
-  - [ ] `notificationSound: NotificationSound`
-  - [ ] `soundSuppression: SoundSuppression`
-  - [ ] `mascotColor: Color`
-  - [ ] `mascotAlwaysVisible: Bool`
-  - [ ] `notchAutoExpand: Bool`
-  - [ ] `enabledProviders: Set<ProviderID>`
-  - [ ] `verboseMode: Bool`
-- [ ] Per-provider settings namespace (e.g., `claude.hookPath`, `codex.appServerBinary`, `codex.approvalPolicy`, `gemini.hookPath`, `gemini.throttleAfterModelMs`, `opencode.serverPort`, `opencode.useMDNS`)
-- [ ] Thread safety note: `UserDefaults` is inherently thread-safe, so static computed properties reading/writing `UserDefaults` are safe across isolation domains without additional synchronization. Do not use static stored properties (which would require `nonisolated(unsafe)` or actor isolation). **Add a code comment** explaining why `Mutex` is not needed here (unlike most shared state) to prevent a well-meaning contributor from "fixing" it:
+- [x] **`Sendable` struct with static computed properties** backed by `UserDefaults`:
+  - [x] `notificationSound: NotificationSound`
+  - [x] `soundSuppression: SoundSuppression`
+  - [x] `mascotColor: Color`
+  - [x] `mascotAlwaysVisible: Bool`
+  - [x] `notchAutoExpand: Bool`
+  - [x] `enabledProviders: Set<ProviderID>`
+  - [x] `verboseMode: Bool`
+- [x] Per-provider settings namespace (e.g., `claude.hookPath`, `codex.appServerBinary`, `codex.approvalPolicy`, `gemini.hookPath`, `gemini.throttleAfterModelMs`, `opencode.serverPort`, `opencode.useMDNS`)
+- [x] Thread safety note: `UserDefaults` is inherently thread-safe, so static computed properties reading/writing `UserDefaults` are safe across isolation domains without additional synchronization. Do not use static stored properties (which would require `nonisolated(unsafe)` or actor isolation). **Add a code comment** explaining why `Mutex` is not needed here (unlike most shared state) to prevent a well-meaning contributor from "fixing" it:
 
   ```swift
   // UserDefaults is documented as thread-safe by Apple. Static computed
@@ -2126,15 +2126,15 @@ OICore/Settings/AppSettings.swift
 OIUI/Views/SettingsMenuView.swift
 ```
 
-- [ ] Expandable picker rows for: sound, suppression mode, screen selection, mascot color
-- [ ] Provider toggles section — enable/disable each provider
-- [ ] Per-provider configuration (expandable sub-sections):
-  - [ ] Claude: hook installation status, socket path, reinstall hooks button
-  - [ ] Codex: app-server binary path, approval policy override, sandbox mode display
-  - [ ] Gemini CLI: hook installation status, AfterModel throttle interval, headless mode toggle
-  - [ ] OpenCode: server port/URL, mDNS discovery toggle, connection status indicator
-- [ ] Module layout customization — see Phase 6.7
-- [ ] About / version info
+- [x] Expandable picker rows for: sound, suppression mode, screen selection, mascot color
+- [x] Provider toggles section — enable/disable each provider
+- [x] Per-provider configuration (expandable sub-sections):
+  - [x] Claude: hook installation status, socket path, reinstall hooks button
+  - [x] Codex: app-server binary path, approval policy override, sandbox mode display
+  - [x] Gemini CLI: hook installation status, AfterModel throttle interval, headless mode toggle
+  - [x] OpenCode: server port/URL, mDNS discovery toggle, connection status indicator
+- [x] Module layout customization — see Phase 6.7
+- [x] About / version info
 
 ### 9.3 Sound System
 
@@ -2142,9 +2142,9 @@ OIUI/Views/SettingsMenuView.swift
 OICore/Sound/SoundManager.swift
 ```
 
-- [ ] Play `NSSound` when session enters `.waitingForInput`
-- [ ] Suppression modes: `.never`, `.whenFocused`, `.whenVisible`
-- [ ] Terminal visibility detection integration (see Phase 10)
+- [x] Play `NSSound` when session enters `.waitingForInput`
+- [x] Suppression modes: `.never`, `.whenFocused`, `.whenVisible`
+- [ ] Terminal visibility detection integration (see Phase 10) — stubbed as `false`, pending Phase 10 `TerminalAppRegistry`
 
 ### 9.4 Notification Coordinator
 
@@ -2152,9 +2152,9 @@ OICore/Sound/SoundManager.swift
 OIUI/ViewModels/NotchActivityCoordinator.swift
 ```
 
-- [ ] `@Observable` singleton managing expanding activity state
-- [ ] Auto-expand on permission requests (when enabled + terminal not visible)
-- [ ] Bounce animation when session needs attention
+- [x] `@Observable` singleton managing expanding activity state
+- [x] Auto-expand on permission requests (when enabled + terminal not visible)
+- [x] Bounce animation when session needs attention
 
 ---
 
