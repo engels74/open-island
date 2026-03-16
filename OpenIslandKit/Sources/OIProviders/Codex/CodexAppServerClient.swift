@@ -87,9 +87,10 @@ package actor CodexAppServerClient {
         self.stdoutPipe = stdoutPipe
 
         // Start the read loop for stdout JSONL
-        let client = self
-        Task.detached { [weak client] in
-            await client?.readLoop(from: stdoutPipe)
+        self.generation += 1
+        let currentGeneration = self.generation
+        self.readLoopTask = Task { [weak self] in
+            await self?.readLoop(from: stdoutPipe, generation: currentGeneration)
         }
 
         // Perform initialize handshake
@@ -103,6 +104,10 @@ package actor CodexAppServerClient {
 
     /// Stop the app-server process.
     package func stop() async {
+        // Cancel the read loop so a stale loop cannot call handleProcessTermination()
+        self.readLoopTask?.cancel()
+        self.readLoopTask = nil
+
         // Cancel all pending requests
         for (_, pending) in self.pendingRequests {
             pending.continuation.resume(throwing: CodexAppServerError.processNotRunning)
@@ -192,6 +197,8 @@ package actor CodexAppServerClient {
 
     private var isInitialized = false
     private var requestCounter = 0
+    private var readLoopTask: Task<Void, Never>?
+    private var generation = 0
 
     /// Pending requests awaiting responses, keyed by request ID.
     private var pendingRequests: [JSONRPCRequestID: PendingRequest] = [:]
@@ -262,12 +269,12 @@ package actor CodexAppServerClient {
     /// This method is `nonisolated` so that the blocking `FileHandle.availableData` call
     /// does not occupy the actor's serial executor — allowing `sendRequest`, `stop`, etc.
     /// to run concurrently while waiting for stdout data.
-    nonisolated private func readLoop(from pipe: Pipe) async {
+    nonisolated private func readLoop(from pipe: Pipe, generation: Int) async {
         let handle = pipe.fileHandleForReading
         let jsonDecoder = JSONDecoder()
         var buffer = Data()
 
-        while true {
+        while !Task.isCancelled {
             let chunk = handle.availableData
             if chunk.isEmpty {
                 // EOF — process terminated
@@ -293,8 +300,11 @@ package actor CodexAppServerClient {
             }
         }
 
-        // Process terminated — clean up
-        await self.handleProcessTermination()
+        // Only clean up if this read loop is still the current one.
+        // A stale loop (from a previous start/stop cycle) must not
+        // corrupt the newly started client state.
+        guard !Task.isCancelled else { return }
+        await self.handleProcessTermination(generation: generation)
     }
 
     /// Dispatch a decoded JSON-RPC message to the appropriate handler.
@@ -334,7 +344,11 @@ package actor CodexAppServerClient {
     ///
     /// Clears `process` and pipes so that `start()` can relaunch the child process
     /// without requiring an explicit `stop()` call first.
-    private func handleProcessTermination() {
+    ///
+    /// The `generation` parameter ensures that a stale read loop (from a previous
+    /// start/stop cycle) does not corrupt the current client state.
+    private func handleProcessTermination(generation: Int) {
+        guard generation == self.generation else { return }
         for (_, pending) in self.pendingRequests {
             pending.continuation.resume(throwing: CodexAppServerError.processNotRunning)
         }

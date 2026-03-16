@@ -78,7 +78,13 @@ package final class OpenCodeProviderAdapter: ProviderAdapter, Sendable {
                     continuation.yield(event)
                 }
             }
-            continuation.finish()
+            // Only finish the stream if the SSE loop ended naturally (server
+            // disconnect, etc.).  When stop() cancels this task it needs to
+            // yield .sessionEnded events *before* finishing the continuation,
+            // so we must not race it.
+            if !Task.isCancelled {
+                continuation.finish()
+            }
         }
 
         self.state.withLock { adapterState in
@@ -119,13 +125,14 @@ package final class OpenCodeProviderAdapter: ProviderAdapter, Sendable {
             return (cont, sessions, sse, task)
         }
 
-        // Cancel SSE processing task
+        // Cancel SSE task, disconnect SSE client (which terminates the SSE
+        // stream the task is iterating), then await the task so it is fully
+        // stopped before we yield .sessionEnded events.
         extracted.sseTask?.cancel()
-
-        // Disconnect SSE client
         if let sseClient = extracted.sseClient {
             await sseClient.disconnect()
         }
+        await extracted.sseTask?.value
 
         // Emit session ended for all tracked sessions before finishing
         for sessionID in extracted.activeSessionIDs {

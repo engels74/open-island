@@ -226,7 +226,7 @@ struct GeminiEventNormalizerNotificationTests {
     @Test
     func `Notification with ToolPermission normalizes to permissionRequested`() throws {
         let json = #"{"hook_event_name":"Notification","session_id":"s1","# +
-            #""notification_type":"ToolPermission","tool_name":"Bash","request_id":"req-1"}"#
+            #""notification_type":"ToolPermission","tool_name":"Bash","timestamp":"t1"}"#
         let data = Data(json.utf8)
         let (events, _) = try GeminiEventNormalizer.normalize(data, lastAfterModelTime: nil)
         guard case let .permissionRequested(sid, request) = events.first else {
@@ -235,7 +235,9 @@ struct GeminiEventNormalizerNotificationTests {
         }
         #expect(sid == "s1")
         #expect(request.toolName == "Bash")
-        #expect(request.id == "req-1")
+        // Request ID must match the composite key used by GeminiBridgeDelegate.extractRequestID
+        // so that respondToPermission can find the held-open BeforeTool socket connection.
+        #expect(request.id == "s1:Bash:t1")
     }
 
     @Test

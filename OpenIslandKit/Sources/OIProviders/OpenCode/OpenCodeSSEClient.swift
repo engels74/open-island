@@ -237,19 +237,19 @@ private struct SSELineParser {
     private var eventID: String?
 
     private mutating func dispatchEvent() -> SSEEvent? {
+        defer {
+            self.eventType = nil
+            self.dataLines = []
+            self.eventID = nil
+        }
+
         guard !self.dataLines.isEmpty else { return nil }
 
-        let event = SSEEvent(
+        return SSEEvent(
             event: self.eventType,
             data: self.dataLines.joined(separator: "\n"),
             id: self.eventID,
         )
-
-        self.eventType = nil
-        self.dataLines = []
-        self.eventID = nil
-
-        return event
     }
 
     private mutating func applyField(_ field: String, value: String, backoff: inout ExponentialBackoff) {

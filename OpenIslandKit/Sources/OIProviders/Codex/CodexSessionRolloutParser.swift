@@ -81,10 +81,11 @@ package actor CodexSessionRolloutParser {
             return []
         }
 
-        guard let content = String(data: data, encoding: .utf8) else {
-            self.sessions[sessionID] = state
-            return []
-        }
+        // Use lossy UTF-8 decoding so a mid-sequence tail offset never
+        // produces nil. The first (potentially garbled) line is already
+        // skipped by the dropFirst() logic below when in tail mode.
+        // swiftlint:disable:next optional_data_string_conversion
+        let content = String(decoding: data, as: UTF8.self)
 
         let allLines = content.split(separator: "\n", omittingEmptySubsequences: false)
         let lines: [Substring] = if state.lastFileOffset > 0, state.chatItems.isEmpty, currentFileSize > tailThreshold {

@@ -19,8 +19,14 @@ package struct DiscoveredServer: Sendable, Equatable {
     package let port: Int
 
     package var baseURL: URL {
+        var components = URLComponents()
+        components.scheme = "http"
+        components.host = self.host
+        components.port = self.port
+        // URLComponents handles IPv6 bracketing automatically.
+        // With a valid scheme + host + port, `url` is guaranteed non-nil.
         // swiftlint:disable:next force_unwrapping
-        URL(string: "http://\(self.host):\(self.port)")!
+        return components.url!
     }
 }
 

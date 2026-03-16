@@ -228,6 +228,11 @@ package final class HookSocketBridge: Sendable {
             let result = continuation.yield(data)
             if case .dropped = result {
                 self.logBufferWarning()
+                // Event was lost — no consumer will ever see it. Close the
+                // connection immediately so the hook script isn't left
+                // blocking on a response that will never arrive.
+                Darwin.close(clientFD)
+                continue
             }
 
             // Hold the connection open for permission/blocking events so the

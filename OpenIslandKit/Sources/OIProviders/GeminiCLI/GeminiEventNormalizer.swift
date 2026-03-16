@@ -170,11 +170,13 @@ package enum GeminiEventNormalizer {
         let notificationType = json["notification_type"] as? String
 
         if notificationType == "ToolPermission" {
-            // Observation-only — Gemini CLI sends ToolPermission notifications
-            // but actual permission interception happens via BeforeTool held connections.
-            // We emit permissionRequested for UI observation purposes.
+            // ToolPermission notifications drive the UI approval flow.
+            // The request ID must match the composite key used by
+            // GeminiBridgeDelegate.extractRequestID for BeforeTool socket
+            // connections, so respondToPermission can find the held-open socket.
             let toolName = json["tool_name"] as? String ?? "unknown"
-            let requestID = json["request_id"] as? String ?? UUID().uuidString
+            let timestamp = json["timestamp"] as? String ?? UUID().uuidString
+            let requestID = "\(sessionID):\(toolName):\(timestamp)"
             let toolInput = self.convertToJSONValue(json["tool_input"])
 
             let request = PermissionRequest(
