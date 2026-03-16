@@ -64,11 +64,10 @@ package actor CodexAppServerClient {
 
         let stdinPipe = Pipe()
         let stdoutPipe = Pipe()
-        let stderrPipe = Pipe()
 
         proc.standardInput = stdinPipe
         proc.standardOutput = stdoutPipe
-        proc.standardError = stderrPipe
+        proc.standardError = FileHandle.nullDevice
 
         do {
             try proc.run()
@@ -245,8 +244,13 @@ package actor CodexAppServerClient {
     // MARK: - Message Reading
 
     /// Continuously read JSONL lines from stdout and dispatch them.
-    private func readLoop(from pipe: Pipe) async {
+    ///
+    /// This method is `nonisolated` so that the blocking `FileHandle.availableData` call
+    /// does not occupy the actor's serial executor — allowing `sendRequest`, `stop`, etc.
+    /// to run concurrently while waiting for stdout data.
+    nonisolated private func readLoop(from pipe: Pipe) async {
         let handle = pipe.fileHandleForReading
+        let jsonDecoder = JSONDecoder()
         var buffer = Data()
 
         while true {
@@ -266,7 +270,7 @@ package actor CodexAppServerClient {
                 guard !lineData.isEmpty else { continue }
 
                 do {
-                    let message = try decoder.decode(JSONRPCMessage.self, from: Data(lineData))
+                    let message = try jsonDecoder.decode(JSONRPCMessage.self, from: Data(lineData))
                     await self.dispatch(message)
                 } catch {
                     // Malformed JSONL line — skip

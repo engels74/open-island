@@ -46,12 +46,15 @@ package final class OpenCodeProviderAdapter: ProviderAdapter, Sendable {
         // 4. Connect SSE (global endpoint for cross-project events)
         let sseStream = await sseClient.connect(endpoint: .global)
 
-        // 5. Create the provider event stream
+        // 5. Generate a session ID for this adapter session
+        let sessionID = "opencode-\(UUID().uuidString)"
+
+        // 6. Create the provider event stream
         let (stream, continuation) = AsyncStream<ProviderEvent>.makeStream(
             bufferingPolicy: .bufferingOldest(128),
         )
 
-        // 6. Start SSE processing task
+        // 7. Start SSE processing task
         let sseTask = Task.detached {
             for await sseEvent in sseStream {
                 guard !Task.isCancelled else { break }
@@ -65,12 +68,16 @@ package final class OpenCodeProviderAdapter: ProviderAdapter, Sendable {
 
         self.state.withLock { adapterState in
             adapterState.isRunning = true
+            adapterState.sessionID = sessionID
             adapterState.restClient = restClient
             adapterState.sseClient = sseClient
             adapterState.eventStream = stream
             adapterState.eventContinuation = continuation
             adapterState.sseTask = sseTask
         }
+
+        // Emit session started event
+        continuation.yield(.sessionStarted(sessionID, cwd: "", pid: nil))
     }
 
     package func stop() async {

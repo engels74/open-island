@@ -280,7 +280,9 @@ private struct ExponentialBackoff: Sendable {
             return retryMs
         }
 
-        let baseDelay = min(initialDelayMs * (1 << self.attempt), self.maxDelayMs)
+        // Cap shift to avoid overflow trap when attempt exceeds Int bit width
+        let shift = min(self.attempt, 30)
+        let baseDelay = min(initialDelayMs * (1 << shift), self.maxDelayMs)
         let jitter = Int(Double(baseDelay) * self.jitterFraction * Double.random(in: -1 ... 1))
         self.attempt += 1
         return max(100, baseDelay + jitter)

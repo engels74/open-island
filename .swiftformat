@@ -61,7 +61,7 @@
 --fragment false
 --conflictmarkers reject
 --shortoptionals always
---modifierorder
+--modifierorder nonisolated,override,acl,setteracl,dynamic,mutating,nonmutating,lazy,final,required,convenience,typeMethods,owned
 
 # Acronyms to preserve
 # Added OI (project prefix) per open-island naming conventions

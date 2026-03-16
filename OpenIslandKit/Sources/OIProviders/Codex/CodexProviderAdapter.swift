@@ -58,6 +58,19 @@ package final class CodexProviderAdapter: ProviderAdapter, Sendable {
                 guard !Task.isCancelled else { break }
                 self?.processNotification(notification, sessionID: capturedSessionID, continuation: continuation)
             }
+
+            // The notification stream ending means the process terminated.
+            // Update adapter state so isSessionAlive reports correctly.
+            guard !Task.isCancelled, let self else { return }
+            let wasRunning = self.state.withLock { adapterState -> Bool in
+                guard adapterState.isRunning else { return false }
+                adapterState.isRunning = false
+                return true
+            }
+            if wasRunning {
+                continuation.yield(.sessionEnded(capturedSessionID))
+                continuation.finish()
+            }
         }
 
         // 6. Start server-request processing task (approval interception)
@@ -163,9 +176,8 @@ package final class CodexProviderAdapter: ProviderAdapter, Sendable {
     package func isSessionAlive(_ sessionID: String) -> Bool {
         let currentSessionID = self.state.withLock { $0.sessionID }
         guard sessionID == currentSessionID else { return false }
-        // Check if the underlying app-server process is still running
-        // This is synchronous but CodexAppServerClient is an actor, so we can't await here.
-        // Use the running state as a proxy — the process termination handler updates state.
+        // isRunning is set to false both by stop() and by the notification
+        // processing task when the underlying process terminates unexpectedly.
         return self.state.withLock { $0.isRunning }
     }
 
