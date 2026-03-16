@@ -58,6 +58,13 @@ package actor CodexAppServerClient {
     package func start() async throws(CodexAppServerError) {
         guard self.process == nil else { return }
 
+        // Recreate streams so callers get fresh AsyncStreams after a restart.
+        // Previous streams may have been finished by handleProcessTermination() or stop().
+        (self.notificationStream, self.notificationContinuation) =
+            AsyncStream<JSONRPCNotification>.makeStream(bufferingPolicy: .bufferingOldest(256))
+        (self.serverRequestStream, self.serverRequestContinuation) =
+            AsyncStream<ServerInitiatedRequest>.makeStream(bufferingPolicy: .bufferingOldest(32))
+
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: "/usr/bin/env")
         proc.arguments = [self.binaryPath, "app-server"]
@@ -102,9 +109,12 @@ package actor CodexAppServerClient {
         }
         self.pendingRequests.removeAll()
 
+        // Finish current streams so consumers see termination
+        self.notificationContinuation.finish()
+        self.serverRequestContinuation.finish()
+
         if let proc = process, proc.isRunning {
             proc.terminate()
-            proc.waitUntilExit()
         }
 
         self.stdinPipe = nil
@@ -187,11 +197,15 @@ package actor CodexAppServerClient {
     private var pendingRequests: [JSONRPCRequestID: PendingRequest] = [:]
 
     /// Notification stream for server→client notifications.
-    private let (notificationStream, notificationContinuation) =
+    /// Re-created on each `start()` so that `finish()` during process termination
+    /// does not permanently kill the stream for subsequent restarts.
+    private var (notificationStream, notificationContinuation) =
         AsyncStream<JSONRPCNotification>.makeStream(bufferingPolicy: .bufferingOldest(256))
 
     /// Stream for server-initiated requests (approval interception).
-    private let (serverRequestStream, serverRequestContinuation) =
+    /// Re-created on each `start()` so that `finish()` during process termination
+    /// does not permanently kill the stream for subsequent restarts.
+    private var (serverRequestStream, serverRequestContinuation) =
         AsyncStream<ServerInitiatedRequest>.makeStream(bufferingPolicy: .bufferingOldest(32))
 
     private let encoder: JSONEncoder = {

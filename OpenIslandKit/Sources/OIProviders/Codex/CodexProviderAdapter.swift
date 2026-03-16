@@ -60,11 +60,18 @@ package final class CodexProviderAdapter: ProviderAdapter, Sendable {
             }
 
             // The notification stream ending means the process terminated.
-            // Update adapter state so isSessionAlive reports correctly.
+            // Reset all adapter state so start() / respondToPermission work
+            // correctly if the adapter is reused after an unexpected exit.
             guard !Task.isCancelled, let self else { return }
             let wasRunning = self.state.withLock { adapterState -> Bool in
                 guard adapterState.isRunning else { return false }
                 adapterState.isRunning = false
+                adapterState.sessionID = nil
+                adapterState.eventContinuation = nil
+                adapterState.eventStream = nil
+                adapterState.notificationTask = nil
+                adapterState.serverRequestTask = nil
+                adapterState.pendingApprovals = [:]
                 return true
             }
             if wasRunning {

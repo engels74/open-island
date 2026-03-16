@@ -175,6 +175,11 @@ package actor OpenCodeSSEClient {
             guard let httpResponse = response as? HTTPURLResponse,
                   httpResponse.statusCode == 200
             else {
+                let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
+                // Transient errors: 5xx server errors, 408 timeout, 429 rate-limit
+                if statusCode >= 500 || statusCode == 408 || statusCode == 429 {
+                    return .reconnect(lastEventID: lastEventID)
+                }
                 return .finished
             }
 
