@@ -222,16 +222,18 @@ private struct ResultContentView: View {
             .lineLimit(self.showFullResult ? nil : 6)
             .textSelection(.enabled)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .onTapGesture {
+
+        if text.split(separator: "\n").count > 6 {
+            Button {
                 withAnimation(.snappy(duration: 0.15)) {
                     self.showFullResult.toggle()
                 }
+            } label: {
+                Text(self.showFullResult ? "Show less" : "Show more\u{2026}")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.tertiary)
             }
-
-        if !self.showFullResult, text.split(separator: "\n").count > 6 {
-            Text("Tap to show more...")
-                .font(.system(size: 10))
-                .foregroundStyle(.tertiary)
+            .buttonStyle(.plain)
         }
     }
 

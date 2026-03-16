@@ -8,7 +8,7 @@ import Synchronization
 ///
 /// Internally uses Apple's `swift-markdown` library to parse the source into a
 /// `Markup` AST, then walks the tree with ``MarkdownRenderer`` to produce an
-/// `AttributedString`. Parsed documents are cached by content hash to avoid
+/// `AttributedString`. Parsed documents are cached by source string to avoid
 /// redundant work when the same text is rendered across frames.
 package struct MarkdownText: View {
     // MARK: Lifecycle
