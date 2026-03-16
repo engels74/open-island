@@ -1731,11 +1731,11 @@ OIModules/Views/ModuleLayoutSettingsView.swift
 OIUI/Views/ChatView.swift
 ```
 
-- [ ] Scrollable chat history for a single session
-- [ ] Provider-aware styling (accent colors, icon)
-- [ ] Message types: user bubbles, assistant text, tool calls (expandable), thinking (collapsible), reasoning (Codex-specific, collapsible), interrupted markers
-- [ ] Auto-scroll to bottom on new messages
-- [ ] Approval bar at bottom when session is `.waitingForApproval`
+- [x] Scrollable chat history for a single session
+- [x] Provider-aware styling (accent colors, icon)
+- [x] Message types: user bubbles, assistant text, tool calls (expandable), thinking (collapsible), reasoning (Codex-specific, collapsible), interrupted markers
+- [x] Auto-scroll to bottom on new messages
+- [x] Approval bar at bottom when session is `.waitingForApproval`
 
 ### 7.2 Approval Bar
 
@@ -1743,11 +1743,11 @@ OIUI/Views/ChatView.swift
 OIUI/Views/ApprovalBarView.swift
 ```
 
-- [ ] Shows tool name and summary from `PermissionContext.displaySummary`
-- [ ] Risk level indicator when available (Codex provides `.low`/`.medium`/`.high` risk with approval requests)
-- [ ] Three buttons: Approve, Deny, Always Allow
-- [ ] Slide-in animation from bottom
-- [ ] Calls `SessionMonitor.approvePermission()` / `denyPermission()`
+- [x] Shows tool name and summary from `PermissionContext.displaySummary`
+- [x] Risk level indicator when available (Codex provides `.low`/`.medium`/`.high` risk with approval requests)
+- [x] Three buttons: Approve, Deny, Always Allow
+- [x] Slide-in animation from bottom
+- [x] Calls `SessionMonitor.approvePermission()` / `denyPermission()`
 
 ### 7.3 ToolResultViews
 
@@ -1755,13 +1755,13 @@ OIUI/Views/ApprovalBarView.swift
 OIUI/Views/ToolResultViews.swift
 ```
 
-- [ ] Expandable tool call cards showing:
-  - [ ] Tool name + status icon (spinner, checkmark, X)
-  - [ ] Input summary (file path, command, etc.)
-  - [ ] Expandable result content (truncated by default)
-  - [ ] Duration badge (populated from Codex's `durationMs`, or calculated from tool start/complete timestamps for other providers)
-  - [ ] Exit code indicator for command executions (Codex provides `exitCode` natively; Claude infers from Bash tool results)
-- [ ] Nested subagent tools displayed indented under parent Task
+- [x] Expandable tool call cards showing:
+  - [x] Tool name + status icon (spinner, checkmark, X)
+  - [x] Input summary (file path, command, etc.)
+  - [x] Expandable result content (truncated by default)
+  - [x] Duration badge (populated from Codex's `durationMs`, or calculated from tool start/complete timestamps for other providers)
+  - [x] Exit code indicator for command executions (Codex provides `exitCode` natively; Claude infers from Bash tool results)
+- [x] Nested subagent tools displayed indented under parent Task
 
 ### 7.4 Markdown Renderer
 
@@ -1769,17 +1769,17 @@ OIUI/Views/ToolResultViews.swift
 OIUI/Components/MarkdownText.swift
 ```
 
-- [ ] Uses Apple's `swift-markdown` library (pure Swift package — no OS runtime dependency, back-deploys freely)
-- [ ] Document cache (keyed by text hash) to avoid re-parsing
-- [ ] Inline renderer: bold, italic, code spans, links, strikethrough
-- [ ] Block renderer: paragraphs, headings, code blocks (monospace bg), block quotes, lists, thematic breaks
-- [ ] Code blocks with syntax-aware monospace styling
+- [x] Uses Apple's `swift-markdown` library (pure Swift package — no OS runtime dependency, back-deploys freely)
+- [x] Document cache (keyed by text hash) to avoid re-parsing
+- [x] Inline renderer: bold, italic, code spans, links, strikethrough
+- [x] Block renderer: paragraphs, headings, code blocks (monospace bg), block quotes, lists, thematic breaks
+- [x] Code blocks with syntax-aware monospace styling
 
 ### 7.5 Chat View Tests
 
-- [ ] Test `ChatHistoryItem` rendering for each type
-- [ ] Test approval bar visibility tied to session phase
-- [ ] Test tool result expansion/collapse
+- [x] Test `ChatHistoryItem` rendering for each type
+- [x] Test approval bar visibility tied to session phase
+- [x] Test tool result expansion/collapse
 
 ---
 
