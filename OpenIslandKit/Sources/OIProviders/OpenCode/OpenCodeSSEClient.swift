@@ -43,9 +43,9 @@ package enum OpenCodeSSEError: Error, Sendable {
 package actor OpenCodeSSEClient {
     // MARK: Lifecycle
 
-    package init(baseURL: URL, session: URLSession = .shared) {
+    package init(baseURL: URL, session: URLSession? = nil) {
         self.baseURL = baseURL
-        self.session = session
+        self.session = session ?? URLSession(configuration: .ephemeral)
     }
 
     // MARK: Package
@@ -100,8 +100,13 @@ package actor OpenCodeSSEClient {
     }
 
     /// Disconnect all active SSE streams.
+    ///
+    /// Invalidates the underlying `URLSession`, immediately cancelling any in-flight
+    /// requests. This causes the `for await` loop in `streamEvents` to throw, ensuring
+    /// the SSE stream terminates promptly rather than relying solely on cooperative
+    /// task cancellation.
     package func disconnect() {
-        // Streams are disconnected by cancelling the tasks via continuation.onTermination
+        self.session.invalidateAndCancel()
     }
 
     // MARK: Fileprivate

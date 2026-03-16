@@ -78,13 +78,8 @@ package final class OpenCodeProviderAdapter: ProviderAdapter, Sendable {
                     continuation.yield(event)
                 }
             }
-            // Only finish the stream if the SSE loop ended naturally (server
-            // disconnect, etc.).  When stop() cancels this task it needs to
-            // yield .sessionEnded events *before* finishing the continuation,
-            // so we must not race it.
-            if !Task.isCancelled {
-                continuation.finish()
-            }
+            guard !Task.isCancelled else { return }
+            adapter.handleNaturalSSETermination(continuation: continuation)
         }
 
         self.state.withLock { adapterState in
@@ -194,6 +189,31 @@ package final class OpenCodeProviderAdapter: ProviderAdapter, Sendable {
 
     private let discovery: OpenCodeServerDiscovery
     private let state: Mutex<AdapterState>
+
+    /// Resets adapter state when the SSE stream ends naturally (server disconnected).
+    ///
+    /// Called only on non-cancelled termination — `stop()` handles its own cleanup.
+    private func handleNaturalSSETermination(
+        continuation: AsyncStream<ProviderEvent>.Continuation,
+    ) {
+        let sessionIDs = self.state.withLock { adapterState -> Set<String> in
+            guard adapterState.isRunning else { return [] }
+            let sessions = adapterState.activeSessionIDs
+            adapterState.isRunning = false
+            adapterState.activeSessionIDs.removeAll()
+            adapterState.permissionSessionMap.removeAll()
+            adapterState.restClient = nil
+            adapterState.sseClient = nil
+            adapterState.sseTask = nil
+            adapterState.eventContinuation = nil
+            adapterState.eventStream = nil
+            return sessions
+        }
+        for sessionID in sessionIDs {
+            continuation.yield(.sessionEnded(sessionID))
+        }
+        continuation.finish()
+    }
 }
 
 // MARK: - AdapterState

@@ -242,7 +242,16 @@ package final class CodexProviderAdapter: ProviderAdapter, Sendable {
                 }
             }
 
-            continuation.yield(event)
+            let yieldResult = continuation.yield(event)
+
+            // If the permission event was dropped (buffer full), remove the pending approval
+            // entry so state doesn't leak — the UI will never see the prompt to respond.
+            if case .dropped = yieldResult, case let .permissionRequested(_, permRequest) = event {
+                _ = self.state.withLock { adapterState in
+                    adapterState.pendingApprovals.removeValue(forKey: permRequest.id)
+                }
+                NSLog("[CodexProviderAdapter] Warning: dropped permissionRequested event for request '\(permRequest.id)' — buffer full")
+            }
         } catch {
             NSLog("[CodexProviderAdapter] Failed to normalize server request '\(request.method)': \(error)")
         }

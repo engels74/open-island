@@ -316,13 +316,28 @@ package actor CodexAppServerClient {
             self.notificationContinuation.yield(notification)
         case let .request(request):
             // Server-initiated request (approval interception)
-            self.serverRequestContinuation.yield(
+            let yieldResult = self.serverRequestContinuation.yield(
                 ServerInitiatedRequest(
                     id: request.id,
                     method: request.method,
                     params: request.params,
                 ),
             )
+            if case .dropped = yieldResult {
+                NSLog("[CodexAppServerClient] Dropped server request (buffer full): method=%@, id=%@", request.method, "\(request.id)")
+                let errorResponse = JSONRPCResponse(
+                    id: request.id,
+                    error: JSONRPCError(
+                        code: JSONRPCErrorCode.internalError,
+                        message: "Request dropped: server request buffer is full",
+                    ),
+                )
+                do {
+                    try self.writeMessage(errorResponse)
+                } catch {
+                    NSLog("[CodexAppServerClient] Failed to send error response for dropped request: %@", "\(error)")
+                }
+            }
         }
     }
 
