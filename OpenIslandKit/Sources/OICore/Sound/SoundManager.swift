@@ -69,12 +69,15 @@ package final class SoundManager {
     /// Bundle identifiers for common terminal applications.
     private static let terminalBundleIDs: Set = [
         "com.apple.Terminal",
+        "com.github.wez.wezterm",
         "com.googlecode.iterm2",
-        "dev.warp.Warp-Stable",
         "com.mitchellh.ghostty",
+        "com.raphaelamorim.rio",
+        "co.zeit.hyper",
+        "dev.warp.Warp-Stable",
         "io.alacritty",
         "net.kovidgoyal.kitty",
-        "co.zeit.hyper",
+        "org.tabby",
     ]
 
     private let globalCooldown: TimeInterval
