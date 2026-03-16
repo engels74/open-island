@@ -30,6 +30,9 @@ let package = Package(
         .library(name: "OIState", targets: ["OIState"]),
         .library(name: "OIUI", targets: ["OIUI"]),
     ],
+    dependencies: [
+        .package(url: "https://github.com/swiftlang/swift-markdown.git", from: "0.5.0"),
+    ],
     targets: [
         .target(
             name: "OICore",
@@ -60,7 +63,13 @@ let package = Package(
         ),
         .target(
             name: "OIUI",
-            dependencies: ["OICore", "OIState", "OIModules", "OIWindow"],
+            dependencies: [
+                "OICore",
+                "OIState",
+                "OIModules",
+                "OIWindow",
+                .product(name: "Markdown", package: "swift-markdown"),
+            ],
             swiftSettings: upcomingFeatures,
         ),
         .testTarget(
@@ -86,6 +95,18 @@ let package = Package(
         .testTarget(
             name: "OIModulesTests",
             dependencies: ["OIModules", "OICore"],
+            swiftSettings: testSettings,
+        ),
+        .testTarget(
+            name: "OIUITests",
+            dependencies: [
+                "OIUI",
+                "OICore",
+                "OIState",
+                "OIModules",
+                "OIWindow",
+                .product(name: "Markdown", package: "swift-markdown"),
+            ],
             swiftSettings: testSettings,
         ),
     ],
