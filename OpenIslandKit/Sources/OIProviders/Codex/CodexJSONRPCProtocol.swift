@@ -264,6 +264,8 @@ package enum CodexThreadItemType: String, Sendable, Codable {
 /// This is the tagged union — the `type` field determines which optional
 /// fields are populated.
 package struct CodexThreadItem: Sendable, Codable {
+    // MARK: Package
+
     /// The item type tag.
     package let type: CodexThreadItemType
 
@@ -332,6 +334,30 @@ package struct CodexThreadItem: Sendable, Codable {
 
     /// Parent tool use ID that spawned this collab call.
     package let parentToolID: String?
+
+    // MARK: Private
+
+    private enum CodingKeys: String, CodingKey {
+        case type
+        case itemID = "id"
+        case text
+        case summaryText
+        case command
+        case cwd
+        case status
+        case exitCode
+        case durationMs
+        case output
+        case path
+        case kind
+        case diff
+        case server
+        case tool
+        case arguments
+        case result
+        case taskID = "taskId"
+        case parentToolID = "parentToolId"
+    }
 }
 
 // MARK: - CodexTurnStatus
