@@ -139,10 +139,9 @@ package final class NotchActivityCoordinator {
     /// Whether the current open state was caused by auto-expand.
     @ObservationIgnored private var didAutoExpand = false
 
-    /// Whether the terminal is visible. Stubbed as `false` until Phase 10
-    /// provides `TerminalAppRegistry`.
+    /// Whether any known terminal window is visible on the current space.
     private var isTerminalVisible: Bool {
-        false
+        TerminalVisibilityDetector.isTerminalVisibleOnCurrentSpace()
     }
 
     // MARK: - Phase change handling
