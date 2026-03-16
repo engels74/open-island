@@ -53,14 +53,13 @@ struct MarkdownCacheTests {
         #expect(plainText.contains("Hello World"))
     }
 
-    // MARK: - Cache Behavior (via hash identity)
+    // MARK: - Cache Behavior (via string identity)
 
     @Test
-    func `Same content produces identical hash values`() {
-        let source = "Hello **world**"
-        let hash1 = source.hashValue
-        let hash2 = source.hashValue
-        #expect(hash1 == hash2)
+    func `Same content string is equal for cache key purposes`() {
+        let source1 = "Hello **world**"
+        let source2 = "Hello **world**"
+        #expect(source1 == source2)
     }
 
     @Test

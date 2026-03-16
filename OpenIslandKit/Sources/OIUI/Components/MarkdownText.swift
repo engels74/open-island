@@ -46,20 +46,19 @@ private final class DocumentCache: Sendable {
     static let shared = DocumentCache()
 
     func attributedString(for source: String) -> AttributedString {
-        let key = source.hashValue
-        if let cached = self.storage.withLock({ $0[key] }) {
+        if let cached = self.storage.withLock({ $0[source] }) {
             return cached
         }
         let document = Document(parsing: source)
         var renderer = MarkdownRenderer()
         let result = renderer.visit(document)
-        self.storage.withLock { $0[key] = result }
+        self.storage.withLock { $0[source] = result }
         return result
     }
 
     // MARK: Private
 
-    private let storage = Mutex<[Int: AttributedString]>([:])
+    private let storage = Mutex<[String: AttributedString]>([:])
 }
 
 // MARK: - MarkdownRenderer
