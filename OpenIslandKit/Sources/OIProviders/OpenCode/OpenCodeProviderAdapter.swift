@@ -46,20 +46,35 @@ package final class OpenCodeProviderAdapter: ProviderAdapter, Sendable {
         // 4. Connect SSE (global endpoint for cross-project events)
         let sseStream = await sseClient.connect(endpoint: .global)
 
-        // 5. Generate a session ID for this adapter session
-        let sessionID = "opencode-\(UUID().uuidString)"
-
-        // 6. Create the provider event stream
+        // 5. Create the provider event stream
         let (stream, continuation) = AsyncStream<ProviderEvent>.makeStream(
             bufferingPolicy: .bufferingOldest(128),
         )
 
-        // 7. Start SSE processing task
+        // 6. Start SSE processing task
+        //
+        // The adapter tracks real session IDs and permission→session mappings
+        // from SSE events. This is necessary because:
+        // - SSE events carry the real OpenCode session ID (e.g. from `session.created`)
+        // - Permission responses must use the real session ID in the REST URL
+        // - `isSessionAlive` must match against real session IDs
+        let adapter = self
         let sseTask = Task.detached {
             for await sseEvent in sseStream {
                 guard !Task.isCancelled else { break }
                 let events = OpenCodeEventNormalizer.normalize(sseEvent)
                 for event in events {
+                    // Track session IDs and permission mappings from SSE events
+                    switch event {
+                    case let .sessionStarted(sessionID, _, _):
+                        adapter.state.withLock { _ = $0.activeSessionIDs.insert(sessionID) }
+                    case let .sessionEnded(sessionID):
+                        adapter.state.withLock { _ = $0.activeSessionIDs.remove(sessionID) }
+                    case let .permissionRequested(sessionID, request):
+                        adapter.state.withLock { $0.permissionSessionMap[request.id] = sessionID }
+                    default:
+                        break
+                    }
                     continuation.yield(event)
                 }
             }
@@ -68,43 +83,40 @@ package final class OpenCodeProviderAdapter: ProviderAdapter, Sendable {
 
         self.state.withLock { adapterState in
             adapterState.isRunning = true
-            adapterState.sessionID = sessionID
             adapterState.restClient = restClient
             adapterState.sseClient = sseClient
             adapterState.eventStream = stream
             adapterState.eventContinuation = continuation
             adapterState.sseTask = sseTask
         }
-
-        // Emit session started event
-        continuation.yield(.sessionStarted(sessionID, cwd: "", pid: nil))
     }
 
     package func stop() async {
         let extracted = self.state.withLock { adapterState -> (
             continuation: AsyncStream<ProviderEvent>.Continuation?,
-            sessionID: String?,
+            activeSessionIDs: Set<String>,
             sseClient: OpenCodeSSEClient?,
             sseTask: Task<Void, Never>?
         ) in
             guard adapterState.isRunning else {
-                return (nil, nil, nil, nil)
+                return (nil, [], nil, nil)
             }
 
             let cont = adapterState.eventContinuation
-            let sid = adapterState.sessionID
+            let sessions = adapterState.activeSessionIDs
             let sse = adapterState.sseClient
             let task = adapterState.sseTask
 
             adapterState.eventContinuation = nil
             adapterState.eventStream = nil
             adapterState.isRunning = false
-            adapterState.sessionID = nil
+            adapterState.activeSessionIDs.removeAll()
+            adapterState.permissionSessionMap.removeAll()
             adapterState.restClient = nil
             adapterState.sseClient = nil
             adapterState.sseTask = nil
 
-            return (cont, sid, sse, task)
+            return (cont, sessions, sse, task)
         }
 
         // Cancel SSE processing task
@@ -115,9 +127,9 @@ package final class OpenCodeProviderAdapter: ProviderAdapter, Sendable {
             await sseClient.disconnect()
         }
 
-        // Emit session ended before finishing
-        if let sid = extracted.sessionID {
-            extracted.continuation?.yield(.sessionEnded(sid))
+        // Emit session ended for all tracked sessions before finishing
+        for sessionID in extracted.activeSessionIDs {
+            extracted.continuation?.yield(.sessionEnded(sessionID))
         }
 
         // Finish the provider event stream
@@ -139,7 +151,8 @@ package final class OpenCodeProviderAdapter: ProviderAdapter, Sendable {
         decision: PermissionDecision,
     ) async throws {
         let (restClient, sessionID) = self.state.withLock { adapterState in
-            (adapterState.restClient, adapterState.sessionID)
+            let sid = adapterState.permissionSessionMap.removeValue(forKey: request.id)
+            return (adapterState.restClient, sid)
         }
 
         guard let restClient, let sessionID else {
@@ -165,9 +178,9 @@ package final class OpenCodeProviderAdapter: ProviderAdapter, Sendable {
     }
 
     package func isSessionAlive(_ sessionID: String) -> Bool {
-        let currentSessionID = self.state.withLock { $0.sessionID }
-        guard sessionID == currentSessionID else { return false }
-        return self.state.withLock { $0.isRunning }
+        self.state.withLock { adapterState in
+            adapterState.isRunning && adapterState.activeSessionIDs.contains(sessionID)
+        }
     }
 
     // MARK: Private
@@ -181,7 +194,11 @@ package final class OpenCodeProviderAdapter: ProviderAdapter, Sendable {
 /// Mutable state for the adapter, protected by `Mutex`.
 private struct AdapterState: Sendable {
     var isRunning = false
-    var sessionID: String?
+    /// Real OpenCode session IDs observed from SSE events.
+    var activeSessionIDs: Set<String> = []
+    /// Maps permission request IDs to their originating OpenCode session IDs,
+    /// so `respondToPermission` can target the correct REST endpoint.
+    var permissionSessionMap: [String: String] = [:]
     var restClient: OpenCodeRESTClient?
     var sseClient: OpenCodeSSEClient?
     var eventStream: AsyncStream<ProviderEvent>?

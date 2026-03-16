@@ -9,6 +9,7 @@ private struct AdapterState: Sendable {
     var isRunning = false
     var eventStream: AsyncStream<ProviderEvent>?
     var eventContinuation: AsyncStream<ProviderEvent>.Continuation?
+    var processingTask: Task<Void, Never>?
 }
 
 // MARK: - ClaudeProviderAdapter
@@ -58,7 +59,7 @@ package final class ClaudeProviderAdapter: ProviderAdapter, Sendable {
         )
 
         let adapter = self
-        Task.detached { [weak adapter] in
+        let processingTask = Task.detached { [weak adapter] in
             for await rawData in rawStream {
                 guard !Task.isCancelled else { break }
                 adapter?.processRawEvent(rawData, continuation: continuation)
@@ -71,24 +72,30 @@ package final class ClaudeProviderAdapter: ProviderAdapter, Sendable {
             state.isRunning = true
             state.eventStream = stream
             state.eventContinuation = continuation
+            state.processingTask = processingTask
         }
     }
 
     package func stop() async {
-        // Extract continuation before finishing to avoid re-entrant Mutex access
-        // (finish() triggers onTermination synchronously).
-        let continuation = self.state.withLock { state -> AsyncStream<ProviderEvent>.Continuation? in
-            guard state.isRunning else { return nil }
+        // Extract continuation and task before finishing to avoid re-entrant
+        // Mutex access (finish() triggers onTermination synchronously).
+        let (continuation, processingTask) = self.state.withLock { state -> (AsyncStream<ProviderEvent>.Continuation?, Task<Void, Never>?) in
+            guard state.isRunning else { return (nil, nil) }
 
             let cont = state.eventContinuation
+            let task = state.processingTask
             state.eventContinuation = nil
             state.eventStream = nil
+            state.processingTask = nil
             state.isRunning = false
-            return cont
+            return (cont, task)
         }
 
-        // Stop the socket server first — this causes the raw data stream to
-        // stop producing events, allowing the detached processing task to end.
+        // Cancel the detached processing task.
+        processingTask?.cancel()
+
+        // Stop the socket server — this finishes the raw data stream,
+        // allowing the detached processing task to terminate cleanly.
         self.socketServer.stop()
 
         // Finish the provider event stream for consumers.

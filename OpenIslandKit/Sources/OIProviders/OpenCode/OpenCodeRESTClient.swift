@@ -7,6 +7,7 @@ package import OICore
 package enum OpenCodeRESTError: Error, Sendable {
     case invalidURL(String)
     case httpError(statusCode: Int, body: String?)
+    case encodingFailed(any Error)
     case decodingFailed(any Error)
     case networkError(any Error)
 }
@@ -188,7 +189,7 @@ package actor OpenCodeRESTClient {
             do {
                 request.httpBody = try self.encoder.encode(body)
             } catch {
-                throw .decodingFailed(error)
+                throw .encodingFailed(error)
             }
         }
 

@@ -316,7 +316,10 @@ package actor CodexAppServerClient {
         }
     }
 
-    /// Handle process termination: fail all pending requests, finish streams.
+    /// Handle process termination: clear process state, fail pending requests, finish streams.
+    ///
+    /// Clears `process` and pipes so that `start()` can relaunch the child process
+    /// without requiring an explicit `stop()` call first.
     private func handleProcessTermination() {
         for (_, pending) in self.pendingRequests {
             pending.continuation.resume(throwing: CodexAppServerError.processNotRunning)
@@ -324,6 +327,9 @@ package actor CodexAppServerClient {
         self.pendingRequests.removeAll()
         self.notificationContinuation.finish()
         self.serverRequestContinuation.finish()
+        self.process = nil
+        self.stdinPipe = nil
+        self.stdoutPipe = nil
         self.isInitialized = false
     }
 }

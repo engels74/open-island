@@ -95,6 +95,7 @@ package final class HookSocketBridge: Sendable {
             state.serverFD = fd
             state.acceptSource = acceptSource
             state.expiryTimer = timer
+            state.rawStreamContinuation = continuation
         }
 
         // Set onTermination for cleanup on consumer disconnect
@@ -107,8 +108,10 @@ package final class HookSocketBridge: Sendable {
 
     /// Stop the server and clean up resources.
     package func stop() {
-        self.state.withLock { state in
-            guard state.isRunning else { return }
+        // Extract continuation before the lock to avoid re-entrant access
+        // (finish() triggers onTermination synchronously).
+        let continuation = self.state.withLock { state -> AsyncStream<Data>.Continuation? in
+            guard state.isRunning else { return nil }
 
             state.acceptSource?.cancel()
             state.acceptSource = nil
@@ -119,10 +122,18 @@ package final class HookSocketBridge: Sendable {
             // Remove socket file
             unlink(self.socketPath)
 
+            let cont = state.rawStreamContinuation
+            state.rawStreamContinuation = nil
             state.isRunning = false
             state.serverFD = nil
             state.permissions = PermissionsState()
+
+            return cont
         }
+
+        // Finish the raw data stream so consumers (e.g., the detached
+        // processing task in provider adapters) terminate cleanly.
+        continuation?.finish()
     }
 
     /// Respond to a pending permission request.
@@ -288,5 +299,6 @@ private struct BridgeServerState: Sendable {
     var serverFD: Int32?
     var acceptSource: (any DispatchSourceRead)?
     var expiryTimer: (any DispatchSourceTimer)?
+    var rawStreamContinuation: AsyncStream<Data>.Continuation?
     var permissions = PermissionsState()
 }
