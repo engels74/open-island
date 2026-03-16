@@ -104,10 +104,7 @@ package struct NotchView: View {
         case let .chat(session):
             ChatView(session: session, monitor: self.sessionMonitor, viewModel: self.viewModel)
         case .menu:
-            Text("Settings Menu")
-                .font(.title3)
-                .foregroundStyle(.white.opacity(0.5))
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            SettingsMenuView(viewModel: self.viewModel)
         }
     }
 
