@@ -66,6 +66,17 @@ package final class SoundManager {
 
     // MARK: Private
 
+    /// Bundle identifiers for common terminal applications.
+    private static let terminalBundleIDs: Set = [
+        "com.apple.Terminal",
+        "com.googlecode.iterm2",
+        "dev.warp.Warp-Stable",
+        "com.mitchellh.ghostty",
+        "io.alacritty",
+        "net.kovidgoyal.kitty",
+        "co.zeit.hyper",
+    ]
+
     private let globalCooldown: TimeInterval
     private let sessionCooldown: TimeInterval
 
@@ -79,12 +90,20 @@ package final class SoundManager {
         false
     }
 
+    /// Whether a terminal application is currently the frontmost app.
+    private var isTerminalFocused: Bool {
+        guard let bundleID = NSWorkspace.shared.frontmostApplication?.bundleIdentifier else {
+            return false
+        }
+        return Self.terminalBundleIDs.contains(bundleID)
+    }
+
     private func isSuppressed(_ suppression: SoundSuppression) -> Bool {
         switch suppression {
         case .never:
             false
         case .whenFocused:
-            NSApp.isActive
+            NSApp.isActive || self.isTerminalFocused
         case .whenVisible:
             self.isTerminalVisible
         }

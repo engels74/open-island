@@ -1,6 +1,7 @@
 import Foundation
 import Observation
-import OICore
+package import OICore
+import Synchronization
 
 // MARK: - NotchActivityCoordinator
 
@@ -13,6 +14,8 @@ import OICore
 ///   debounce interval.
 /// - **Bounce**: briefly sets ``isBouncing`` when a session enters
 ///   `.waitingForInput`` and the notch is closed.
+/// - **Sound**: plays the configured notification sound via ``SoundManager``
+///   when a session enters `.waitingForInput`.
 /// - **Auto-collapse**: closes the notch after a timeout if the user has not
 ///   interacted since the auto-expand.
 @Observable
@@ -20,9 +23,10 @@ import OICore
 package final class NotchActivityCoordinator {
     // MARK: Lifecycle
 
-    package init(notchViewModel: NotchViewModel, sessionMonitor: SessionMonitor) {
+    package init(notchViewModel: NotchViewModel, sessionMonitor: SessionMonitor, soundManager: SoundManager) {
         self.notchViewModel = notchViewModel
         self.sessionMonitor = sessionMonitor
+        self.soundManager = soundManager
     }
 
     deinit {
@@ -43,19 +47,49 @@ package final class NotchActivityCoordinator {
         self.observationTask = Task { [weak self] in
             while !Task.isCancelled {
                 guard let coordinator = self else { return }
-                let currentPhases = coordinator.sessionMonitor.instances.map(\.phase)
+                let currentInstances = coordinator.sessionMonitor.instances
                 let monitor = coordinator.sessionMonitor
                 // Wait for the next change via withObservationTracking.
-                await withCheckedContinuation { continuation in
-                    withObservationTracking {
-                        _ = monitor.instances
-                    } onChange: {
-                        continuation.resume()
+                // Mutex-protected continuation ensures exactly one resume across
+                // the observation onChange callback and the cancellation handler.
+                let state = Mutex<CheckedContinuation<Void, Never>?>(nil)
+
+                await withTaskCancellationHandler {
+                    await withCheckedContinuation { continuation in
+                        let shouldResumeNow = state.withLock { stored -> Bool in
+                            if Task.isCancelled {
+                                return true
+                            }
+                            stored = continuation
+                            return false
+                        }
+                        if shouldResumeNow {
+                            continuation.resume()
+                            return
+                        }
+
+                        withObservationTracking {
+                            _ = monitor.instances
+                        } onChange: {
+                            let cont = state.withLock { stored -> CheckedContinuation<Void, Never>? in
+                                let captured = stored
+                                stored = nil
+                                return captured
+                            }
+                            cont?.resume()
+                        }
                     }
+                } onCancel: {
+                    let cont = state.withLock { stored -> CheckedContinuation<Void, Never>? in
+                        let captured = stored
+                        stored = nil
+                        return captured
+                    }
+                    cont?.resume()
                 }
                 guard !Task.isCancelled, let coordinator = self else { return }
-                let newPhases = coordinator.sessionMonitor.instances.map(\.phase)
-                coordinator.handlePhaseChanges(previous: currentPhases, current: newPhases)
+                let newInstances = coordinator.sessionMonitor.instances
+                coordinator.handlePhaseChanges(previous: currentInstances, current: newInstances)
             }
         }
     }
@@ -93,6 +127,7 @@ package final class NotchActivityCoordinator {
 
     @ObservationIgnored private let notchViewModel: NotchViewModel
     @ObservationIgnored private let sessionMonitor: SessionMonitor
+    @ObservationIgnored private let soundManager: SoundManager
 
     @ObservationIgnored private var observationTask: Task<Void, Never>?
     @ObservationIgnored private var autoCollapseTask: Task<Void, Never>?
@@ -112,27 +147,35 @@ package final class NotchActivityCoordinator {
 
     // MARK: - Phase change handling
 
-    private func handlePhaseChanges(previous: [SessionPhase], current: [SessionPhase]) {
-        let hadApproval = previous.contains { phase in
-            if case .waitingForApproval = phase { return true }
+    private func handlePhaseChanges(previous: [SessionState], current: [SessionState]) {
+        let hadApproval = previous.contains { session in
+            if case .waitingForApproval = session.phase { return true }
             return false
         }
-        let hasApproval = current.contains { phase in
-            if case .waitingForApproval = phase { return true }
+        let hasApproval = current.contains { session in
+            if case .waitingForApproval = session.phase { return true }
             return false
         }
 
-        let hadWaitingForInput = previous.contains { $0 == .waitingForInput }
-        let hasWaitingForInput = current.contains { $0 == .waitingForInput }
+        let previousWaitingIDs = Set(previous.filter { $0.phase == .waitingForInput }.map(\.id))
+        let currentWaiting = current.filter { $0.phase == .waitingForInput }
+        let newlyWaiting = currentWaiting.filter { !previousWaitingIDs.contains($0.id) }
 
         // Auto-expand: new permission request appeared.
         if hasApproval, !hadApproval {
             self.attemptAutoExpand()
         }
 
-        // Bounce: new waitingForInput appeared.
-        if hasWaitingForInput, !hadWaitingForInput {
+        // Bounce + sound: new waitingForInput appeared.
+        if !newlyWaiting.isEmpty {
             self.attemptBounce()
+            for session in newlyWaiting {
+                self.soundManager.playIfAllowed(
+                    for: session.id,
+                    sound: AppSettings.notificationSound,
+                    suppression: AppSettings.soundSuppression,
+                )
+            }
         }
     }
 

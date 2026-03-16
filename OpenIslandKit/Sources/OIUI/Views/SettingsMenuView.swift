@@ -280,17 +280,16 @@ private extension SettingsMenuView {
                     .font(.system(size: 10))
                     .foregroundStyle(.secondary)
                 Spacer()
-                TextField("ms", text: Binding(
-                    get: { self.geminiThrottleMs },
-                    set: {
-                        self.geminiThrottleMs = $0
-                        AppSettings.GeminiCLI.throttleAfterModelMs = Int($0)
-                    },
-                ))
-                .textFieldStyle(.roundedBorder)
-                .frame(width: 60)
-                .font(.system(size: 10))
-                .controlSize(.small)
+                TextField("ms", text: self.$geminiThrottleMs)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 60)
+                    .font(.system(size: 10))
+                    .controlSize(.small)
+                    .onSubmit {
+                        AppSettings.GeminiCLI.throttleAfterModelMs = self.geminiThrottleMs.isEmpty
+                            ? nil
+                            : Int(self.geminiThrottleMs)
+                    }
             }
         }
     }
@@ -302,17 +301,16 @@ private extension SettingsMenuView {
                     .font(.system(size: 10))
                     .foregroundStyle(.secondary)
                 Spacer()
-                TextField("port", text: Binding(
-                    get: { self.openCodePort },
-                    set: {
-                        self.openCodePort = $0
-                        AppSettings.OpenCode.serverPort = Int($0)
-                    },
-                ))
-                .textFieldStyle(.roundedBorder)
-                .frame(width: 60)
-                .font(.system(size: 10))
-                .controlSize(.small)
+                TextField("port", text: self.$openCodePort)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 60)
+                    .font(.system(size: 10))
+                    .controlSize(.small)
+                    .onSubmit {
+                        AppSettings.OpenCode.serverPort = self.openCodePort.isEmpty
+                            ? nil
+                            : Int(self.openCodePort)
+                    }
             }
 
             SettingsToggle(
