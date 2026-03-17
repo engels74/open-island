@@ -203,5 +203,14 @@ package final class ExampleProviderAdapter: ProviderAdapter, Sendable {
         _ = self.state.withLock { $0.activeSessions.remove(sessionID) }
 
         continuation.finish()
+
+        // Reset adapter state so start() can be called again without
+        // requiring an explicit stop() after natural simulation completion.
+        self.state.withLock { state in
+            state.isRunning = false
+            state.eventContinuation = nil
+            state.eventStream = nil
+            state.simulationTask = nil
+        }
     }
 }
