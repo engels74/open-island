@@ -2166,10 +2166,10 @@ OIUI/ViewModels/NotchActivityCoordinator.swift
 OICore/Terminal/TerminalAppRegistry.swift
 ```
 
-- [ ] Static registry of known terminal bundle IDs and names
-- [ ] Include: Terminal, iTerm2, Ghostty, Alacritty, kitty, Warp, WezTerm, Hyper
-- [ ] Also include editors: VS Code, Cursor, Windsurf, Zed
-- [ ] Provider-extensible — adapters can register additional relevant apps
+- [x] Static registry of known terminal bundle IDs and names
+- [x] Include: Terminal, iTerm2, Ghostty, Alacritty, kitty, Warp, WezTerm, Hyper
+- [x] Also include editors: VS Code, Cursor, Windsurf, Zed
+- [x] Provider-extensible — adapters can register additional relevant apps
 
 ### 10.2 TerminalVisibilityDetector
 
@@ -2177,11 +2177,11 @@ OICore/Terminal/TerminalAppRegistry.swift
 OICore/Terminal/TerminalVisibilityDetector.swift
 ```
 
-- [ ] `CGWindowListCopyWindowInfo` queries for:
-  - [ ] `isTerminalVisibleOnCurrentSpace()`
-  - [ ] `isTerminalFrontmost()`
-  - [ ] `isSessionTerminalVisible(sessionPID:)` — ≥50% visibility check
-- [ ] May require **`@preconcurrency import CoreGraphics`** if `CGWindowListCopyWindowInfo` result types trigger Sendable diagnostics. If using the `OIAppKitBridge` module (Phase 0.7), route these queries through it instead.
+- [x] `CGWindowListCopyWindowInfo` queries for:
+  - [x] `isTerminalVisibleOnCurrentSpace()`
+  - [x] `isTerminalFrontmost()`
+  - [x] `isSessionTerminalVisible(sessionPID:)` — ≥50% visibility check
+- [x] May require **`@preconcurrency import CoreGraphics`** if `CGWindowListCopyWindowInfo` result types trigger Sendable diagnostics. If using the `OIAppKitBridge` module (Phase 0.7), route these queries through it instead.
 
 ### 10.3 ProcessTreeBuilder
 
@@ -2189,10 +2189,10 @@ OICore/Terminal/TerminalVisibilityDetector.swift
 OICore/Terminal/ProcessTreeBuilder.swift
 ```
 
-- [ ] Build PID → parent PID tree using `proc_listallpids` / `proc_pidinfo`
-- [ ] Map CLI process PID → parent terminal PID
-- [ ] Detect tmux sessions
-- [ ] Handle Codex's `sandbox-exec` wrapper — the Codex process may be wrapped in Seatbelt sandboxing, requiring process tree traversal through the sandbox-exec parent
+- [x] Build PID → parent PID tree using `proc_listallpids` / `proc_pidinfo`
+- [x] Map CLI process PID → parent terminal PID
+- [x] Detect tmux sessions
+- [x] Handle Codex's `sandbox-exec` wrapper — the Codex process may be wrapped in Seatbelt sandboxing, requiring process tree traversal through the sandbox-exec parent
 
 ### 10.4 TerminalFocuser
 
@@ -2200,9 +2200,9 @@ OICore/Terminal/ProcessTreeBuilder.swift
 OICore/Terminal/TerminalFocuser.swift
 ```
 
-- [ ] Find terminal window by PID → process tree → terminal app
-- [ ] `NSRunningApplication.activate()` to bring forward
-- [ ] Tmux support: `tmux select-window` / `tmux select-pane` for correct pane focusing
+- [x] Find terminal window by PID → process tree → terminal app
+- [x] `NSRunningApplication.activate()` to bring forward
+- [x] Tmux support: `tmux select-window` / `tmux select-pane` for correct pane focusing
 
 ### 10.5 Accessibility Permission Manager
 
@@ -2210,9 +2210,9 @@ OICore/Terminal/TerminalFocuser.swift
 OICore/Permissions/AccessibilityPermissionManager.swift
 ```
 
-- [ ] Check `AXIsProcessTrusted()` on launch
-- [ ] Show alert if missing
-- [ ] Periodic monitoring for permission grants
+- [x] Check `AXIsProcessTrusted()` on launch
+- [x] Show alert if missing
+- [x] Periodic monitoring for permission grants
 
 ### 10.6 Process Detection for All Providers
 
@@ -2220,19 +2220,19 @@ OICore/Permissions/AccessibilityPermissionManager.swift
 OICore/Terminal/AgentProcessDetector.swift
 ```
 
-- [ ] Detect running instances of all four CLI agents using `proc_listpids`/`proc_name` polling every 2–5 seconds
-- [ ] Binary names to detect:
-  - [ ] Claude Code: `claude` process
-  - [ ] Codex CLI: `codex` process (may be wrapped in `sandbox-exec`)
-  - [ ] Gemini CLI: `gemini` process (Node.js-based — may appear as `node` with gemini in args)
-  - [ ] OpenCode: `opencode` process (Go binary)
-- [ ] Wrap detection in `AsyncStream` for structured concurrency compatibility
-- [ ] FSEvents monitoring of known session directories for new session files:
-  - [ ] `~/.claude/projects/` (Claude Code JSONL session files)
-  - [ ] `~/.codex/sessions/` (Codex session rollout files)
-  - [ ] `~/.gemini/tmp/` (Gemini CLI session JSON files)
-  - [ ] `~/.local/share/opencode/` (OpenCode hierarchical key-value session files)
-- [ ] Wrap FSEvents in `AsyncStream` for structured concurrency compatibility
+- [x] Detect running instances of all four CLI agents using `proc_listpids`/`proc_name` polling every 2–5 seconds
+- [x] Binary names to detect:
+  - [x] Claude Code: `claude` process
+  - [x] Codex CLI: `codex` process (may be wrapped in `sandbox-exec`)
+  - [x] Gemini CLI: `gemini` process (Node.js-based — may appear as `node` with gemini in args)
+  - [x] OpenCode: `opencode` process (Go binary)
+- [x] Wrap detection in `AsyncStream` for structured concurrency compatibility
+- [x] FSEvents monitoring of known session directories for new session files:
+  - [x] `~/.claude/projects/` (Claude Code JSONL session files)
+  - [x] `~/.codex/sessions/` (Codex session rollout files)
+  - [x] `~/.gemini/tmp/` (Gemini CLI session JSON files)
+  - [x] `~/.local/share/opencode/` (OpenCode hierarchical key-value session files)
+- [x] Wrap FSEvents in `AsyncStream` for structured concurrency compatibility
 
 ---
 
