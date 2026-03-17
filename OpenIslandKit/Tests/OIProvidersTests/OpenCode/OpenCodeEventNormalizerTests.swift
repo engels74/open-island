@@ -268,12 +268,18 @@ struct OpenCodeEventNormalizerInterruptTests {
     func `session abort normalizes to interruptDetected`() {
         let event = SSEEvent(event: "session.abort", data: #"{"sessionId":"s1"}"#, id: nil)
         let events = OpenCodeEventNormalizer.normalize(event)
-        #expect(events.count == 1)
-        guard case let .interruptDetected(sid) = events.first else {
-            Issue.record("Expected .interruptDetected, got \(String(describing: events.first))")
+        #expect(events.count == 2)
+        guard case let .interruptDetected(sid) = events[0] else {
+            Issue.record("Expected .interruptDetected, got \(events[0])")
             return
         }
         #expect(sid == "s1")
+
+        guard case let .waitingForInput(sid2) = events[1] else {
+            Issue.record("Expected .waitingForInput, got \(events[1])")
+            return
+        }
+        #expect(sid2 == "s1")
     }
 
     @Test
@@ -284,7 +290,7 @@ struct OpenCodeEventNormalizerInterruptTests {
             id: nil,
         )
         let events = OpenCodeEventNormalizer.normalize(event)
-        #expect(events.count == 2)
+        #expect(events.count == 3)
 
         guard case let .interruptDetected(sid) = events[0] else {
             Issue.record("Expected .interruptDetected, got \(events[0])")
@@ -292,8 +298,14 @@ struct OpenCodeEventNormalizerInterruptTests {
         }
         #expect(sid == "s1")
 
-        guard case let .notification(_, message) = events[1] else {
-            Issue.record("Expected .notification, got \(events[1])")
+        guard case let .waitingForInput(sid2) = events[1] else {
+            Issue.record("Expected .waitingForInput, got \(events[1])")
+            return
+        }
+        #expect(sid2 == "s1")
+
+        guard case let .notification(_, message) = events[2] else {
+            Issue.record("Expected .notification, got \(events[2])")
             return
         }
         #expect(message == "Session aborted by user")
@@ -307,9 +319,13 @@ struct OpenCodeEventNormalizerInterruptTests {
             id: nil,
         )
         let events = OpenCodeEventNormalizer.normalize(event)
-        #expect(events.count == 2)
+        #expect(events.count == 3)
         guard case .interruptDetected = events[0] else {
             Issue.record("Expected .interruptDetected, got \(events[0])")
+            return
+        }
+        guard case .waitingForInput = events[1] else {
+            Issue.record("Expected .waitingForInput, got \(events[1])")
             return
         }
     }
@@ -322,9 +338,13 @@ struct OpenCodeEventNormalizerInterruptTests {
             id: nil,
         )
         let events = OpenCodeEventNormalizer.normalize(event)
-        #expect(events.count == 2)
+        #expect(events.count == 3)
         guard case .interruptDetected = events[0] else {
             Issue.record("Expected .interruptDetected, got \(events[0])")
+            return
+        }
+        guard case .waitingForInput = events[1] else {
+            Issue.record("Expected .waitingForInput, got \(events[1])")
             return
         }
     }
