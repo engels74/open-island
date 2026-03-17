@@ -149,6 +149,9 @@ package enum ProcessTreeBuilder {
             &pids,
             Int32(pids.count * MemoryLayout<pid_t>.size),
         )
+        guard actualBytes > 0 else {
+            return ProcessTree(entries: [:])
+        }
         let actualCount = Int(actualBytes) / MemoryLayout<pid_t>.size
 
         var entries = [pid_t: ProcessInfo](minimumCapacity: actualCount)

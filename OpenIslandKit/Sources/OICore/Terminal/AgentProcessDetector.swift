@@ -217,9 +217,10 @@ package enum AgentProcessDetector {
         let count = proc_listallpids(nil, 0)
         guard count > 0 else { return [] }
         var pids = [pid_t](repeating: 0, count: Int(count))
-        let actual = proc_listallpids(&pids, Int32(MemoryLayout<pid_t>.size * Int(count)))
-        guard actual > 0 else { return [] }
-        return Array(pids.prefix(Int(actual)))
+        let actualBytes = proc_listallpids(&pids, Int32(MemoryLayout<pid_t>.size * Int(count)))
+        guard actualBytes > 0 else { return [] }
+        let actualCount = Int(actualBytes) / MemoryLayout<pid_t>.size
+        return Array(pids.prefix(actualCount))
     }
 
     /// Returns the short process name for a PID using `proc_pidinfo`.
@@ -247,7 +248,7 @@ package enum AgentProcessDetector {
         var pathBuffer = [CChar](repeating: 0, count: maxSize)
         let pathLen = proc_pidpath(pid, &pathBuffer, UInt32(maxSize))
         guard pathLen > 0 else { return nil }
-        pathBuffer[Int(pathLen)] = 0
+        pathBuffer[min(Int(pathLen), maxSize - 1)] = 0
         return pathBuffer.withUnsafeBufferPointer { buf in
             guard let baseAddress = buf.baseAddress else { return nil }
             return String(validatingCString: baseAddress)
