@@ -57,6 +57,7 @@ package struct MascotModule: NotchModule {
         case .codex: "diamond"
         case .geminiCLI: "sparkles"
         case .openCode: "circle.hexagongrid"
+        case .example: "play.circle"
         }
     }
 

@@ -54,6 +54,16 @@ package struct ProviderMetadata: Sendable, Equatable {
                 configFileFormat: .json,
                 sessionLogDirectoryPath: "~/.opencode/sessions",
             )
+        case .example:
+            Self(
+                displayName: "Example",
+                iconName: "play.circle",
+                accentColorHex: "#6366F1",
+                cliBinaryNames: [],
+                transportType: .hookSocket,
+                configFileFormat: .json,
+                sessionLogDirectoryPath: "/tmp/open-island-example",
+            )
         }
     }
 }

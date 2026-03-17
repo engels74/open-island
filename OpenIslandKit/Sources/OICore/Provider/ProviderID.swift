@@ -4,4 +4,5 @@ package enum ProviderID: String, Sendable, Hashable, Codable {
     case codex
     case geminiCLI
     case openCode
+    case example
 }

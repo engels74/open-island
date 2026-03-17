@@ -501,6 +501,7 @@ private extension SettingsMenuView {
                 self.geminiConfig
             case .openCode:
                 self.openCodeConfig
+            case .example: EmptyView()
             }
         }
     }
