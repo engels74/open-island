@@ -131,6 +131,26 @@ struct TokenTrackingManagerTests {
         #expect(manager.sessionTokens["s2"] == nil)
     }
 
+    @Test
+    func `Update from sessions clears stale data when tokenUsage becomes nil`() {
+        let manager = TokenTrackingManager()
+        let now = Date.now
+
+        // Session starts with token data
+        manager.updateFromSessions([
+            SessionTokenInfo(id: "s1", tokenUsage: TokenUsageSnapshot(totalTokens: 500, timestamp: now)),
+        ])
+        #expect(manager.sessionTokens["s1"] != nil)
+        #expect(manager.weeklyTokens == 500)
+
+        // Session now reports nil tokenUsage — stale data must be cleared
+        manager.updateFromSessions([
+            SessionTokenInfo(id: "s1", tokenUsage: nil),
+        ])
+        #expect(manager.sessionTokens["s1"] == nil)
+        #expect(manager.weeklyTokens == 0)
+    }
+
     // MARK: - Quota refresh
 
     @Test

@@ -51,12 +51,16 @@ package final class TokenTrackingManager {
                     self.sessionTokens[info.id] = usage
                     changed = true
                 }
+            } else if self.sessionTokens[info.id] != nil {
+                self.sessionTokens.removeValue(forKey: info.id)
+                changed = true
             }
         }
         // Prune sessions no longer present
         let activeIDs = Set(sessions.map(\.id))
-        for key in self.sessionTokens.keys where !activeIDs.contains(key) {
-            sessionTokens.removeValue(forKey: key)
+        let staleKeys = self.sessionTokens.keys.filter { !activeIDs.contains($0) }
+        for key in staleKeys {
+            self.sessionTokens.removeValue(forKey: key)
             changed = true
         }
         if changed {
