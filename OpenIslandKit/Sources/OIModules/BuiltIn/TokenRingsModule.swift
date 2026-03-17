@@ -4,9 +4,10 @@ package import SwiftUI
 
 /// Shows a compact token usage ring in the closed notch header.
 ///
-/// Visible when any active session has token data. Displays a small circular
+/// Visible whenever there are active providers. Displays a small circular
 /// arc representing the fraction of tokens used relative to the total session
-/// activity.
+/// activity. When ``totalTokens`` is zero and ``quotaFraction`` is `nil`,
+/// renders an empty background track.
 package struct TokenRingsModule: NotchModule {
     // MARK: Lifecycle
 

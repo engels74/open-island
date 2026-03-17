@@ -237,7 +237,7 @@ package enum GeminiEventNormalizer {
     ) -> [ProviderEvent] {
         let taskID = json["task_id"] as? String
             ?? json["subagent_id"] as? String
-            ?? UUID().uuidString
+            ?? "unknown"
         let parentToolID = json["parent_tool_id"] as? String
         return [.subagentStarted(sessionID, taskID: taskID, parentToolID: parentToolID)]
     }
@@ -248,7 +248,7 @@ package enum GeminiEventNormalizer {
     ) -> [ProviderEvent] {
         let taskID = json["task_id"] as? String
             ?? json["subagent_id"] as? String
-            ?? UUID().uuidString
+            ?? "unknown"
         return [.subagentStopped(sessionID, taskID: taskID)]
     }
 
@@ -264,7 +264,7 @@ package enum GeminiEventNormalizer {
         }
         let taskID = mcpContext["server_id"] as? String
             ?? mcpContext["session_id"] as? String
-            ?? UUID().uuidString
+            ?? "unknown"
         let parentToolID = mcpContext["parent_tool_id"] as? String
 
         switch phase {

@@ -116,14 +116,14 @@ package enum OpenCodeEventNormalizer {
         // Detect abort/interrupt patterns in error messages
         let lowered = message.lowercased()
         if lowered.contains("abort") || lowered.contains("interrupt") || lowered.contains("cancelled") {
-            return [.interruptDetected(sessionID), .notification(sessionID, message: message)]
+            return [.interruptDetected(sessionID), .waitingForInput(sessionID), .notification(sessionID, message: message)]
         }
         return [.notification(sessionID, message: message)]
     }
 
     private static func normalizeSessionAbort(_ json: [String: Any]) -> [ProviderEvent] {
         let sessionID = self.extractSessionID(json)
-        return [.interruptDetected(sessionID)]
+        return [.interruptDetected(sessionID), .waitingForInput(sessionID)]
     }
 
     private static func normalizeSessionDiff(_ json: [String: Any]) -> [ProviderEvent] {
