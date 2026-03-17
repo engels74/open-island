@@ -5,7 +5,7 @@
 	<key>SUFeedURL</key>
 	<string>https://openisland.engels74.net/appcast.xml</string>
 	<key>SUPublicEDKey</key>
-	<string></string>
+	<string>Prl1J3hbEkVyTY+OlWDJ1f3A+3RrFPvXk4GTPcw8Huk=</string>
 	<key>SUScheduledCheckInterval</key>
 	<integer>3600</integer>
 </dict>
