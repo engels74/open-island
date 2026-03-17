@@ -24,7 +24,7 @@ package struct ApprovalBarView: View {
     package var body: some View {
         VStack(spacing: 8) {
             Divider()
-                .overlay(.white.opacity(0.1))
+                .overlay(.white.opacity(self.contrast == .increased ? 0.3 : 0.1))
 
             HStack(spacing: 10) {
                 // Tool summary + risk badge
@@ -38,9 +38,13 @@ package struct ApprovalBarView: View {
             .padding(.horizontal, 14)
             .padding(.bottom, 10)
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Permission request: \(self.context.displaySummary)")
     }
 
     // MARK: Private
+
+    @Environment(\.colorSchemeContrast) private var contrast // swiftlint:disable:this attributes
 
     private let context: PermissionContext
     private let sessionID: String
@@ -53,6 +57,7 @@ package struct ApprovalBarView: View {
             Image(systemName: "lock.shield")
                 .font(.system(size: 14))
                 .foregroundStyle(.orange)
+                .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(self.context.displaySummary)
@@ -66,6 +71,8 @@ package struct ApprovalBarView: View {
                 }
             }
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Tool: \(self.context.displaySummary)\(self.context.risk.map { ", risk level \($0)" } ?? "")")
     }
 
     // MARK: - Action Buttons
@@ -84,6 +91,8 @@ package struct ApprovalBarView: View {
                     .background(.red.opacity(0.7), in: Capsule())
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Deny")
+            .accessibilityHint("Denies the tool permission request")
 
             // Always Allow
             Button {
@@ -97,6 +106,8 @@ package struct ApprovalBarView: View {
                     .background(.white.opacity(0.15), in: Capsule())
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Always Allow")
+            .accessibilityHint("Approves this and future requests for this tool")
 
             // Approve
             Button {
@@ -110,6 +121,8 @@ package struct ApprovalBarView: View {
                     .background(.green.opacity(0.7), in: Capsule())
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Approve")
+            .accessibilityHint("Approves the tool permission request")
         }
     }
 }
@@ -129,6 +142,7 @@ private struct RiskBadge: View {
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
             .background(self.color.opacity(0.15), in: Capsule())
+            .accessibilityLabel("Risk level: \(self.label.lowercased())")
     }
 
     // MARK: Private

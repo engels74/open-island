@@ -47,10 +47,12 @@ package final class CodexProviderAdapter: ProviderAdapter, Sendable {
 
         // 4. Create the merged event stream
         let (stream, continuation) = AsyncStream<ProviderEvent>.makeStream(
+            // Event stream — preserve ordering, don't drop events.
             bufferingPolicy: .bufferingOldest(128),
         )
 
-        // 5. Start notification processing task
+        // 5. Start notification processing task (detached to avoid inheriting caller
+        //    isolation — prevents deadlock when stop() is called from the same context).
         let capturedClient = self.client
         let capturedSessionID = sessionID
         let notificationTask = Task.detached { [weak self] in
@@ -80,7 +82,7 @@ package final class CodexProviderAdapter: ProviderAdapter, Sendable {
             }
         }
 
-        // 6. Start server-request processing task (approval interception)
+        // 6. Start server-request processing task (detached — same rationale as above).
         let serverRequestTask = Task.detached { [weak self] in
             for await request in await capturedClient.serverRequests() {
                 guard !Task.isCancelled else { break }
@@ -148,7 +150,8 @@ package final class CodexProviderAdapter: ProviderAdapter, Sendable {
         if let stream = state.withLock({ $0.eventStream }) {
             return stream
         }
-        // Return an immediately-finished stream if not started
+        // Return an immediately-finished empty stream if not started.
+        // No buffering policy needed — finished before any yield.
         let (stream, continuation) = AsyncStream<ProviderEvent>.makeStream()
         continuation.finish()
         return stream

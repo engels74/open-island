@@ -69,11 +69,15 @@ package struct NotchView: View {
             ),
         )
         .shadow(color: .black.opacity(isOpened ? 0.35 : 0.15), radius: isOpened ? 20 : 4, y: isOpened ? 8 : 2)
-        .animation(self.openCloseAnimation(isOpened: isOpened), value: isOpened)
-        .animation(.smooth(duration: 0.3), value: self.viewModel.contentType.discriminator)
+        .animation(self.reduceMotion ? .none : self.openCloseAnimation(isOpened: isOpened), value: isOpened)
+        .animation(self.reduceMotion ? .none : .smooth(duration: 0.3), value: self.viewModel.contentType.discriminator)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(isOpened ? "Open Island panel, expanded" : "Open Island panel, collapsed")
     }
 
     // MARK: Private
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion // swiftlint:disable:this attributes
 
     private var viewModel: NotchViewModel
     private var sessionMonitor: SessionMonitor

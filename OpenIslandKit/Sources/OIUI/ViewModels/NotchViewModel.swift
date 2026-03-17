@@ -101,9 +101,25 @@ package final class NotchViewModel {
         // Finish any existing stream before creating a new one.
         self.activeStatusContinuation?.finish()
 
+        self.statusStreamGeneration &+= 1
+        let generation = self.statusStreamGeneration
+
         let (stream, continuation) = AsyncStream<NotchStatus>.makeStream(
+            // State snapshot — only the latest status matters.
             bufferingPolicy: .bufferingNewest(1),
         )
+
+        continuation.onTermination = { [weak self] _ in
+            // Clear the stored continuation so the adapter doesn't yield
+            // into a terminated stream. Guard against a stale termination
+            // handler (from a previously-finished stream) wiping a newer
+            // continuation — only clear if the generation still matches.
+            Task { @MainActor in
+                guard let self, self.statusStreamGeneration == generation else { return }
+                self.activeStatusContinuation = nil
+            }
+        }
+
         self.activeStatusContinuation = continuation
         return stream
     }
@@ -145,4 +161,9 @@ package final class NotchViewModel {
 
     /// The continuation for the current status stream (if any).
     @ObservationIgnored private var activeStatusContinuation: AsyncStream<NotchStatus>.Continuation?
+
+    /// Generation counter incremented each time ``makeStatusStream()`` creates
+    /// a new continuation. Used by `onTermination` to avoid clearing a
+    /// successor's continuation.
+    @ObservationIgnored private var statusStreamGeneration: UInt64 = 0
 }

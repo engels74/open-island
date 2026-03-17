@@ -57,6 +57,7 @@ package actor ProviderRegistry {
     package func mergedEvents() -> AsyncStream<ProviderEvent> {
         let currentAdapters = Array(adapters.values)
         let (stream, continuation) = AsyncStream<ProviderEvent>.makeStream(
+            // Merged event stream — preserve ordering across all providers.
             bufferingPolicy: .bufferingOldest(128),
         )
         let task = Task {

@@ -66,6 +66,36 @@ struct SessionStoreTests {
     }
 
     @Test
+    func `compacting transitions to .processing on processingStarted`() async {
+        let store = await storeWithSession()
+        await store.process(.providerEvent(.processingStarted("s1")))
+        await store.process(.providerEvent(.compacting("s1")))
+        #expect(await store.session(for: "s1")?.phase == .compacting)
+        await store.process(.providerEvent(.processingStarted("s1")))
+        #expect(await store.session(for: "s1")?.phase == .processing)
+    }
+
+    @Test
+    func `compacting transitions to .processing on userPromptSubmitted`() async {
+        let store = await storeWithSession()
+        await store.process(.providerEvent(.processingStarted("s1")))
+        await store.process(.providerEvent(.compacting("s1")))
+        #expect(await store.session(for: "s1")?.phase == .compacting)
+        await store.process(.providerEvent(.userPromptSubmitted("s1")))
+        #expect(await store.session(for: "s1")?.phase == .processing)
+    }
+
+    @Test
+    func `compacting transitions to .ended on sessionEnded`() async {
+        let store = await storeWithSession()
+        await store.process(.providerEvent(.processingStarted("s1")))
+        await store.process(.providerEvent(.compacting("s1")))
+        #expect(await store.session(for: "s1")?.phase == .compacting)
+        await store.process(.providerEvent(.sessionEnded("s1")))
+        #expect(await store.session(for: "s1")?.phase == .ended)
+    }
+
+    @Test
     func `transitions to .ended on sessionEnded`() async {
         let store = await storeWithSession()
         await store.process(.providerEvent(.sessionEnded("s1")))

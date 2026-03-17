@@ -32,12 +32,14 @@ package struct NotchHeaderView: View {
                     .frame(height: Self.openedHeight)
             }
         }
-        .animation(.snappy(duration: 0.25), value: self.viewModel.status)
+        .animation(self.reduceMotion ? .none : .snappy(duration: 0.25), value: self.viewModel.status)
     }
 
     // MARK: Private
 
     private static let openedHeight: CGFloat = 44
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion // swiftlint:disable:this attributes
 
     @Namespace private var headerNamespace
 
@@ -133,6 +135,8 @@ package struct NotchHeaderView: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Close panel")
+            .accessibilityHint("Collapses the Open Island panel")
         case .chat,
              .menu:
             // Back button — returns to instances
@@ -146,6 +150,8 @@ package struct NotchHeaderView: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Back to sessions")
+            .accessibilityHint("Returns to the session list")
         }
     }
 
@@ -176,6 +182,8 @@ package struct NotchHeaderView: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Settings")
+            .accessibilityHint("Opens the settings menu")
         }
     }
 
@@ -183,6 +191,7 @@ package struct NotchHeaderView: View {
         ProgressView()
             .controlSize(.small)
             .matchedGeometryEffect(id: "activity", in: self.headerNamespace)
+            .accessibilityLabel("Activity in progress")
     }
 
     /// Renders a horizontal row of modules with the layout engine's spacing.

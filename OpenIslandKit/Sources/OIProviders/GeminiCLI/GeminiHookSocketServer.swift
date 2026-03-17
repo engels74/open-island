@@ -103,7 +103,7 @@ private struct GeminiBridgeDelegate: HookSocketBridgeDelegate {
         // Construct a composite ID from available fields.
         if let sessionID = json["session_id"] as? String,
            let toolName = json["tool_name"] as? String {
-            let timestamp = json["timestamp"] as? String ?? UUID().uuidString
+            let timestamp = json["timestamp"] as? String ?? "unknown"
             return "\(sessionID):\(toolName):\(timestamp)"
         }
         return nil

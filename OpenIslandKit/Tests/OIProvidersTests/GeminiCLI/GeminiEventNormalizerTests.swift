@@ -254,6 +254,163 @@ struct GeminiEventNormalizerNotificationTests {
     }
 }
 
+// MARK: - GeminiEventNormalizerInterruptTests
+
+@Suite(.tags(.gemini))
+struct GeminiEventNormalizerInterruptTests {
+    @Test
+    func `AfterAgent with interrupted flag emits interruptDetected then waitingForInput`() throws {
+        let data = Data(#"{"hook_event_name":"AfterAgent","session_id":"s1","interrupted":true}"#.utf8)
+        let (events, _) = try GeminiEventNormalizer.normalize(data, lastAfterModelTime: nil)
+        #expect(events.count == 2)
+
+        guard case let .interruptDetected(sid1) = events[0] else {
+            Issue.record("Expected .interruptDetected, got \(events[0])")
+            return
+        }
+        #expect(sid1 == "s1")
+
+        guard case let .waitingForInput(sid2) = events[1] else {
+            Issue.record("Expected .waitingForInput, got \(events[1])")
+            return
+        }
+        #expect(sid2 == "s1")
+    }
+
+    @Test
+    func `AfterAgent with reason interrupted emits interruptDetected then waitingForInput`() throws {
+        let data = Data(#"{"hook_event_name":"AfterAgent","session_id":"s1","reason":"interrupted"}"#.utf8)
+        let (events, _) = try GeminiEventNormalizer.normalize(data, lastAfterModelTime: nil)
+        #expect(events.count == 2)
+
+        guard case .interruptDetected = events[0] else {
+            Issue.record("Expected .interruptDetected, got \(events[0])")
+            return
+        }
+        guard case .waitingForInput = events[1] else {
+            Issue.record("Expected .waitingForInput, got \(events[1])")
+            return
+        }
+    }
+
+    @Test
+    func `AfterAgent without interruption indicators does not emit interruptDetected`() throws {
+        let data = Data(#"{"hook_event_name":"AfterAgent","session_id":"s1"}"#.utf8)
+        let (events, _) = try GeminiEventNormalizer.normalize(data, lastAfterModelTime: nil)
+        #expect(events.count == 1)
+        guard case .waitingForInput = events.first else {
+            Issue.record("Expected .waitingForInput, got \(String(describing: events.first))")
+            return
+        }
+    }
+
+    @Test
+    func `AfterAgent with interrupted false does not emit interruptDetected`() throws {
+        let data = Data(#"{"hook_event_name":"AfterAgent","session_id":"s1","interrupted":false}"#.utf8)
+        let (events, _) = try GeminiEventNormalizer.normalize(data, lastAfterModelTime: nil)
+        #expect(events.count == 1)
+        guard case .waitingForInput = events.first else {
+            Issue.record("Expected .waitingForInput, got \(String(describing: events.first))")
+            return
+        }
+    }
+}
+
+// MARK: - GeminiEventNormalizerSubagentTests
+
+@Suite(.tags(.gemini))
+struct GeminiEventNormalizerSubagentTests {
+    @Test
+    func `BeforeSubagent normalizes to subagentStarted`() throws {
+        let json = #"{"hook_event_name":"BeforeSubagent","session_id":"s1","task_id":"sub-1","parent_tool_id":"tu-p"}"#
+        let data = Data(json.utf8)
+        let (events, _) = try GeminiEventNormalizer.normalize(data, lastAfterModelTime: nil)
+        #expect(events.count == 1)
+        guard case let .subagentStarted(sid, taskID, parentToolID) = events.first else {
+            Issue.record("Expected .subagentStarted, got \(String(describing: events.first))")
+            return
+        }
+        #expect(sid == "s1")
+        #expect(taskID == "sub-1")
+        #expect(parentToolID == "tu-p")
+    }
+
+    @Test
+    func `AfterSubagent normalizes to subagentStopped`() throws {
+        let json = #"{"hook_event_name":"AfterSubagent","session_id":"s1","task_id":"sub-1"}"#
+        let data = Data(json.utf8)
+        let (events, _) = try GeminiEventNormalizer.normalize(data, lastAfterModelTime: nil)
+        #expect(events.count == 1)
+        guard case let .subagentStopped(sid, taskID) = events.first else {
+            Issue.record("Expected .subagentStopped, got \(String(describing: events.first))")
+            return
+        }
+        #expect(sid == "s1")
+        #expect(taskID == "sub-1")
+    }
+
+    @Test
+    func `BeforeTool with mcp_context emits subagentStarted before toolStarted`() throws {
+        let json = """
+        {"hook_event_name":"BeforeTool","session_id":"s1",\
+        "tool_name":"mcp_read","timestamp":"t1",\
+        "mcp_context":{"server_id":"mcp-srv-1","parent_tool_id":"tu-parent"}}
+        """
+        let data = Data(json.utf8)
+        let (events, _) = try GeminiEventNormalizer.normalize(data, lastAfterModelTime: nil)
+        #expect(events.count == 2)
+
+        guard case let .subagentStarted(_, taskID, parentToolID) = events[0] else {
+            Issue.record("Expected .subagentStarted, got \(events[0])")
+            return
+        }
+        #expect(taskID == "mcp-srv-1")
+        #expect(parentToolID == "tu-parent")
+
+        guard case let .toolStarted(_, toolEvent) = events[1] else {
+            Issue.record("Expected .toolStarted, got \(events[1])")
+            return
+        }
+        #expect(toolEvent.name == "mcp_read")
+    }
+
+    @Test
+    func `AfterTool with mcp_context emits subagentStopped after toolCompleted`() throws {
+        let json = """
+        {"hook_event_name":"AfterTool","session_id":"s1",\
+        "tool_name":"mcp_read","timestamp":"t2",\
+        "mcp_context":{"server_id":"mcp-srv-1"},\
+        "tool_response":{"llmContent":"data"}}
+        """
+        let data = Data(json.utf8)
+        let (events, _) = try GeminiEventNormalizer.normalize(data, lastAfterModelTime: nil)
+        #expect(events.count == 2)
+
+        guard case .toolCompleted = events[0] else {
+            Issue.record("Expected .toolCompleted, got \(events[0])")
+            return
+        }
+
+        guard case let .subagentStopped(_, taskID) = events[1] else {
+            Issue.record("Expected .subagentStopped, got \(events[1])")
+            return
+        }
+        #expect(taskID == "mcp-srv-1")
+    }
+
+    @Test
+    func `BeforeTool without mcp_context does not emit subagent events`() throws {
+        let json = #"{"hook_event_name":"BeforeTool","session_id":"s1","tool_name":"Bash","timestamp":"t1"}"#
+        let data = Data(json.utf8)
+        let (events, _) = try GeminiEventNormalizer.normalize(data, lastAfterModelTime: nil)
+        #expect(events.count == 1)
+        guard case .toolStarted = events.first else {
+            Issue.record("Expected only .toolStarted, got \(String(describing: events.first))")
+            return
+        }
+    }
+}
+
 // MARK: - GeminiEventNormalizerErrorTests
 
 @Suite(.tags(.gemini))

@@ -34,6 +34,68 @@ struct CodexEventNormalizerTurnTests {
     }
 
     @Test
+    func `turnCompleted with interrupted status emits interruptDetected then waitingForInput`() throws {
+        let params: JSONValue = .object([
+            "status": .string("interrupted"),
+        ])
+        let notification = JSONRPCNotification(method: "turn/completed", params: params)
+        let events = try CodexEventNormalizer.normalize(notification, sessionID: self.sessionID)
+        #expect(events.count == 2)
+
+        guard case let .interruptDetected(sid1) = events[0] else {
+            Issue.record("Expected .interruptDetected, got \(events[0])")
+            return
+        }
+        #expect(sid1 == self.sessionID)
+
+        guard case let .waitingForInput(sid2) = events[1] else {
+            Issue.record("Expected .waitingForInput, got \(events[1])")
+            return
+        }
+        #expect(sid2 == self.sessionID)
+    }
+
+    @Test
+    func `turnCompleted with completed status does not emit interruptDetected`() throws {
+        let params: JSONValue = .object([
+            "status": .string("completed"),
+        ])
+        let notification = JSONRPCNotification(method: "turn/completed", params: params)
+        let events = try CodexEventNormalizer.normalize(notification, sessionID: self.sessionID)
+        #expect(events.count == 1)
+        guard case .waitingForInput = events.first else {
+            Issue.record("Expected .waitingForInput, got \(String(describing: events.first))")
+            return
+        }
+    }
+
+    @Test
+    func `turnCompleted with interrupted status and token usage emits all three events`() throws {
+        let params: JSONValue = .object([
+            "status": .string("interrupted"),
+            "prompt_tokens": .int(100),
+            "completion_tokens": .int(50),
+            "total_tokens": .int(150),
+        ])
+        let notification = JSONRPCNotification(method: "turn/completed", params: params)
+        let events = try CodexEventNormalizer.normalize(notification, sessionID: self.sessionID)
+        #expect(events.count == 3)
+
+        guard case .tokenUsage = events[0] else {
+            Issue.record("Expected .tokenUsage, got \(events[0])")
+            return
+        }
+        guard case .interruptDetected = events[1] else {
+            Issue.record("Expected .interruptDetected, got \(events[1])")
+            return
+        }
+        guard case .waitingForInput = events[2] else {
+            Issue.record("Expected .waitingForInput, got \(events[2])")
+            return
+        }
+    }
+
+    @Test
     func `turnCompleted with token usage emits tokenUsage then waitingForInput`() throws {
         let params: JSONValue = .object([
             "prompt_tokens": .int(100),

@@ -53,7 +53,7 @@ package struct GeminiHeadlessStreamParser: Sendable {
                 .flatMap { try? JSONSerialization.data(withJSONObject: $0) }
                 .flatMap { try? JSONDecoder().decode(JSONValue.self, from: $0) }
             let toolEvent = ToolEvent(
-                id: json["tool_use_id"] as? String ?? UUID().uuidString,
+                id: json["tool_use_id"] as? String ?? "unknown",
                 name: toolName,
                 input: toolInput,
                 startedAt: Date(),
@@ -63,7 +63,7 @@ package struct GeminiHeadlessStreamParser: Sendable {
         case "tool_result":
             let toolName = json["tool_name"] as? String ?? "unknown"
             let toolEvent = ToolEvent(
-                id: json["tool_use_id"] as? String ?? UUID().uuidString,
+                id: json["tool_use_id"] as? String ?? "unknown",
                 name: toolName,
                 input: nil,
                 startedAt: Date(),

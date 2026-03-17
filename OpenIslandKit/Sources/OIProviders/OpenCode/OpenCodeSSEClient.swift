@@ -62,7 +62,10 @@ package actor OpenCodeSSEClient {
         let capturedSession = self.session
         let capturedLastEventID = lastEventID
 
+        // SSE event stream — larger buffer (256) to handle bursts during reconnection.
         return AsyncStream<SSEEvent>(bufferingPolicy: .bufferingOldest(256)) { continuation in
+            // Detached: must shed actor isolation so URLSession byte iteration
+            // doesn't block the OpenCodeSSEClient actor's serial executor.
             let task = Task.detached {
                 var currentLastEventID = capturedLastEventID
                 var backoff = ExponentialBackoff()
