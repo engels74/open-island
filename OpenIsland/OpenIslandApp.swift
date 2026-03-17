@@ -1,4 +1,5 @@
 import AppKit
+import OICore
 import SwiftUI
 
 @main
@@ -6,7 +7,9 @@ struct OpenIslandApp: App {
     // MARK: Lifecycle
 
     init() {
+        SingleInstanceGuard.ensureSingleInstance()
         NSApplication.shared.setActivationPolicy(.accessory)
+        self.updateManager.start()
     }
 
     // MARK: Internal
@@ -16,4 +19,8 @@ struct OpenIslandApp: App {
             EmptyView()
         }
     }
+
+    // MARK: Private
+
+    @State private var updateManager = UpdateManager()
 }

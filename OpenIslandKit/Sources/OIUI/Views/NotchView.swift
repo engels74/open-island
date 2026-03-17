@@ -26,9 +26,14 @@ package import SwiftUI
 package struct NotchView: View {
     // MARK: Lifecycle
 
-    package init(viewModel: NotchViewModel, sessionMonitor: SessionMonitor) {
+    package init(
+        viewModel: NotchViewModel,
+        sessionMonitor: SessionMonitor,
+        onCheckForUpdates: (() -> Void)? = nil,
+    ) {
         self.viewModel = viewModel
         self.sessionMonitor = sessionMonitor
+        self.onCheckForUpdates = onCheckForUpdates
     }
 
     // MARK: Package
@@ -70,6 +75,7 @@ package struct NotchView: View {
 
     private var viewModel: NotchViewModel
     private var sessionMonitor: SessionMonitor
+    private var onCheckForUpdates: (() -> Void)?
 
     /// The notch size when closed, derived from the device notch rect plus module expansion.
     ///
@@ -104,7 +110,7 @@ package struct NotchView: View {
         case let .chat(session):
             ChatView(session: session, monitor: self.sessionMonitor, viewModel: self.viewModel)
         case .menu:
-            SettingsMenuView(viewModel: self.viewModel)
+            SettingsMenuView(viewModel: self.viewModel, onCheckForUpdates: self.onCheckForUpdates)
         }
     }
 
