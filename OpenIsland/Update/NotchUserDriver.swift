@@ -73,6 +73,8 @@ final class NotchUserDriver: NSObject, SPUUserDriver {
     func showDownloadInitiated(cancellation: @escaping @Sendable () -> Void) {
         self.updateState.phase = .downloading
         self.updateState.downloadProgress = 0
+        self.updateState.expectedContentLength = 0
+        self.updateState.downloadedLength = 0
         self.updateState.cancellation = cancellation
     }
 

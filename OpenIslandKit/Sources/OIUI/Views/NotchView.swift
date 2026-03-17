@@ -30,10 +30,12 @@ package struct NotchView: View {
         viewModel: NotchViewModel,
         sessionMonitor: SessionMonitor,
         onCheckForUpdates: (() -> Void)? = nil,
+        updateStatusContent: AnyView? = nil,
     ) {
         self.viewModel = viewModel
         self.sessionMonitor = sessionMonitor
         self.onCheckForUpdates = onCheckForUpdates
+        self.updateStatusContent = updateStatusContent
     }
 
     // MARK: Package
@@ -76,6 +78,7 @@ package struct NotchView: View {
     private var viewModel: NotchViewModel
     private var sessionMonitor: SessionMonitor
     private var onCheckForUpdates: (() -> Void)?
+    private var updateStatusContent: AnyView?
 
     /// The notch size when closed, derived from the device notch rect plus module expansion.
     ///
@@ -110,7 +113,11 @@ package struct NotchView: View {
         case let .chat(session):
             ChatView(session: session, monitor: self.sessionMonitor, viewModel: self.viewModel)
         case .menu:
-            SettingsMenuView(viewModel: self.viewModel, onCheckForUpdates: self.onCheckForUpdates)
+            SettingsMenuView(
+                viewModel: self.viewModel,
+                onCheckForUpdates: self.onCheckForUpdates,
+                updateStatusContent: self.updateStatusContent,
+            )
         }
     }
 

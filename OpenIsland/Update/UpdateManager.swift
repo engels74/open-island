@@ -83,6 +83,13 @@ final class UpdateManager {
 
     /// Starts the Sparkle updater, enabling automatic background checks.
     func start() {
+        if let edKey = Bundle.main.infoDictionary?["SUPublicEDKey"] as? String, edKey.isEmpty {
+            Logger(subsystem: Bundle.main.bundleIdentifier ?? "OpenIsland", category: "UpdateManager")
+                .warning(
+                    "SUPublicEDKey is empty — update signature verification disabled. Generate keys with Sparkle's generate_keys.",
+                )
+        }
+
         do {
             try self.updater.start()
         } catch {
