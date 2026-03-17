@@ -10,7 +10,9 @@ import Foundation
 /// is visible, frontmost, or owns a specific session PID.
 ///
 /// All methods are synchronous — they call `CGWindowListCopyWindowInfo`
-/// directly. Safe to call from any isolation domain.
+/// directly. Isolated to `@MainActor` because the implementation accesses
+/// `NSWorkspace`, `NSScreen`, and `NSRunningApplication`.
+@MainActor
 package enum TerminalVisibilityDetector {
     // MARK: Package
 
@@ -48,7 +50,7 @@ package enum TerminalVisibilityDetector {
         }
 
         let windows = self.onScreenWindows()
-        let screenFrame = NSScreen.main.map(\.frame) ?? .zero
+        let screenFrame = NSScreen.screens.reduce(CGRect.null) { $0.union($1.frame) }
 
         for info in windows {
             guard let ownerPID = info[kCGWindowOwnerPID as String] as? Int32,

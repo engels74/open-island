@@ -79,7 +79,12 @@ package struct ProcessTree: Sendable {
             guard let entry = entries[current] else {
                 // Process not in snapshot — try parent via direct lookup.
                 // This handles cases where the snapshot missed the entry.
-                break
+                let directParent = Self.parentPID(of: current)
+                if directParent <= 1 || directParent == current {
+                    return nil
+                }
+                current = directParent
+                continue
             }
 
             // Detect tmux server in ancestry.
@@ -119,6 +124,17 @@ package struct ProcessTree: Sendable {
     /// PID-keyed lookup of process entries.
     private let entries: [pid_t: ProcessInfo]
 
+    /// Returns the parent PID of the given process using `sysctl`.
+    /// Used as a fallback when the process is not in the snapshot.
+    private static func parentPID(of pid: pid_t) -> pid_t {
+        var info = kinfo_proc()
+        var size = MemoryLayout<kinfo_proc>.size
+        var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, pid]
+        let result = sysctl(&mib, UInt32(mib.count), &info, &size, nil, 0)
+        guard result == 0 else { return 0 }
+        return info.kp_eproc.e_ppid
+    }
+
     private func isTmuxProcess(_ name: String) -> Bool {
         name == "tmux" || name.hasPrefix("tmux:")
     }
@@ -145,18 +161,19 @@ package enum ProcessTreeBuilder {
 
         // Allocate with headroom for processes spawned between count and list.
         var pids = [pid_t](repeating: 0, count: Int(pidCount) + 64)
-        let actualBytes = proc_listallpids(
+        // proc_listallpids returns a PID count (not bytes) — it wraps
+        // proc_listpids and divides by sizeof(int) internally.
+        let actualCount = proc_listallpids(
             &pids,
             Int32(pids.count * MemoryLayout<pid_t>.size),
         )
-        guard actualBytes > 0 else {
+        guard actualCount > 0 else {
             return ProcessTree(entries: [:])
         }
-        let actualCount = Int(actualBytes) / MemoryLayout<pid_t>.size
 
-        var entries = [pid_t: ProcessInfo](minimumCapacity: actualCount)
+        var entries = [pid_t: ProcessInfo](minimumCapacity: Int(actualCount))
 
-        for i in 0 ..< actualCount {
+        for i in 0 ..< Int(actualCount) {
             let pid = pids[i]
             guard pid > 0 else { continue }
 

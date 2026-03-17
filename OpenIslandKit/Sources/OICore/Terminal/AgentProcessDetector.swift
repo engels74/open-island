@@ -159,7 +159,14 @@ package enum AgentProcessDetector {
 
         let queue = DispatchQueue(label: "com.open-island.fsevents", qos: .utility)
         FSEventStreamSetDispatchQueue(eventStream, queue)
-        FSEventStreamStart(eventStream)
+
+        guard FSEventStreamStart(eventStream) else {
+            FSEventStreamInvalidate(eventStream)
+            FSEventStreamRelease(eventStream)
+            unmanagedContext.release()
+            continuation.finish()
+            return
+        }
 
         let streamRef = SendableStreamRef(eventStream)
         continuation.onTermination = { @Sendable _ in
@@ -214,13 +221,15 @@ package enum AgentProcessDetector {
 
     /// Returns all PIDs on the system.
     private static func allPIDs() -> [pid_t] {
+        // proc_listallpids returns a PID count (not bytes) — it wraps
+        // proc_listpids and divides by sizeof(int) internally.
         let count = proc_listallpids(nil, 0)
         guard count > 0 else { return [] }
         var pids = [pid_t](repeating: 0, count: Int(count))
-        let actualBytes = proc_listallpids(&pids, Int32(MemoryLayout<pid_t>.size * Int(count)))
-        guard actualBytes > 0 else { return [] }
-        let actualCount = Int(actualBytes) / MemoryLayout<pid_t>.size
-        return Array(pids.prefix(actualCount))
+        let bufferSize = Int32(MemoryLayout<pid_t>.size * Int(count))
+        let actualCount = proc_listallpids(&pids, bufferSize)
+        guard actualCount > 0 else { return [] }
+        return Array(pids.prefix(Int(actualCount)))
     }
 
     /// Returns the short process name for a PID using `proc_pidinfo`.
