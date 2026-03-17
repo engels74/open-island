@@ -48,10 +48,12 @@ package final class OpenCodeProviderAdapter: ProviderAdapter, Sendable {
 
         // 5. Create the provider event stream
         let (stream, continuation) = AsyncStream<ProviderEvent>.makeStream(
+            // Event stream — preserve ordering, don't drop events.
             bufferingPolicy: .bufferingOldest(128),
         )
 
-        // 6. Start SSE processing task
+        // 6. Start SSE processing task (detached to avoid inheriting caller isolation
+        //    — prevents deadlock when stop() is called from the same context).
         //
         // The adapter tracks real session IDs and permission→session mappings
         // from SSE events. This is necessary because:
@@ -142,7 +144,8 @@ package final class OpenCodeProviderAdapter: ProviderAdapter, Sendable {
         if let stream = state.withLock({ $0.eventStream }) {
             return stream
         }
-        // Return an immediately-finished stream if not started
+        // Return an immediately-finished empty stream if not started.
+        // No buffering policy needed — finished before any yield.
         let (stream, continuation) = AsyncStream<ProviderEvent>.makeStream()
         continuation.finish()
         return stream

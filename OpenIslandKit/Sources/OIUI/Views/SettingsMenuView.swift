@@ -41,6 +41,8 @@ package struct SettingsMenuView: View {
 
     // MARK: Private
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion // swiftlint:disable:this attributes
+
     // MARK: Sound state
 
     @State private var notificationSound: NotificationSound = .default
@@ -166,6 +168,7 @@ private extension SettingsMenuView {
                     )
                     .labelsHidden()
                     .frame(width: 24, height: 24)
+                    .accessibilityLabel("Mascot Color")
                 }
 
                 SettingsToggle(
@@ -223,11 +226,14 @@ private extension SettingsMenuView {
                 Circle()
                     .fill(AppSettings.Claude.hookPath != nil ? .green : .yellow)
                     .frame(width: 6, height: 6)
+                    .accessibilityHidden(true)
                 Text(AppSettings.Claude.hookPath != nil ? "Hook configured" : "Not configured")
                     .font(.system(size: 10))
                     .foregroundStyle(.secondary)
                 Spacer()
             }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(AppSettings.Claude.hookPath != nil ? "Hook configured" : "Hook not configured")
         }
     }
 
@@ -401,6 +407,8 @@ private extension SettingsMenuView {
                         )
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Check for Updates")
+                    .accessibilityHint("Checks for new versions of Open Island")
                 }
             }
         }
@@ -415,51 +423,21 @@ private extension SettingsMenuView {
         let isExpanded = self.expandedProvider == providerID
 
         VStack(spacing: 0) {
-            // Main toggle row
             HStack(spacing: 8) {
                 Image(systemName: meta.iconName)
                     .font(.system(size: 11))
                     .foregroundStyle(Color(hex: meta.accentColorHex) ?? .white)
                     .frame(width: 16)
-
+                    .accessibilityHidden(true)
                 Text(meta.displayName)
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.white)
-
                 Spacer()
-
-                Toggle("", isOn: Binding(
-                    get: { isEnabled },
-                    set: { newValue in
-                        if newValue {
-                            self.enabledProviders.insert(providerID)
-                        } else {
-                            self.enabledProviders.remove(providerID)
-                        }
-                        AppSettings.enabledProviders = self.enabledProviders
-                    },
-                ))
-                .labelsHidden()
-                .toggleStyle(.switch)
-                .controlSize(.mini)
-
-                Button {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        self.expandedProvider = isExpanded ? nil : providerID
-                    }
-                    self.viewModel.invalidateMenuLayout()
-                } label: {
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 9, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                        .rotationEffect(.degrees(isExpanded ? 90 : 0))
-                }
-                .buttonStyle(.plain)
+                self.providerToggle(providerID, isEnabled: isEnabled, displayName: meta.displayName)
+                self.providerExpandButton(providerID, isExpanded: isExpanded, displayName: meta.displayName)
             }
             .padding(.vertical, 6)
             .padding(.horizontal, 8)
-
-            // Expandable config sub-section
             if isExpanded {
                 self.providerConfig(for: providerID)
                     .padding(.horizontal, 8)
@@ -467,10 +445,47 @@ private extension SettingsMenuView {
                     .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
-        .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(.white.opacity(0.05)),
-        )
+        .background(RoundedRectangle(cornerRadius: 6).fill(.white.opacity(0.05)))
+    }
+
+    private func providerToggle(_ providerID: ProviderID, isEnabled: Bool, displayName: String) -> some View {
+        Toggle("", isOn: Binding(
+            get: { isEnabled },
+            set: { newValue in
+                if newValue {
+                    self.enabledProviders.insert(providerID)
+                } else {
+                    self.enabledProviders.remove(providerID)
+                }
+                AppSettings.enabledProviders = self.enabledProviders
+            },
+        ))
+        .labelsHidden()
+        .toggleStyle(.switch)
+        .controlSize(.mini)
+        .accessibilityLabel("Enable \(displayName)")
+    }
+
+    private func providerExpandButton(
+        _ providerID: ProviderID, isExpanded: Bool, displayName: String,
+    ) -> some View {
+        Button {
+            let newValue: ProviderID? = isExpanded ? nil : providerID
+            if self.reduceMotion {
+                self.expandedProvider = newValue
+            } else {
+                withAnimation(.easeInOut(duration: 0.2)) { self.expandedProvider = newValue }
+            }
+            self.viewModel.invalidateMenuLayout()
+        } label: {
+            Image(systemName: "chevron.right")
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .rotationEffect(.degrees(isExpanded ? 90 : 0))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(displayName) settings")
+        .accessibilityHint(isExpanded ? "Collapses provider configuration" : "Expands provider configuration")
     }
 
     func providerConfig(for providerID: ProviderID) -> some View {
@@ -523,6 +538,7 @@ private struct SettingsSection<Content: View>: View {
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(.white.opacity(0.5))
                 .textCase(.uppercase)
+                .accessibilityAddTraits(.isHeader)
 
             self.content
         }
@@ -539,9 +555,7 @@ private struct SettingsToggle: View {
 
     var body: some View {
         Toggle(isOn: self.$isOn) {
-            Text(self.label)
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
+            Text(self.label).font(.system(size: 11)).foregroundStyle(.secondary)
         }
         .toggleStyle(.switch)
         .controlSize(.mini)
@@ -559,9 +573,7 @@ private struct SettingsTextField: View {
 
     var body: some View {
         HStack {
-            Text(self.label)
-                .font(.system(size: 10))
-                .foregroundStyle(.secondary)
+            Text(self.label).font(.system(size: 10)).foregroundStyle(.secondary)
             Spacer()
             TextField(self.placeholder, text: self.$text)
                 .textFieldStyle(.roundedBorder)
@@ -584,9 +596,7 @@ private struct LabeledPicker<T: Hashable>: View {
 
     var body: some View {
         HStack {
-            Text(self.label)
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
+            Text(self.label).font(.system(size: 11)).foregroundStyle(.secondary)
             Spacer()
             Picker("", selection: self.$selection) {
                 ForEach(self.options, id: \.self) { option in

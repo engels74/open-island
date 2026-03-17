@@ -47,6 +47,26 @@ package enum GeminiEventNormalizer {
             throw .missingRequiredField("session_id")
         }
 
+        return try self.dispatchHookEvent(hookEventName, json: json, sessionID: sessionID, lastAfterModelTime: lastAfterModelTime)
+    }
+
+    // MARK: Private
+
+    // MARK: - MCP Context Detection
+
+    private enum ToolPhase { case before, after }
+
+    /// Throttle interval for AfterModel events (100ms).
+    private static let afterModelThrottleInterval: TimeInterval = 0.1
+
+    // MARK: - Hook Event Dispatch
+
+    private static func dispatchHookEvent(
+        _ hookEventName: String,
+        json: [String: Any],
+        sessionID: String,
+        lastAfterModelTime: Date?,
+    ) throws(EventNormalizationError) -> (events: [ProviderEvent], updatedThrottleTime: Date?) {
         switch hookEventName {
         case "SessionStart":
             let cwd = json["cwd"] as? String ?? ""
@@ -62,16 +82,18 @@ package enum GeminiEventNormalizer {
             )
 
         case "AfterAgent":
-            return ([.waitingForInput(sessionID)], lastAfterModelTime)
+            return self.normalizeAfterAgent(json, sessionID: sessionID, lastAfterModelTime: lastAfterModelTime)
 
         case "BeforeTool":
+            let mcpEvents = self.normalizeMCPContext(json, sessionID: sessionID, phase: .before)
             let toolEvent = try makeToolEvent(from: json, sessionID: sessionID)
-            return ([.toolStarted(sessionID, toolEvent)], lastAfterModelTime)
+            return (mcpEvents + [.toolStarted(sessionID, toolEvent)], lastAfterModelTime)
 
         case "AfterTool":
             let toolEvent = try makeToolEvent(from: json, sessionID: sessionID)
             let result = self.makeToolResult(from: json)
-            return ([.toolCompleted(sessionID, toolEvent, result)], lastAfterModelTime)
+            let mcpEvents = self.normalizeMCPContext(json, sessionID: sessionID, phase: .after)
+            return ([.toolCompleted(sessionID, toolEvent, result)] + mcpEvents, lastAfterModelTime)
 
         case "BeforeModel":
             return ([.processingStarted(sessionID)], lastAfterModelTime)
@@ -80,8 +102,13 @@ package enum GeminiEventNormalizer {
             return self.normalizeAfterModel(json, sessionID: sessionID, lastAfterModelTime: lastAfterModelTime)
 
         case "BeforeToolSelection":
-            // No direct ProviderEvent mapping — informational only
             return ([], lastAfterModelTime)
+
+        case "BeforeSubagent":
+            return (self.normalizeBeforeSubagent(json, sessionID: sessionID), lastAfterModelTime)
+
+        case "AfterSubagent":
+            return (self.normalizeAfterSubagent(json, sessionID: sessionID), lastAfterModelTime)
 
         case "PreCompress":
             return ([.compacting(sessionID)], lastAfterModelTime)
@@ -94,10 +121,20 @@ package enum GeminiEventNormalizer {
         }
     }
 
-    // MARK: Private
-
-    /// Throttle interval for AfterModel events (100ms).
-    private static let afterModelThrottleInterval: TimeInterval = 0.1
+    private static func normalizeAfterAgent(
+        _ json: [String: Any],
+        sessionID: String,
+        lastAfterModelTime: Date?,
+    ) -> (events: [ProviderEvent], updatedThrottleTime: Date?) {
+        var events: [ProviderEvent] = []
+        let interrupted = json["interrupted"] as? Bool ?? false
+        let reason = json["reason"] as? String
+        if interrupted || reason == "interrupted" {
+            events.append(.interruptDetected(sessionID))
+        }
+        events.append(.waitingForInput(sessionID))
+        return (events, lastAfterModelTime)
+    }
 
     // MARK: - AfterModel Normalization (with throttling)
 
@@ -190,6 +227,52 @@ package enum GeminiEventNormalizer {
 
         let message = json["message"] as? String ?? json["notification_type"] as? String ?? ""
         return ([.notification(sessionID, message: message)], lastAfterModelTime)
+    }
+
+    // MARK: - Subagent Normalization
+
+    private static func normalizeBeforeSubagent(
+        _ json: [String: Any],
+        sessionID: SessionID,
+    ) -> [ProviderEvent] {
+        let taskID = json["task_id"] as? String
+            ?? json["subagent_id"] as? String
+            ?? UUID().uuidString
+        let parentToolID = json["parent_tool_id"] as? String
+        return [.subagentStarted(sessionID, taskID: taskID, parentToolID: parentToolID)]
+    }
+
+    private static func normalizeAfterSubagent(
+        _ json: [String: Any],
+        sessionID: SessionID,
+    ) -> [ProviderEvent] {
+        let taskID = json["task_id"] as? String
+            ?? json["subagent_id"] as? String
+            ?? UUID().uuidString
+        return [.subagentStopped(sessionID, taskID: taskID)]
+    }
+
+    /// Detect MCP tool calls with `mcp_context` field indicating nesting.
+    /// When present, emits subagent start/stop events around the tool call.
+    private static func normalizeMCPContext(
+        _ json: [String: Any],
+        sessionID: SessionID,
+        phase: ToolPhase,
+    ) -> [ProviderEvent] {
+        guard let mcpContext = json["mcp_context"] as? [String: Any] else {
+            return []
+        }
+        let taskID = mcpContext["server_id"] as? String
+            ?? mcpContext["session_id"] as? String
+            ?? UUID().uuidString
+        let parentToolID = mcpContext["parent_tool_id"] as? String
+
+        switch phase {
+        case .before:
+            return [.subagentStarted(sessionID, taskID: taskID, parentToolID: parentToolID)]
+        case .after:
+            return [.subagentStopped(sessionID, taskID: taskID)]
+        }
     }
 
     // MARK: - Tool Event Construction

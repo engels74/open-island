@@ -2268,33 +2268,33 @@ OICore/App/SingleInstanceGuard.swift
 
 ### 12.1 Interrupt Detection
 
-- [ ] Per-provider interrupt detection strategy:
-  - [ ] Claude: `JSONLInterruptWatcher` monitoring for `^C` patterns in JSONL transcripts
-  - [ ] Codex: `turn/completed` with status `interrupted`, or `turn/interrupt` method call
-  - [ ] Gemini: `AfterAgent` with interruption indicators
-  - [ ] OpenCode: `session.error` or `POST /session/{id}/abort` response
-- [ ] Fire `.interruptDetected` through `SessionStore`
+- [x] Per-provider interrupt detection strategy:
+  - [x] Claude: `Stop` hook with `stop_reason: "interrupted"` emits `.interruptDetected`
+  - [x] Codex: `turn/completed` with status `interrupted` emits `.interruptDetected`
+  - [x] Gemini: `AfterAgent` with `interrupted` flag or `reason: "interrupted"` emits `.interruptDetected`
+  - [x] OpenCode: `session.abort` event and `session.error` with abort/interrupt/cancelled patterns emit `.interruptDetected`
+- [x] Fire `.interruptDetected` through `SessionStore`
 
 ### 12.2 Context Compaction Handling
 
-- [ ] Handle `.compacting` phase transitions per provider:
-  - [ ] Claude: `PreCompact` hook fires before compaction
-  - [ ] Codex: `compacted` item type in thread items
-  - [ ] Gemini: `PreCompress` hook fires before compression
-  - [ ] OpenCode: `session.compacted` SSE event
-- [ ] UI indicator during compaction
-- [ ] Resume to correct phase after compaction completes
+- [x] Handle `.compacting` phase transitions per provider:
+  - [x] Claude: `PreCompact` hook fires before compaction
+  - [x] Codex: `compacted` item type in thread items
+  - [x] Gemini: `PreCompress` hook fires before compression
+  - [x] OpenCode: `session.compacted` SSE event
+- [x] UI indicator during compaction
+- [x] Resume to correct phase after compaction completes
 
 ### 12.3 Subagent / Nested Tool Support
 
-- [ ] Full subagent state tracking: `SubagentState` with active tasks stack
-- [ ] Attribute nested tool calls to parent Task
-- [ ] Provider-specific subagent patterns:
-  - [ ] Claude: `SubagentStart`/`SubagentStop` hooks with explicit task IDs, `TeammateIdle`/`TaskCompleted` team events
-  - [ ] Codex: `collabToolCall` item type in the ThreadItem tagged union
-  - [ ] Gemini: MCP tool calls with `mcp_context` field indicating nesting
-  - [ ] OpenCode: nested tool calls via plugin event system
-- [ ] UI: nested tool display in chat view
+- [x] Full subagent state tracking: `SubagentState` with active tasks stack
+- [x] Attribute nested tool calls to parent Task
+- [x] Provider-specific subagent patterns:
+  - [x] Claude: `SubagentStart`/`SubagentStop` hooks with explicit task IDs, `TeammateIdle`/`TaskCompleted` team events
+  - [x] Codex: `collabToolCall` item type in the ThreadItem tagged union
+  - [x] Gemini: MCP tool calls with `mcp_context` field indicating nesting
+  - [x] OpenCode: nested tool calls via plugin event system
+- [x] UI: nested tool display in chat view
 - [ ] Agent file watcher for subagent directory changes
 
 ### 12.4 Token Tracking (Optional)
@@ -2304,9 +2304,9 @@ OICore/TokenTracking/TokenTrackingManager.swift
 OICore/TokenTracking/QuotaService.swift
 ```
 
-- [ ] `QuotaService` protocol — provider-specific quota API adapters
-- [ ] `TokenTrackingManager` — periodic refresh, session + weekly utilization
-- [ ] `TokenRingsModule` for closed state, `TokenRingsOverlay` for opened state
+- [x] `QuotaService` protocol — provider-specific quota API adapters
+- [x] `TokenTrackingManager` — periodic refresh, session + weekly utilization
+- [x] `TokenRingsModule` for closed state, `TokenRingsOverlay` for opened state
 - [ ] Provider token data sources:
   - [ ] Claude Code: requires API-level integration (not exposed via hooks)
   - [ ] Codex CLI: `turn/completed` event includes token usage in response payload
@@ -2317,26 +2317,26 @@ OICore/TokenTracking/QuotaService.swift
 
 - [ ] Profile with Instruments: check for unnecessary SwiftUI re-renders
 - [ ] Verify incremental JSONL parsing efficiency for large files
-- [ ] Audit `AsyncStream` buffering policies — confirm every stream uses an explicit policy:
-  - [ ] State snapshot streams: `.bufferingNewest(1)` (latest-value semantics)
-  - [ ] Event streams: `.bufferingOldest(N)` (order-preserving, bounded memory)
-  - [ ] Document the rationale for each policy choice at the call site
-- [ ] Ensure `Mutex` usage doesn't create contention under high event rates
-- [ ] Memory leak check: verify **all** `AsyncStream` continuations have `onTermination` handlers and are properly cleaned up on subscriber removal — audit every `AsyncStream.makeStream()` call site across the project
-- [ ] Verify no `Task.detached` usage exists unless explicitly justified — grep for `Task.detached` and document each instance's rationale
-- [ ] Evaluate `Span<T>` (SE-0447) adoption for socket I/O and conversation parser paths as `@lifetime` annotations stabilize — replace `UnsafeBufferPointer` where possible
-- [ ] **Provider-specific performance considerations**:
-  - [ ] Gemini CLI `AfterModel` throttling: verify that the streaming chunk debounce (100ms default) is effective and configurable
-  - [ ] OpenCode SSE reconnection: verify exponential backoff doesn't cause event loss during network hiccups
-  - [ ] Codex app-server child process: verify process monitoring doesn't cause excessive CPU from `waitpid` polling
-  - [ ] Multi-provider event merge: verify that the `ProviderRegistry` event merge with `withThrowingDiscardingTaskGroup` handles backpressure correctly when one provider produces events much faster than others
+- [x] Audit `AsyncStream` buffering policies — confirm every stream uses an explicit policy:
+  - [x] State snapshot streams: `.bufferingNewest(1)` (latest-value semantics)
+  - [x] Event streams: `.bufferingOldest(N)` (order-preserving, bounded memory)
+  - [x] Document the rationale for each policy choice at the call site
+- [x] Ensure `Mutex` usage doesn't create contention under high event rates
+- [x] Memory leak check: verify **all** `AsyncStream` continuations have `onTermination` handlers and are properly cleaned up on subscriber removal — audit every `AsyncStream.makeStream()` call site across the project
+- [x] Verify no `Task.detached` usage exists unless explicitly justified — grep for `Task.detached` and document each instance's rationale
+- [x] Evaluate `Span<T>` (SE-0447) adoption for socket I/O and conversation parser paths as `@lifetime` annotations stabilize — replace `UnsafeBufferPointer` where possible
+- [x] **Provider-specific performance considerations**:
+  - [x] Gemini CLI `AfterModel` throttling: verify that the streaming chunk debounce (100ms default) is effective and configurable
+  - [x] OpenCode SSE reconnection: verify exponential backoff doesn't cause event loss during network hiccups
+  - [x] Codex app-server child process: verify process monitoring doesn't cause excessive CPU from `waitpid` polling
+  - [x] Multi-provider event merge: verify that the `ProviderRegistry` event merge with `withThrowingDiscardingTaskGroup` handles backpressure correctly when one provider produces events much faster than others
 
 ### 12.6 Accessibility
 
-- [ ] VoiceOver labels on all interactive elements
-- [ ] Dynamic Type support in chat view
-- [ ] Reduced Motion respect for animations
-- [ ] High Contrast mode support
+- [x] VoiceOver labels on all interactive elements
+- [x] Dynamic Type support in chat view
+- [x] Reduced Motion respect for animations
+- [x] High Contrast mode support
 
 ---
 

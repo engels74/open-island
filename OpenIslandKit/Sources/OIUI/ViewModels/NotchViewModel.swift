@@ -102,8 +102,19 @@ package final class NotchViewModel {
         self.activeStatusContinuation?.finish()
 
         let (stream, continuation) = AsyncStream<NotchStatus>.makeStream(
+            // State snapshot — only the latest status matters.
             bufferingPolicy: .bufferingNewest(1),
         )
+
+        continuation.onTermination = { [weak self] _ in
+            // Clear the stored continuation so the adapter doesn't yield
+            // into a terminated stream. MainActor access is safe here
+            // because NotchViewModel is @Observable on MainActor.
+            Task { @MainActor in
+                self?.activeStatusContinuation = nil
+            }
+        }
+
         self.activeStatusContinuation = continuation
         return stream
     }

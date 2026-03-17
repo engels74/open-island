@@ -117,6 +117,12 @@ package enum CodexEventNormalizer {
             }
         }
 
+        // Check if the turn was interrupted
+        let status = self.extractString(params, key: "status")
+        if status == CodexTurnStatus.interrupted.rawValue {
+            events.append(.interruptDetected(sessionID))
+        }
+
         events.append(.waitingForInput(sessionID))
         return events
     }

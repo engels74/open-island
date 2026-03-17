@@ -59,6 +59,7 @@ package final class GeminiCLIProviderAdapter: ProviderAdapter, Sendable {
         //    the caller's isolation domain — prevents deadlock when stop()
         //    is called from the same context.
         let (stream, continuation) = AsyncStream<ProviderEvent>.makeStream(
+            // Event stream — preserve ordering, don't drop events.
             bufferingPolicy: .bufferingOldest(128),
         )
 
@@ -111,7 +112,8 @@ package final class GeminiCLIProviderAdapter: ProviderAdapter, Sendable {
         if let stream = self.state.withLock({ $0.eventStream }) {
             return stream
         }
-        // Return an immediately-finished stream if not started
+        // Return an immediately-finished empty stream if not started.
+        // No buffering policy needed — finished before any yield.
         let (stream, continuation) = AsyncStream<ProviderEvent>.makeStream()
         continuation.finish()
         return stream

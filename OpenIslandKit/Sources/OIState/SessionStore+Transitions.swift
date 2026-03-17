@@ -42,6 +42,9 @@ extension SessionStore {
              .configChanged:
             handleDataUpdateEvent(event)
 
+        case let .interruptDetected(sessionID):
+            handleInterruptDetected(sessionID)
+
         case .notification,
              .diffUpdated,
              .modelResponse:
@@ -112,9 +115,18 @@ extension SessionStore {
 
         case let .subagentStopped(sessionID, taskID: taskID):
             var tracker = toolTrackers[sessionID, default: ToolTracker()]
-            ToolEventProcessor.processSubagentStopped(taskID: taskID, tracker: &tracker)
+            let subagent = ToolEventProcessor.processSubagentStopped(taskID: taskID, tracker: &tracker)
             toolTrackers[sessionID] = tracker
-            touchSession(sessionID)
+
+            // Nest the subagent's tools under the parent tool in the UI
+            if let subagent, var session = sessions[sessionID] {
+                ToolEventProcessor.applyNestedTools(subagent: subagent, activeTools: &session.activeTools)
+                session.lastActivityAt = Date()
+                sessions[sessionID] = session
+                publishState()
+            } else {
+                touchSession(sessionID)
+            }
 
         default:
             break
@@ -244,6 +256,25 @@ extension SessionStore {
         }
 
         session.phase = target
+        session.lastActivityAt = Date()
+        sessions[sessionID] = session
+        publishState()
+    }
+
+    /// Record an interrupt: append an `.interrupted` chat history item and touch the session.
+    ///
+    /// Phase transition to `.waitingForInput` is handled separately by the
+    /// `.waitingForInput` event that providers emit alongside `.interruptDetected`.
+    private func handleInterruptDetected(_ sessionID: String) {
+        guard var session = sessions[sessionID] else { return }
+
+        let item = ChatHistoryItem(
+            id: "\(sessionID)-interrupt-\(session.chatItems.count)",
+            timestamp: Date(),
+            type: .interrupted,
+            content: "Session interrupted",
+        )
+        session.chatItems.append(item)
         session.lastActivityAt = Date()
         sessions[sessionID] = session
         publishState()

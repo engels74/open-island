@@ -23,4 +23,5 @@ package enum ProviderEvent: Sendable {
     case diffUpdated(SessionID, unifiedDiff: String)
     case modelResponse(SessionID, textDelta: String)
     case tokenUsage(SessionID, promptTokens: Int?, completionTokens: Int?, totalTokens: Int?)
+    case interruptDetected(SessionID)
 }

@@ -50,10 +50,20 @@ package struct ChatView: View {
                     .padding(.vertical, 8)
                 }
                 .onChange(of: self.session.chatItems.count) {
-                    withAnimation(.easeOut(duration: 0.2)) {
+                    if self.reduceMotion {
                         proxy.scrollTo(Self.scrollAnchorID, anchor: .bottom)
+                    } else {
+                        withAnimation(.easeOut(duration: 0.2)) {
+                            proxy.scrollTo(Self.scrollAnchorID, anchor: .bottom)
+                        }
                     }
                 }
+            }
+
+            // Compaction banner — shown during context compaction
+            if self.session.phase == .compacting {
+                CompactingBanner()
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
             }
 
             // Approval bar — conditionally shown
@@ -66,12 +76,14 @@ package struct ChatView: View {
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
-        .animation(.snappy(duration: 0.25), value: self.session.phase == .waitingForApproval(.init(toolUseID: "", toolName: "", timestamp: .now)))
+        .animation(self.reduceMotion ? .none : .snappy(duration: 0.25), value: self.session.phase)
     }
 
     // MARK: Private
 
     private static let scrollAnchorID = "chat-scroll-anchor"
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion // swiftlint:disable:this attributes
 
     private let session: SessionState
     private let monitor: SessionMonitor
@@ -97,6 +109,8 @@ package struct ChatView: View {
                 .foregroundStyle(accent)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Back to sessions")
+            .accessibilityHint("Returns to the session list")
 
             Spacer()
 
@@ -153,6 +167,8 @@ private struct UserBubble: View {
                 .padding(.vertical, 8)
                 .background(self.accentColor, in: RoundedRectangle(cornerRadius: 14))
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("You: \(self.content)")
     }
 }
 
@@ -165,6 +181,7 @@ private struct AssistantMessage: View {
         MarkdownText(self.content)
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityLabel("Assistant: \(self.content)")
     }
 }
 
@@ -211,8 +228,12 @@ private struct CollapsibleSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Button {
-                withAnimation(.snappy(duration: 0.2)) {
+                if self.reduceMotion {
                     self.isExpanded.toggle()
+                } else {
+                    withAnimation(.snappy(duration: 0.2)) {
+                        self.isExpanded.toggle()
+                    }
                 }
             } label: {
                 HStack(spacing: 6) {
@@ -228,6 +249,8 @@ private struct CollapsibleSection: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("\(self.header), \(self.isExpanded ? "expanded" : "collapsed")")
+            .accessibilityHint(self.isExpanded ? "Double-tap to collapse" : "Double-tap to expand")
 
             if self.isExpanded {
                 Text(self.content)
@@ -241,6 +264,8 @@ private struct CollapsibleSection: View {
     }
 
     // MARK: Private
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion // swiftlint:disable:this attributes
 
     @State private var isExpanded = false
 }
@@ -259,14 +284,39 @@ private struct InterruptedDivider: View {
             self.line
         }
         .padding(.vertical, 6)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Conversation interrupted")
     }
 
     // MARK: Private
 
+    @Environment(\.colorSchemeContrast) private var contrast // swiftlint:disable:this attributes
+
     private var line: some View {
         Rectangle()
-            .fill(.white.opacity(0.1))
+            .fill(.white.opacity(self.contrast == .increased ? 0.3 : 0.1))
             .frame(height: 1)
+    }
+}
+
+// MARK: - CompactingBanner
+
+/// Inline banner shown at the bottom of the chat when context compaction is in progress.
+private struct CompactingBanner: View {
+    var body: some View {
+        HStack(spacing: 8) {
+            ProgressView()
+                .controlSize(.mini)
+                .tint(.purple)
+            Text("Compacting context\u{2026}")
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.purple)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        .background(.purple.opacity(0.1))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Context compaction in progress")
     }
 }
 
@@ -372,6 +422,19 @@ private func previewSession(phase: SessionPhase = .processing) -> SessionState {
 
     ChatView(
         session: previewSession(phase: .waitingForApproval(context)),
+        monitor: SessionMonitor(store: SessionStore()),
+        viewModel: viewModel,
+    )
+    .frame(width: 720, height: 520)
+    .background(.black)
+    .preferredColorScheme(.dark)
+}
+
+#Preview("Chat — Compacting") {
+    let viewModel = NotchViewModel(geometry: previewGeometry())
+
+    ChatView(
+        session: previewSession(phase: .compacting),
         monitor: SessionMonitor(store: SessionStore()),
         viewModel: viewModel,
     )

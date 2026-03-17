@@ -143,6 +143,31 @@ struct ChatViewTests {
         #expect(item.content.isEmpty)
     }
 
+    // MARK: - Compaction Phase
+
+    @Test
+    func `Session with compacting phase is identifiable`() {
+        let session = SessionState(
+            id: "compact-1",
+            providerID: .claude,
+            phase: .compacting,
+            projectName: "TestProject",
+            cwd: "/tmp/test",
+            createdAt: .now,
+            lastActivityAt: .now,
+        )
+        #expect(session.phase == .compacting)
+        #expect(session.phase != .processing)
+        #expect(session.phase != .idle)
+    }
+
+    @Test
+    func `Compacting phase is distinct from processing`() {
+        #expect(SessionPhase.compacting != SessionPhase.processing)
+        #expect(SessionPhase.compacting != SessionPhase.idle)
+        #expect(SessionPhase.compacting != SessionPhase.waitingForInput)
+    }
+
     // MARK: - Data Integrity
 
     @Test

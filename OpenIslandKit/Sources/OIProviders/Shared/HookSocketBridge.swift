@@ -57,7 +57,8 @@ package final class HookSocketBridge: Sendable {
         let flags = fcntl(fd, F_GETFL)
         _ = fcntl(fd, F_SETFL, flags | O_NONBLOCK)
 
-        // Create async stream with bounded buffer
+        // Create async stream with bounded buffer.
+        // Event stream — preserve ordering, don't drop hook events.
         let (stream, continuation) = AsyncStream<Data>.makeStream(
             bufferingPolicy: .bufferingOldest(128),
         )
@@ -180,6 +181,8 @@ package final class HookSocketBridge: Sendable {
             Darwin.close(fd)
             throw .pathTooLong(self.socketPath)
         }
+        // Span<T> not applicable — Darwin socket APIs require raw pointer access
+        // for sockaddr_un population and bind() calls.
         withUnsafeMutablePointer(to: &addr.sun_path) { ptr in
             ptr.withMemoryRebound(to: CChar.self, capacity: pathBytes.count) { dest in
                 pathBytes.withUnsafeBufferPointer { src in

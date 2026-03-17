@@ -97,12 +97,12 @@ private let allIntegrationFixtures: [IntegrationFixture] = [
     IntegrationFixture(
         eventName: "TeammateIdle",
         json: #"{"session_id":"int-1","hook_event_name":"TeammateIdle"}"#,
-        expectedCase: nil,
+        expectedCase: "notification",
     ),
     IntegrationFixture(
         eventName: "TaskCompleted",
         json: #"{"session_id":"int-1","hook_event_name":"TaskCompleted","task_id":"task-1"}"#,
-        expectedCase: nil,
+        expectedCase: "subagentStopped",
     ),
     IntegrationFixture(
         eventName: "WorktreeCreate",
@@ -116,10 +116,10 @@ private let allIntegrationFixtures: [IntegrationFixture] = [
     ),
 ]
 
-/// Subset: only fixtures that produce a ProviderEvent (12 of 17).
+/// Subset: only fixtures that produce a ProviderEvent (14 of 17).
 private let mappedFixtures = allIntegrationFixtures.filter { $0.expectedCase != nil }
 
-/// Subset: only fixtures that produce nil (5 of 17).
+/// Subset: only fixtures that produce nil (3 of 17).
 private let nilMappedFixtures = allIntegrationFixtures.filter { $0.expectedCase == nil }
 
 // MARK: - ClaudeIntegrationTests
@@ -540,6 +540,7 @@ private func providerEventCaseName(_ event: ProviderEvent) -> String { // swiftl
     case .diffUpdated: "diffUpdated"
     case .modelResponse: "modelResponse"
     case .tokenUsage: "tokenUsage"
+    case .interruptDetected: "interruptDetected"
     }
 }
 
@@ -563,5 +564,6 @@ private func providerEventSessionID(_ event: ProviderEvent) -> String { // swift
     case let .diffUpdated(sid, _): sid
     case let .modelResponse(sid, _): sid
     case let .tokenUsage(sid, _, _, _): sid
+    case let .interruptDetected(sid): sid
     }
 }

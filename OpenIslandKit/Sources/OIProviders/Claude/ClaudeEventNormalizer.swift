@@ -9,21 +9,23 @@ package import OICore
 package enum ClaudeEventNormalizer {
     // MARK: Package
 
-    /// Normalize a raw Claude hook event into a ``ProviderEvent``.
+    /// Normalize a raw Claude hook event into zero or more ``ProviderEvent`` values.
     ///
-    /// Returns `nil` for events that have no meaningful ``ProviderEvent`` equivalent
+    /// Returns an empty array for events that have no meaningful ``ProviderEvent`` equivalent
     /// (e.g. `Setup`, `WorktreeCreate`, `WorktreeRemove`).
     ///
     /// - Throws: ``EventNormalizationError`` for unknown event types or malformed payloads.
-    package static func normalize(_ event: ClaudeHookEvent) throws(EventNormalizationError) -> ProviderEvent? {
+    package static func normalize(_ event: ClaudeHookEvent) throws(EventNormalizationError) -> [ProviderEvent] {
         switch event.hookEventName {
         case "Setup",
-             "TeammateIdle",
-             "TaskCompleted",
              "WorktreeCreate",
              "WorktreeRemove",
              "PreToolUse":
-            return nil
+            return []
+        case "TeammateIdle":
+            return self.normalizeTeammateIdle(event)
+        case "TaskCompleted":
+            return try self.normalizeTaskCompleted(event)
         case "SessionStart",
              "SessionEnd",
              "UserPromptSubmit",
@@ -35,10 +37,10 @@ package enum ClaudeEventNormalizer {
         case "PostToolUse",
              "PostToolUseFailure",
              "PermissionRequest":
-            return try self.normalizeTool(event)
+            return try [self.normalizeTool(event)]
         case "SubagentStart",
              "SubagentStop":
-            return try self.normalizeSubagent(event)
+            return try [self.normalizeSubagent(event)]
         default:
             throw .unknownEventType(event.hookEventName)
         }
@@ -46,23 +48,28 @@ package enum ClaudeEventNormalizer {
 
     // MARK: Private
 
-    private static func normalizeSession(_ event: ClaudeHookEvent) -> ProviderEvent {
+    private static func normalizeSession(_ event: ClaudeHookEvent) -> [ProviderEvent] {
         let sid = event.sessionID
         switch event.hookEventName {
         case "SessionStart":
-            return .sessionStarted(sid, cwd: event.cwd ?? "", pid: nil)
+            return [.sessionStarted(sid, cwd: event.cwd ?? "", pid: nil)]
         case "SessionEnd":
-            return .sessionEnded(sid)
+            return [.sessionEnded(sid)]
         case "UserPromptSubmit":
-            return .userPromptSubmitted(sid)
+            return [.userPromptSubmitted(sid)]
         case "Stop":
-            return .waitingForInput(sid)
+            var events: [ProviderEvent] = []
+            if event.stopReason == "interrupted" {
+                events.append(.interruptDetected(sid))
+            }
+            events.append(.waitingForInput(sid))
+            return events
         case "PreCompact":
-            return .compacting(sid)
+            return [.compacting(sid)]
         case "ConfigChange":
-            return .configChanged(sid)
+            return [.configChanged(sid)]
         case "Notification":
-            return .notification(sid, message: event.message ?? "")
+            return [.notification(sid, message: event.message ?? "")]
         default:
             fatalError("Unreachable: \(event.hookEventName) not a session event")
         }
@@ -98,12 +105,41 @@ package enum ClaudeEventNormalizer {
         }
         switch event.hookEventName {
         case "SubagentStart":
-            return .subagentStarted(sid, taskID: taskID, parentToolID: nil)
+            let parentToolID = self.extractParentToolID(from: event.parentContext)
+            return .subagentStarted(sid, taskID: taskID, parentToolID: parentToolID)
         case "SubagentStop":
             return .subagentStopped(sid, taskID: taskID)
         default:
             fatalError("Unreachable: \(event.hookEventName) not a subagent event")
         }
+    }
+
+    private static func normalizeTeammateIdle(_ event: ClaudeHookEvent) -> [ProviderEvent] {
+        let sid = event.sessionID
+        let message = event.teammateSessionID.map { "Teammate \($0) idle" } ?? "Teammate idle"
+        return [.notification(sid, message: message)]
+    }
+
+    private static func normalizeTaskCompleted(
+        _ event: ClaudeHookEvent,
+    ) throws(EventNormalizationError) -> [ProviderEvent] {
+        let sid = event.sessionID
+        guard let taskID = event.taskID else {
+            throw .missingRequiredField("task_id")
+        }
+        return [.subagentStopped(sid, taskID: taskID)]
+    }
+
+    /// Extract the parent tool ID from the `parent_context` JSON field.
+    private static func extractParentToolID(from parentContext: JSONValue?) -> String? {
+        guard case let .object(dict) = parentContext else { return nil }
+        if case let .string(toolID) = dict["tool_use_id"] {
+            return toolID
+        }
+        if case let .string(toolID) = dict["toolId"] {
+            return toolID
+        }
+        return nil
     }
 
     private static func makeToolEvent(from event: ClaudeHookEvent) throws(EventNormalizationError) -> ToolEvent {

@@ -258,6 +258,8 @@ package enum AgentProcessDetector {
         let pathLen = proc_pidpath(pid, &pathBuffer, UInt32(maxSize))
         guard pathLen > 0 else { return nil }
         pathBuffer[min(Int(pathLen), maxSize - 1)] = 0
+        // Span<T> not applicable — proc_pidpath requires a C buffer and
+        // String(validatingCString:) needs an UnsafePointer<CChar>.
         return pathBuffer.withUnsafeBufferPointer { buf in
             guard let baseAddress = buf.baseAddress else { return nil }
             return String(validatingCString: baseAddress)
@@ -335,6 +337,8 @@ package enum AgentProcessDetector {
                 offset += 1
             }
             if offset > start {
+                // Span<T> not applicable — sysctl KERN_PROCARGS2 returns a raw
+                // C buffer; String(bytes:encoding:) requires UnsafeBufferPointer.
                 let arg = buffer[start ..< offset].withUnsafeBufferPointer { buf in
                     String(bytes: buf, encoding: .utf8) ?? ""
                 }

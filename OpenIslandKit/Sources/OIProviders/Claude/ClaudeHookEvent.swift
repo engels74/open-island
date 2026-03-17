@@ -58,6 +58,14 @@ package struct ClaudeHookEvent: Codable, Sendable {
     /// Context from the parent agent.
     package let parentContext: JSONValue?
 
+    // MARK: - Team event fields (TeammateIdle, TaskCompleted)
+
+    /// Session ID of the teammate/subagent that emitted the event.
+    package let teammateSessionID: String?
+
+    /// Result or status from a completed task.
+    package let taskResult: JSONValue?
+
     // MARK: - PreCompact fields
 
     /// Reason the context is being compacted.
@@ -65,6 +73,11 @@ package struct ClaudeHookEvent: Codable, Sendable {
 
     /// Number of messages in the conversation before compaction.
     package let messageCount: Int?
+
+    // MARK: - Stop fields
+
+    /// The reason the session stopped (e.g. "interrupted", "end_turn").
+    package let stopReason: String?
 
     // MARK: - Notification fields
 
@@ -92,8 +105,11 @@ package struct ClaudeHookEvent: Codable, Sendable {
         case sessionType = "session_type"
         case taskID = "task_id"
         case parentContext = "parent_context"
+        case teammateSessionID = "teammate_session_id"
+        case taskResult = "task_result"
         case compactionReason = "compaction_reason"
         case messageCount = "message_count"
+        case stopReason = "stop_reason"
         case notificationType = "notification_type"
         case message
     }

@@ -20,18 +20,16 @@ struct ClaudeEventNormalizerNilTests {
     // MARK: Internal
 
     @Test(arguments: nilEvents)
-    func `Events with no ProviderEvent equivalent return nil`(fixture: NilEventFixture) throws {
+    func `Events with no ProviderEvent equivalent return empty array`(fixture: NilEventFixture) throws {
         let event = try JSONDecoder().decode(ClaudeHookEvent.self, from: Data(fixture.json.utf8))
         let result = try ClaudeEventNormalizer.normalize(event)
-        #expect(result == nil)
+        #expect(result.isEmpty)
     }
 
     // MARK: Private
 
     private static let nilEvents: [NilEventFixture] = [
         NilEventFixture(name: "Setup", json: #"{"session_id":"s1","hook_event_name":"Setup"}"#),
-        NilEventFixture(name: "TeammateIdle", json: #"{"session_id":"s1","hook_event_name":"TeammateIdle"}"#),
-        NilEventFixture(name: "TaskCompleted", json: #"{"session_id":"s1","hook_event_name":"TaskCompleted"}"#),
         NilEventFixture(name: "WorktreeCreate", json: #"{"session_id":"s1","hook_event_name":"WorktreeCreate"}"#),
         NilEventFixture(name: "WorktreeRemove", json: #"{"session_id":"s1","hook_event_name":"WorktreeRemove"}"#),
         NilEventFixture(name: "PreToolUse", json: #"{"session_id":"s1","hook_event_name":"PreToolUse"}"#),
@@ -49,8 +47,9 @@ struct ClaudeEventNormalizerSessionTests {
         {"session_id":"s1","hook_event_name":"SessionStart","cwd":"/proj","session_type":"startup"}
         """)
         let result = try ClaudeEventNormalizer.normalize(event)
-        guard case let .sessionStarted(sid, cwd, pid) = result else {
-            Issue.record("Expected .sessionStarted, got \(String(describing: result))")
+        #expect(result.count == 1)
+        guard case let .sessionStarted(sid, cwd, pid) = result.first else {
+            Issue.record("Expected .sessionStarted, got \(String(describing: result.first))")
             return
         }
         #expect(sid == "s1")
@@ -62,7 +61,8 @@ struct ClaudeEventNormalizerSessionTests {
     func `SessionStart without cwd defaults to empty string`() throws {
         let event = try decode(#"{"session_id":"s1","hook_event_name":"SessionStart"}"#)
         let result = try ClaudeEventNormalizer.normalize(event)
-        guard case let .sessionStarted(_, cwd, _) = result else {
+        #expect(result.count == 1)
+        guard case let .sessionStarted(_, cwd, _) = result.first else {
             Issue.record("Expected .sessionStarted")
             return
         }
@@ -73,7 +73,8 @@ struct ClaudeEventNormalizerSessionTests {
     func `SessionEnd normalizes to sessionEnded`() throws {
         let event = try decode(#"{"session_id":"s1","hook_event_name":"SessionEnd"}"#)
         let result = try ClaudeEventNormalizer.normalize(event)
-        guard case let .sessionEnded(sid) = result else {
+        #expect(result.count == 1)
+        guard case let .sessionEnded(sid) = result.first else {
             Issue.record("Expected .sessionEnded")
             return
         }
@@ -84,7 +85,8 @@ struct ClaudeEventNormalizerSessionTests {
     func `UserPromptSubmit normalizes to userPromptSubmitted`() throws {
         let event = try decode(#"{"session_id":"s1","hook_event_name":"UserPromptSubmit"}"#)
         let result = try ClaudeEventNormalizer.normalize(event)
-        guard case let .userPromptSubmitted(sid) = result else {
+        #expect(result.count == 1)
+        guard case let .userPromptSubmitted(sid) = result.first else {
             Issue.record("Expected .userPromptSubmitted")
             return
         }
@@ -95,7 +97,8 @@ struct ClaudeEventNormalizerSessionTests {
     func `Stop normalizes to waitingForInput`() throws {
         let event = try decode(#"{"session_id":"s1","hook_event_name":"Stop"}"#)
         let result = try ClaudeEventNormalizer.normalize(event)
-        guard case let .waitingForInput(sid) = result else {
+        #expect(result.count == 1)
+        guard case let .waitingForInput(sid) = result.first else {
             Issue.record("Expected .waitingForInput")
             return
         }
@@ -106,7 +109,8 @@ struct ClaudeEventNormalizerSessionTests {
     func `Notification normalizes to notification`() throws {
         let event = try decode(#"{"session_id":"s1","hook_event_name":"Notification","message":"heads up"}"#)
         let result = try ClaudeEventNormalizer.normalize(event)
-        guard case let .notification(sid, message) = result else {
+        #expect(result.count == 1)
+        guard case let .notification(sid, message) = result.first else {
             Issue.record("Expected .notification")
             return
         }
@@ -118,7 +122,8 @@ struct ClaudeEventNormalizerSessionTests {
     func `Notification without message defaults to empty string`() throws {
         let event = try decode(#"{"session_id":"s1","hook_event_name":"Notification"}"#)
         let result = try ClaudeEventNormalizer.normalize(event)
-        guard case let .notification(_, message) = result else {
+        #expect(result.count == 1)
+        guard case let .notification(_, message) = result.first else {
             Issue.record("Expected .notification")
             return
         }
@@ -131,7 +136,8 @@ struct ClaudeEventNormalizerSessionTests {
             #"{"session_id":"s1","hook_event_name":"PreCompact","compaction_reason":"full","message_count":100}"#,
         )
         let result = try ClaudeEventNormalizer.normalize(event)
-        guard case let .compacting(sid) = result else {
+        #expect(result.count == 1)
+        guard case let .compacting(sid) = result.first else {
             Issue.record("Expected .compacting")
             return
         }
@@ -142,7 +148,8 @@ struct ClaudeEventNormalizerSessionTests {
     func `ConfigChange normalizes to configChanged`() throws {
         let event = try decode(#"{"session_id":"s1","hook_event_name":"ConfigChange"}"#)
         let result = try ClaudeEventNormalizer.normalize(event)
-        guard case let .configChanged(sid) = result else {
+        #expect(result.count == 1)
+        guard case let .configChanged(sid) = result.first else {
             Issue.record("Expected .configChanged")
             return
         }
@@ -167,7 +174,8 @@ struct ClaudeEventNormalizerToolTests {
         {"session_id":"s1","hook_event_name":"PostToolUse","tool_name":"Read","tool_use_id":"tu-2","tool_result":{"content":"data"}}
         """)
         let result = try ClaudeEventNormalizer.normalize(event)
-        guard case let .toolCompleted(sid, toolEvent, toolResult) = result else {
+        #expect(result.count == 1)
+        guard case let .toolCompleted(sid, toolEvent, toolResult) = result.first else {
             Issue.record("Expected .toolCompleted")
             return
         }
@@ -184,7 +192,8 @@ struct ClaudeEventNormalizerToolTests {
         {"session_id":"s1","hook_event_name":"PostToolUseFailure","tool_name":"Write","tool_use_id":"tu-3","error":"Permission denied"}
         """)
         let result = try ClaudeEventNormalizer.normalize(event)
-        guard case let .toolCompleted(sid, toolEvent, toolResult) = result else {
+        #expect(result.count == 1)
+        guard case let .toolCompleted(sid, toolEvent, toolResult) = result.first else {
             Issue.record("Expected .toolCompleted")
             return
         }
@@ -200,7 +209,8 @@ struct ClaudeEventNormalizerToolTests {
         {"session_id":"s1","hook_event_name":"PostToolUseFailure","tool_name":"Bash","tool_use_id":"tu-4","error":{"code":1,"stderr":"not found"}}
         """)
         let result = try ClaudeEventNormalizer.normalize(event)
-        guard case let .toolCompleted(_, _, toolResult) = result else {
+        #expect(result.count == 1)
+        guard case let .toolCompleted(_, _, toolResult) = result.first else {
             Issue.record("Expected .toolCompleted")
             return
         }
@@ -214,7 +224,8 @@ struct ClaudeEventNormalizerToolTests {
         {"session_id":"s1","hook_event_name":"PermissionRequest","tool_name":"Bash","tool_input":{"command":"rm -rf /tmp"},"tool_use_id":"tu-5"}
         """)
         let result = try ClaudeEventNormalizer.normalize(event)
-        guard case let .permissionRequested(sid, request) = result else {
+        #expect(result.count == 1)
+        guard case let .permissionRequested(sid, request) = result.first else {
             Issue.record("Expected .permissionRequested")
             return
         }
@@ -254,13 +265,27 @@ struct ClaudeEventNormalizerSubagentTests {
     func `SubagentStart normalizes to subagentStarted`() throws {
         let event = try decode(#"{"session_id":"s1","hook_event_name":"SubagentStart","task_id":"t-1"}"#)
         let result = try ClaudeEventNormalizer.normalize(event)
-        guard case let .subagentStarted(sid, taskID, parentToolID) = result else {
+        #expect(result.count == 1)
+        guard case let .subagentStarted(sid, taskID, parentToolID) = result.first else {
             Issue.record("Expected .subagentStarted")
             return
         }
         #expect(sid == "s1")
         #expect(taskID == "t-1")
         #expect(parentToolID == nil)
+    }
+
+    @Test
+    func `SubagentStart with parent_context extracts parentToolID`() throws {
+        let json = #"{"session_id":"s1","hook_event_name":"SubagentStart","task_id":"t-2","parent_context":{"tool_use_id":"tu-parent"}}"#
+        let event = try decode(json)
+        let result = try ClaudeEventNormalizer.normalize(event)
+        #expect(result.count == 1)
+        guard case let .subagentStarted(_, _, parentToolID) = result.first else {
+            Issue.record("Expected .subagentStarted")
+            return
+        }
+        #expect(parentToolID == "tu-parent")
     }
 
     @Test
@@ -281,7 +306,8 @@ struct ClaudeEventNormalizerSubagentTests {
     func `SubagentStop normalizes to subagentStopped`() throws {
         let event = try decode(#"{"session_id":"s1","hook_event_name":"SubagentStop","task_id":"t-1"}"#)
         let result = try ClaudeEventNormalizer.normalize(event)
-        guard case let .subagentStopped(sid, taskID) = result else {
+        #expect(result.count == 1)
+        guard case let .subagentStopped(sid, taskID) = result.first else {
             Issue.record("Expected .subagentStopped")
             return
         }
@@ -312,6 +338,131 @@ struct ClaudeEventNormalizerSubagentTests {
         } catch {
             guard case .unknownEventType("SomeNewEvent") = error else {
                 Issue.record("Expected .unknownEventType(\"SomeNewEvent\"), got \(error)")
+                return
+            }
+        }
+    }
+
+    // MARK: Private
+
+    private func decode(_ json: String) throws -> ClaudeHookEvent {
+        try JSONDecoder().decode(ClaudeHookEvent.self, from: Data(json.utf8))
+    }
+}
+
+// MARK: - ClaudeEventNormalizerInterruptTests
+
+@Suite(.tags(.claude))
+struct ClaudeEventNormalizerInterruptTests {
+    // MARK: Internal
+
+    @Test
+    func `Stop with interrupted stop_reason emits interruptDetected then waitingForInput`() throws {
+        let event = try decode(
+            #"{"session_id":"s1","hook_event_name":"Stop","stop_reason":"interrupted"}"#,
+        )
+        let result = try ClaudeEventNormalizer.normalize(event)
+        #expect(result.count == 2)
+
+        guard case let .interruptDetected(sid1) = result[0] else {
+            Issue.record("Expected .interruptDetected, got \(result[0])")
+            return
+        }
+        #expect(sid1 == "s1")
+
+        guard case let .waitingForInput(sid2) = result[1] else {
+            Issue.record("Expected .waitingForInput, got \(result[1])")
+            return
+        }
+        #expect(sid2 == "s1")
+    }
+
+    @Test
+    func `Stop without stop_reason does not emit interruptDetected`() throws {
+        let event = try decode(#"{"session_id":"s1","hook_event_name":"Stop"}"#)
+        let result = try ClaudeEventNormalizer.normalize(event)
+        #expect(result.count == 1)
+        guard case .waitingForInput = result.first else {
+            Issue.record("Expected .waitingForInput, got \(String(describing: result.first))")
+            return
+        }
+    }
+
+    @Test
+    func `Stop with non-interrupt stop_reason does not emit interruptDetected`() throws {
+        let event = try decode(
+            #"{"session_id":"s1","hook_event_name":"Stop","stop_reason":"end_turn"}"#,
+        )
+        let result = try ClaudeEventNormalizer.normalize(event)
+        #expect(result.count == 1)
+        guard case .waitingForInput = result.first else {
+            Issue.record("Expected .waitingForInput, got \(String(describing: result.first))")
+            return
+        }
+    }
+
+    // MARK: Private
+
+    private func decode(_ json: String) throws -> ClaudeHookEvent {
+        try JSONDecoder().decode(ClaudeHookEvent.self, from: Data(json.utf8))
+    }
+}
+
+// MARK: - ClaudeEventNormalizerTeamEventTests
+
+@Suite(.tags(.claude))
+struct ClaudeEventNormalizerTeamEventTests {
+    // MARK: Internal
+
+    @Test
+    func `TeammateIdle normalizes to notification`() throws {
+        let event = try decode(#"{"session_id":"s1","hook_event_name":"TeammateIdle"}"#)
+        let result = try ClaudeEventNormalizer.normalize(event)
+        #expect(result.count == 1)
+        guard case let .notification(sid, message) = result.first else {
+            Issue.record("Expected .notification, got \(String(describing: result.first))")
+            return
+        }
+        #expect(sid == "s1")
+        #expect(message == "Teammate idle")
+    }
+
+    @Test
+    func `TeammateIdle with teammate_session_id includes it in message`() throws {
+        let json = #"{"session_id":"s1","hook_event_name":"TeammateIdle","teammate_session_id":"sub-abc"}"#
+        let event = try decode(json)
+        let result = try ClaudeEventNormalizer.normalize(event)
+        #expect(result.count == 1)
+        guard case let .notification(_, message) = result.first else {
+            Issue.record("Expected .notification")
+            return
+        }
+        #expect(message == "Teammate sub-abc idle")
+    }
+
+    @Test
+    func `TaskCompleted normalizes to subagentStopped`() throws {
+        let json = #"{"session_id":"s1","hook_event_name":"TaskCompleted","task_id":"t-1"}"#
+        let event = try decode(json)
+        let result = try ClaudeEventNormalizer.normalize(event)
+        #expect(result.count == 1)
+        guard case let .subagentStopped(sid, taskID) = result.first else {
+            Issue.record("Expected .subagentStopped, got \(String(describing: result.first))")
+            return
+        }
+        #expect(sid == "s1")
+        #expect(taskID == "t-1")
+    }
+
+    @Test
+    func `TaskCompleted without task_id throws`() throws {
+        let event = try decode(#"{"session_id":"s1","hook_event_name":"TaskCompleted"}"#)
+        do {
+            _ = try ClaudeEventNormalizer.normalize(event)
+            Issue.record("Expected error to be thrown")
+        } catch {
+            guard case .missingRequiredField("task_id") = error else {
+                Issue.record("Expected .missingRequiredField(\"task_id\"), got \(error)")
                 return
             }
         }

@@ -44,6 +44,10 @@ package struct InstancesView: View {
                         .onTapGesture {
                             self.viewModel.switchContent(.chat(session))
                         }
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("\(session.projectName), \(Self.accessibilityPhaseLabel(for: session.phase))")
+                        .accessibilityHint("Opens the chat for this session")
+                        .accessibilityAddTraits(.isButton)
                 }
             }
             .padding(.horizontal, 12)
@@ -61,6 +65,19 @@ package struct InstancesView: View {
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("No active sessions")
+    }
+
+    private static func accessibilityPhaseLabel(for phase: SessionPhase) -> String {
+        switch phase {
+        case .idle: "Idle"
+        case .processing: "Active"
+        case .waitingForInput: "Waiting for input"
+        case .waitingForApproval: "Waiting for approval"
+        case .compacting: "Compacting context"
+        case .ended: "Ended"
+        }
     }
 }
 
@@ -129,15 +146,24 @@ private struct SessionRow: View {
             .font(.system(size: 14))
             .foregroundStyle(.secondary)
             .frame(width: 24, height: 24)
+            .accessibilityLabel("\(self.session.providerID.rawValue) provider")
     }
 
     private var phaseBadge: some View {
-        Text(self.phaseLabel)
-            .font(.caption2.weight(.medium))
-            .foregroundStyle(self.phaseColor)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(self.phaseColor.opacity(0.15), in: Capsule())
+        HStack(spacing: 4) {
+            if self.session.phase == .compacting {
+                ProgressView()
+                    .controlSize(.mini)
+                    .tint(.purple)
+            }
+            Text(self.phaseLabel)
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(self.phaseColor)
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background(self.phaseColor.opacity(0.15), in: Capsule())
+        .accessibilityLabel(self.session.phase == .compacting ? "Context compaction in progress" : self.phaseLabel)
     }
 
     private var elapsedTimeLabel: some View {

@@ -30,35 +30,37 @@ package enum OpenCodeEventNormalizer {
 
     /// Route an event type string to the appropriate normalizer.
     private static func dispatch(eventType: String, json: [String: Any]) -> [ProviderEvent] {
+        if let events = dispatchSessionEvent(eventType: eventType, json: json) {
+            return events
+        }
+        return self.dispatchNonSessionEvent(eventType: eventType, json: json)
+    }
+
+    private static func dispatchSessionEvent(eventType: String, json: [String: Any]) -> [ProviderEvent]? {
         switch eventType {
-        case "session.created":
-            self.normalizeSessionCreated(json)
-        case "session.deleted":
-            self.normalizeSessionDeleted(json)
-        case "session.status":
-            self.normalizeSessionStatus(json)
-        case "session.idle":
-            self.normalizeSessionIdle(json)
-        case "session.compacted":
-            self.normalizeSessionCompacted(json)
-        case "session.error":
-            self.normalizeSessionError(json)
-        case "session.diff":
-            self.normalizeSessionDiff(json)
-        case "tool.execute.before":
-            self.normalizeToolBefore(json)
-        case "tool.execute.after":
-            self.normalizeToolAfter(json)
-        case "permission.asked":
-            self.normalizePermissionAsked(json)
-        case "message.part.updated":
-            self.normalizeMessagePartUpdated(json)
-        case "message.updated":
-            self.normalizeMessageUpdated(json)
-        case "file.edited":
-            self.normalizeFileEdited(json)
-        default:
-            []
+        case "session.created": self.normalizeSessionCreated(json)
+        case "session.deleted": self.normalizeSessionDeleted(json)
+        case "session.status": self.normalizeSessionStatus(json)
+        case "session.idle": self.normalizeSessionIdle(json)
+        case "session.compacted": self.normalizeSessionCompacted(json)
+        case "session.error": self.normalizeSessionError(json)
+        case "session.abort": self.normalizeSessionAbort(json)
+        case "session.diff": self.normalizeSessionDiff(json)
+        default: nil
+        }
+    }
+
+    private static func dispatchNonSessionEvent(eventType: String, json: [String: Any]) -> [ProviderEvent] {
+        switch eventType {
+        case "tool.execute.before": self.normalizeToolBefore(json)
+        case "tool.execute.after": self.normalizeToolAfter(json)
+        case "permission.asked": self.normalizePermissionAsked(json)
+        case "message.part.updated": self.normalizeMessagePartUpdated(json)
+        case "message.updated": self.normalizeMessageUpdated(json)
+        case "file.edited": self.normalizeFileEdited(json)
+        case "plugin.call": self.normalizePluginCall(json)
+        case "plugin.result": self.normalizePluginResult(json)
+        default: []
         }
     }
 
@@ -110,7 +112,18 @@ package enum OpenCodeEventNormalizer {
         let message = json["error"] as? String
             ?? json["message"] as? String
             ?? "Unknown error"
+
+        // Detect abort/interrupt patterns in error messages
+        let lowered = message.lowercased()
+        if lowered.contains("abort") || lowered.contains("interrupt") || lowered.contains("cancelled") {
+            return [.interruptDetected(sessionID), .notification(sessionID, message: message)]
+        }
         return [.notification(sessionID, message: message)]
+    }
+
+    private static func normalizeSessionAbort(_ json: [String: Any]) -> [ProviderEvent] {
+        let sessionID = self.extractSessionID(json)
+        return [.interruptDetected(sessionID)]
     }
 
     private static func normalizeSessionDiff(_ json: [String: Any]) -> [ProviderEvent] {
@@ -234,6 +247,25 @@ package enum OpenCodeEventNormalizer {
         let sessionID = self.extractSessionID(json)
         let path = json["path"] as? String ?? "unknown"
         return [.notification(sessionID, message: "File edited: \(path)")]
+    }
+
+    // MARK: - Plugin Events (Nested Tool Detection)
+
+    private static func normalizePluginCall(_ json: [String: Any]) -> [ProviderEvent] {
+        let sessionID = self.extractSessionID(json)
+        let taskID = json["pluginId"] as? String
+            ?? json["callId"] as? String
+            ?? UUID().uuidString
+        let parentToolID = json["parentToolId"] as? String
+        return [.subagentStarted(sessionID, taskID: taskID, parentToolID: parentToolID)]
+    }
+
+    private static func normalizePluginResult(_ json: [String: Any]) -> [ProviderEvent] {
+        let sessionID = self.extractSessionID(json)
+        let taskID = json["pluginId"] as? String
+            ?? json["callId"] as? String
+            ?? UUID().uuidString
+        return [.subagentStopped(sessionID, taskID: taskID)]
     }
 
     // MARK: - Helpers

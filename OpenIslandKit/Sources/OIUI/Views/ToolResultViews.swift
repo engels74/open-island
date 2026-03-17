@@ -60,8 +60,12 @@ private struct ToolCardRow: View {
 
     var body: some View {
         Button {
-            withAnimation(.snappy(duration: 0.2)) {
+            if self.reduceMotion {
                 self.isExpanded.toggle()
+            } else {
+                withAnimation(.snappy(duration: 0.2)) {
+                    self.isExpanded.toggle()
+                }
             }
         } label: {
             HStack(spacing: 8) {
@@ -92,9 +96,23 @@ private struct ToolCardRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Tool: \(self.tool.name), \(self.statusLabel)")
+        .accessibilityHint(self.isExpanded ? "Double-tap to collapse result" : "Double-tap to expand result")
     }
 
     // MARK: Private
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion // swiftlint:disable:this attributes
+
+    private var statusLabel: String {
+        switch self.tool.status {
+        case .running: "running"
+        case .success: "succeeded"
+        case .error: "failed"
+        case .interrupted: "interrupted"
+        }
+    }
 
     // MARK: - Input Summary
 
@@ -148,23 +166,26 @@ private struct StatusIcon: View {
     let status: ToolStatus
 
     var body: some View {
-        switch self.status {
-        case .running:
-            ProgressView()
-                .controlSize(.mini)
-        case .success:
-            Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(.green)
-                .font(.system(size: 14))
-        case .error:
-            Image(systemName: "xmark.circle.fill")
-                .foregroundStyle(.red)
-                .font(.system(size: 14))
-        case .interrupted:
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.yellow)
-                .font(.system(size: 14))
+        Group {
+            switch self.status {
+            case .running:
+                ProgressView()
+                    .controlSize(.mini)
+            case .success:
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+                    .font(.system(size: 14))
+            case .error:
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundStyle(.red)
+                    .font(.system(size: 14))
+            case .interrupted:
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.yellow)
+                    .font(.system(size: 14))
+            }
         }
+        .accessibilityHidden(true)
     }
 }
 
@@ -184,6 +205,7 @@ private struct ExitCodeBadge: View {
                 Capsule()
                     .fill((self.code == 0 ? Color.green : Color.red).opacity(0.15)),
             )
+            .accessibilityLabel("Exit code \(self.code)")
     }
 }
 
@@ -203,6 +225,7 @@ private struct DurationBadge: View {
                 Capsule()
                     .fill(.white.opacity(0.08)),
             )
+            .accessibilityLabel("Duration: \(self.text)")
     }
 }
 
@@ -222,11 +245,16 @@ private struct ResultContentView: View {
             .lineLimit(self.showFullResult ? nil : 6)
             .textSelection(.enabled)
             .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityLabel("Tool result: \(String(text.prefix(200)))")
 
         if text.split(separator: "\n").count > 6 {
             Button {
-                withAnimation(.snappy(duration: 0.15)) {
+                if self.reduceMotion {
                     self.showFullResult.toggle()
+                } else {
+                    withAnimation(.snappy(duration: 0.15)) {
+                        self.showFullResult.toggle()
+                    }
                 }
             } label: {
                 Text(self.showFullResult ? "Show less" : "Show more\u{2026}")
@@ -234,10 +262,14 @@ private struct ResultContentView: View {
                     .foregroundStyle(.tertiary)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(self.showFullResult ? "Show less" : "Show more")
+            .accessibilityHint(self.showFullResult ? "Collapses the result text" : "Expands the full result text")
         }
     }
 
     // MARK: Private
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion // swiftlint:disable:this attributes
 
     @State private var showFullResult = false
 
@@ -264,14 +296,17 @@ private struct ResultContentView: View {
 
 /// Renders nested/subagent tool calls with indentation and a connector line.
 private struct NestedToolsView: View {
+    // MARK: Internal
+
     let tools: [ToolCallItem]
 
     var body: some View {
         HStack(alignment: .top, spacing: 6) {
             // Visual connector line
             Rectangle()
-                .fill(.white.opacity(0.1))
+                .fill(.white.opacity(self.contrast == .increased ? 0.3 : 0.1))
                 .frame(width: 1.5)
+                .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 4) {
                 ForEach(self.tools) { nested in
@@ -280,7 +315,13 @@ private struct NestedToolsView: View {
             }
         }
         .padding(.vertical, 4)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Nested tool calls")
     }
+
+    // MARK: Private
+
+    @Environment(\.colorSchemeContrast) private var contrast // swiftlint:disable:this attributes
 }
 
 // MARK: - JSON Helpers

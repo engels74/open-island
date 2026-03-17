@@ -260,6 +260,161 @@ struct OpenCodeEventNormalizerFileTests {
     }
 }
 
+// MARK: - OpenCodeEventNormalizerInterruptTests
+
+@Suite(.tags(.opencode))
+struct OpenCodeEventNormalizerInterruptTests {
+    @Test
+    func `session abort normalizes to interruptDetected`() {
+        let event = SSEEvent(event: "session.abort", data: #"{"sessionId":"s1"}"#, id: nil)
+        let events = OpenCodeEventNormalizer.normalize(event)
+        #expect(events.count == 1)
+        guard case let .interruptDetected(sid) = events.first else {
+            Issue.record("Expected .interruptDetected, got \(String(describing: events.first))")
+            return
+        }
+        #expect(sid == "s1")
+    }
+
+    @Test
+    func `session error with abort message emits interruptDetected and notification`() {
+        let event = SSEEvent(
+            event: "session.error",
+            data: #"{"sessionId":"s1","error":"Session aborted by user"}"#,
+            id: nil,
+        )
+        let events = OpenCodeEventNormalizer.normalize(event)
+        #expect(events.count == 2)
+
+        guard case let .interruptDetected(sid) = events[0] else {
+            Issue.record("Expected .interruptDetected, got \(events[0])")
+            return
+        }
+        #expect(sid == "s1")
+
+        guard case let .notification(_, message) = events[1] else {
+            Issue.record("Expected .notification, got \(events[1])")
+            return
+        }
+        #expect(message == "Session aborted by user")
+    }
+
+    @Test
+    func `session error with interrupt message emits interruptDetected and notification`() {
+        let event = SSEEvent(
+            event: "session.error",
+            data: #"{"sessionId":"s1","error":"User interrupted the session"}"#,
+            id: nil,
+        )
+        let events = OpenCodeEventNormalizer.normalize(event)
+        #expect(events.count == 2)
+        guard case .interruptDetected = events[0] else {
+            Issue.record("Expected .interruptDetected, got \(events[0])")
+            return
+        }
+    }
+
+    @Test
+    func `session error with cancelled message emits interruptDetected and notification`() {
+        let event = SSEEvent(
+            event: "session.error",
+            data: #"{"sessionId":"s1","error":"Request cancelled"}"#,
+            id: nil,
+        )
+        let events = OpenCodeEventNormalizer.normalize(event)
+        #expect(events.count == 2)
+        guard case .interruptDetected = events[0] else {
+            Issue.record("Expected .interruptDetected, got \(events[0])")
+            return
+        }
+    }
+
+    @Test
+    func `session error with generic message does not emit interruptDetected`() {
+        let event = SSEEvent(
+            event: "session.error",
+            data: #"{"sessionId":"s1","error":"Network timeout"}"#,
+            id: nil,
+        )
+        let events = OpenCodeEventNormalizer.normalize(event)
+        #expect(events.count == 1)
+        guard case .notification = events.first else {
+            Issue.record("Expected .notification, got \(String(describing: events.first))")
+            return
+        }
+    }
+}
+
+// MARK: - OpenCodeEventNormalizerPluginTests
+
+@Suite(.tags(.opencode))
+struct OpenCodeEventNormalizerPluginTests {
+    @Test
+    func `plugin call normalizes to subagentStarted`() {
+        let event = SSEEvent(
+            event: "plugin.call",
+            data: #"{"sessionId":"s1","pluginId":"plug-1","parentToolId":"tu-parent"}"#,
+            id: nil,
+        )
+        let events = OpenCodeEventNormalizer.normalize(event)
+        #expect(events.count == 1)
+        guard case let .subagentStarted(sid, taskID, parentToolID) = events.first else {
+            Issue.record("Expected .subagentStarted, got \(String(describing: events.first))")
+            return
+        }
+        #expect(sid == "s1")
+        #expect(taskID == "plug-1")
+        #expect(parentToolID == "tu-parent")
+    }
+
+    @Test
+    func `plugin call with callID uses callID as taskID`() {
+        let event = SSEEvent(
+            event: "plugin.call",
+            data: #"{"sessionId":"s1","callId":"call-42"}"#,
+            id: nil,
+        )
+        let events = OpenCodeEventNormalizer.normalize(event)
+        guard case let .subagentStarted(_, taskID, _) = events.first else {
+            Issue.record("Expected .subagentStarted")
+            return
+        }
+        #expect(taskID == "call-42")
+    }
+
+    @Test
+    func `plugin result normalizes to subagentStopped`() {
+        let event = SSEEvent(
+            event: "plugin.result",
+            data: #"{"sessionId":"s1","pluginId":"plug-1"}"#,
+            id: nil,
+        )
+        let events = OpenCodeEventNormalizer.normalize(event)
+        #expect(events.count == 1)
+        guard case let .subagentStopped(sid, taskID) = events.first else {
+            Issue.record("Expected .subagentStopped, got \(String(describing: events.first))")
+            return
+        }
+        #expect(sid == "s1")
+        #expect(taskID == "plug-1")
+    }
+
+    @Test
+    func `plugin call without parentToolID has nil parentToolID`() {
+        let event = SSEEvent(
+            event: "plugin.call",
+            data: #"{"sessionId":"s1","pluginId":"plug-2"}"#,
+            id: nil,
+        )
+        let events = OpenCodeEventNormalizer.normalize(event)
+        guard case let .subagentStarted(_, _, parentToolID) = events.first else {
+            Issue.record("Expected .subagentStarted")
+            return
+        }
+        #expect(parentToolID == nil)
+    }
+}
+
 // MARK: - OpenCodeEventNormalizerEdgeCaseTests
 
 @Suite(.tags(.opencode))
