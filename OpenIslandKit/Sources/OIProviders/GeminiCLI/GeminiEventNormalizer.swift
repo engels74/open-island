@@ -212,7 +212,7 @@ package enum GeminiEventNormalizer {
             // GeminiBridgeDelegate.extractRequestID for BeforeTool socket
             // connections, so respondToPermission can find the held-open socket.
             let toolName = json["tool_name"] as? String ?? "unknown"
-            let timestamp = json["timestamp"] as? String ?? UUID().uuidString
+            let timestamp = json["timestamp"] as? String ?? "unknown"
             let requestID = "\(sessionID):\(toolName):\(timestamp)"
             let toolInput = self.convertToJSONValue(json["tool_input"])
 
@@ -286,7 +286,7 @@ package enum GeminiEventNormalizer {
         }
 
         // Construct a composite ID from available fields
-        let timestamp = json["timestamp"] as? String ?? UUID().uuidString
+        let timestamp = json["timestamp"] as? String ?? "unknown"
         let toolUseID = "\(sessionID):\(toolName):\(timestamp)"
 
         let toolInput = self.convertToJSONValue(json["tool_input"])

@@ -154,7 +154,7 @@ package enum CodexEventNormalizer {
             return [.toolStarted(sessionID, toolEvent)]
 
         case .collabToolCall:
-            let taskID = self.extractString(params, key: "taskId") ?? self.extractString(params, key: "itemId") ?? UUID().uuidString
+            let taskID = self.extractString(params, key: "taskId") ?? self.extractString(params, key: "itemId") ?? "unknown"
             let parentToolID = self.extractString(params, key: "parentToolId")
             return [.subagentStarted(sessionID, taskID: taskID, parentToolID: parentToolID)]
 
@@ -212,7 +212,7 @@ package enum CodexEventNormalizer {
             return [.toolCompleted(sessionID, toolEvent, result)]
 
         case .collabToolCall:
-            let taskID = self.extractString(params, key: "taskId") ?? self.extractString(params, key: "itemId") ?? UUID().uuidString
+            let taskID = self.extractString(params, key: "taskId") ?? self.extractString(params, key: "itemId") ?? "unknown"
             return [.subagentStopped(sessionID, taskID: taskID)]
 
         case .compacted:
@@ -277,7 +277,7 @@ package enum CodexEventNormalizer {
     }
 
     private static func makeToolEvent(from params: JSONValue?, toolName: String) -> ToolEvent {
-        let id = self.extractString(params, key: "itemId") ?? UUID().uuidString
+        let id = self.extractString(params, key: "itemId") ?? "unknown"
         var input: JSONValue?
         if let command = extractString(params, key: "command") {
             input = .string(command)

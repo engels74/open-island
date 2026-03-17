@@ -255,7 +255,7 @@ package enum OpenCodeEventNormalizer {
         let sessionID = self.extractSessionID(json)
         let taskID = json["pluginId"] as? String
             ?? json["callId"] as? String
-            ?? UUID().uuidString
+            ?? "unknown"
         let parentToolID = json["parentToolId"] as? String
         return [.subagentStarted(sessionID, taskID: taskID, parentToolID: parentToolID)]
     }
@@ -264,7 +264,7 @@ package enum OpenCodeEventNormalizer {
         let sessionID = self.extractSessionID(json)
         let taskID = json["pluginId"] as? String
             ?? json["callId"] as? String
-            ?? UUID().uuidString
+            ?? "unknown"
         return [.subagentStopped(sessionID, taskID: taskID)]
     }
 
@@ -280,7 +280,7 @@ package enum OpenCodeEventNormalizer {
     private static func makeToolEvent(from json: [String: Any]) -> ToolEvent {
         let id = json["toolId"] as? String
             ?? json["id"] as? String
-            ?? UUID().uuidString
+            ?? "unknown"
         let name = json["tool"] as? String
             ?? json["toolName"] as? String
             ?? json["name"] as? String
