@@ -180,6 +180,7 @@ private struct SessionRow: View {
         case .codex: "diamond.fill"
         case .geminiCLI: "sparkles"
         case .openCode: "cpu"
+        case .example: "play.circle"
         }
     }
 }

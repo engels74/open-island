@@ -14,14 +14,17 @@ package enum ProviderEvent: Sendable {
     case toolCompleted(SessionID, ToolEvent, ToolResult?)
     case permissionRequested(SessionID, PermissionRequest)
     case waitingForInput(SessionID)
+    /// The provider is compacting its context window to stay within token limits.
     case compacting(SessionID)
     case notification(SessionID, message: String)
     case chatUpdated(SessionID, [ChatHistoryItem])
     case subagentStarted(SessionID, taskID: String, parentToolID: String?)
     case subagentStopped(SessionID, taskID: String)
+    /// `nil` session ID indicates a global config change affecting all sessions.
     case configChanged(SessionID?)
     case diffUpdated(SessionID, unifiedDiff: String)
     case modelResponse(SessionID, textDelta: String)
     case tokenUsage(SessionID, promptTokens: Int?, completionTokens: Int?, totalTokens: Int?)
+    /// The user interrupted the provider (e.g., Ctrl+C / Escape).
     case interruptDetected(SessionID)
 }

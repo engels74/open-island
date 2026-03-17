@@ -2344,15 +2344,15 @@ OICore/TokenTracking/QuotaService.swift
 
 ### 13.1 Architecture Documentation
 
-- [ ] `ARCHITECTURE.md` — high-level system overview (modeled on the claude-island reference doc)
-- [ ] Provider adapter development guide: how to add a new provider
-- [ ] Module development guide: how to create custom closed-state modules
+- [ ] `ARCHITECTURE.md` — high-level system overview (modeled on the claude-island reference doc) — N/A — skipped per user request
+- [x] Provider adapter development guide: how to add a new provider
+- [x] Module development guide: how to create custom closed-state modules
 
 ### 13.2 Inline Documentation
 
-- [ ] DocC comments on all `public` and `package` protocol requirements
-- [ ] DocC comments on all `SessionEvent` and `ProviderEvent` cases, including which provider events they map from
-- [ ] DocC comments on `SessionPhase` transition rules
+- [x] DocC comments on all `public` and `package` protocol requirements
+- [x] DocC comments on all `SessionEvent` and `ProviderEvent` cases, including which provider events they map from
+- [x] DocC comments on `SessionPhase` transition rules
 
 ### 13.3 Example Provider Skeleton
 
@@ -2360,23 +2360,23 @@ OICore/TokenTracking/QuotaService.swift
 OIProviders/Example/ExampleProviderAdapter.swift
 ```
 
-- [ ] Minimal working provider adapter that emits fake events on a timer
-- [ ] Serves as a template and integration test fixture
-- [ ] Documented line-by-line for onboarding new contributors
-- [ ] Demonstrates all three transport types with comments showing the patterns for each:
-  - [ ] Hook-based (Claude/Gemini pattern): socket server setup, hook installation, event forwarding
-  - [ ] JSON-RPC (Codex pattern): child process management, message routing, approval interception
-  - [ ] HTTP/SSE (OpenCode pattern): SSE connection, REST calls, server discovery
+- [x] Minimal working provider adapter that emits fake events on a timer
+- [x] Serves as a template and integration test fixture
+- [x] Documented line-by-line for onboarding new contributors
+- [x] Demonstrates all three transport types with comments showing the patterns for each:
+  - [x] Hook-based (Claude/Gemini pattern): socket server setup, hook installation, event forwarding
+  - [x] JSON-RPC (Codex pattern): child process management, message routing, approval interception
+  - [x] HTTP/SSE (OpenCode pattern): SSE connection, REST calls, server discovery
 
 ### 13.4 README & Contributing Guide
 
-- [ ] `README.md` — project overview, screenshots, install instructions
-- [ ] `CONTRIBUTING.md` — development setup, PR process, testing expectations:
+- [x] `README.md` — project overview, screenshots, install instructions
+- [ ] `CONTRIBUTING.md` — development setup, PR process, testing expectations: — N/A — skipped per user request
   - [ ] Note about `organizeDeclarations` + `nonisolated` gotcha and `// swiftformat:disable all` guards
   - [ ] Note about forward-scan trailing closure matching (SE-0286) — the first trailing closure label is dropped in Swift 6; use labeled trailing closures for all subsequent closure parameters; avoid trailing closure syntax in `guard` conditions
   - [ ] Note about `AsyncStream` buffering policy conventions (state snapshots → `.bufferingNewest(1)`, event streams → `.bufferingOldest(N)`)
   - [ ] One primary type per file (`NotchViewModel.swift`). Extensions: `TypeName+Feature.swift` (`SessionStore+Streaming.swift`).
-- [ ] `PROVIDERS.md` — status matrix of supported providers and their capabilities, including:
+- [ ] `PROVIDERS.md` — status matrix of supported providers and their capabilities, including: — N/A — skipped per user request
   - [ ] Event transport type and setup requirements
   - [ ] Permission interception mechanism and latency characteristics
   - [ ] Session log format and location
