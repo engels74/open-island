@@ -2240,18 +2240,18 @@ OICore/Terminal/AgentProcessDetector.swift
 
 ### 11.1 Sparkle Integration
 
-- [ ] Add Sparkle framework dependency
-- [ ] Create `NotchUserDriver` for in-notch update UI
-- [ ] Configure `SPUUpdater` with hourly check interval
-- [ ] Set up appcast XML endpoint
-- [ ] Note: if Sparkle types need `Sendable` conformance for crossing isolation boundaries, follow this escalation path: (1) create a wrapper struct isolating Sparkle behind a `Sendable` interface, (2) submit upstream PR to Sparkle adding `Sendable` conformances, (3) `@retroactive @unchecked Sendable` as documented last resort. Prefer wrapper types where possible (per SE-0364 guidance on retroactive conformances).
+- [x] Add Sparkle framework dependency
+- [x] Create `NotchUserDriver` for in-notch update UI
+- [x] Configure `SPUUpdater` with hourly check interval
+- [x] Set up appcast XML endpoint
+- [x] Note: if Sparkle types need `Sendable` conformance for crossing isolation boundaries, follow this escalation path: (1) create a wrapper struct isolating Sparkle behind a `Sendable` interface, (2) submit upstream PR to Sparkle adding `Sendable` conformances, (3) `@retroactive @unchecked Sendable` as documented last resort. Prefer wrapper types where possible (per SE-0364 guidance on retroactive conformances).
 
 ### 11.2 Release Pipeline
 
-- [ ] GitHub Actions workflow: build → sign → notarize → create DMG
-- [ ] Generate appcast XML from GitHub Releases
-- [ ] Version bumping script
-- [ ] See Phase 0.8.6 for full CI/CD workflow details
+- [x] GitHub Actions workflow: build → sign → notarize → create DMG
+- [x] Generate appcast XML from GitHub Releases
+- [x] Version bumping script
+- [x] See Phase 0.8.6 for full CI/CD workflow details
 
 ### 11.3 Single-Instance Check
 
@@ -2259,8 +2259,8 @@ OICore/Terminal/AgentProcessDetector.swift
 OICore/App/SingleInstanceGuard.swift
 ```
 
-- [ ] Check `NSWorkspace.shared.runningApplications` for existing instance
-- [ ] Activate existing instance and exit if found
+- [x] Check `NSWorkspace.shared.runningApplications` for existing instance
+- [x] Activate existing instance and exit if found
 
 ---
 

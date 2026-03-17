@@ -12,8 +12,14 @@ package import SwiftUI
 package struct SettingsMenuView: View {
     // MARK: Lifecycle
 
-    package init(viewModel: NotchViewModel) {
+    package init(
+        viewModel: NotchViewModel,
+        onCheckForUpdates: (() -> Void)? = nil,
+        updateStatusContent: AnyView? = nil,
+    ) {
         self.viewModel = viewModel
+        self.onCheckForUpdates = onCheckForUpdates
+        self.updateStatusContent = updateStatusContent
     }
 
     // MARK: Package
@@ -75,6 +81,8 @@ package struct SettingsMenuView: View {
     @State private var verboseMode = false
 
     private var viewModel: NotchViewModel
+    private var onCheckForUpdates: (() -> Void)?
+    private var updateStatusContent: AnyView?
 
     private var appVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
@@ -369,6 +377,31 @@ private extension SettingsMenuView {
                         },
                     ),
                 )
+
+                if let updateStatusContent {
+                    updateStatusContent
+                }
+
+                if let onCheckForUpdates {
+                    Button {
+                        onCheckForUpdates()
+                    } label: {
+                        HStack {
+                            Image(systemName: "arrow.triangle.2.circlepath")
+                                .font(.system(size: 10))
+                            Text("Check for Updates")
+                                .font(.system(size: 11))
+                        }
+                        .foregroundStyle(.white.opacity(0.7))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 6)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(.white.opacity(0.08)),
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
             }
         }
     }

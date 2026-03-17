@@ -229,7 +229,7 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.version.outputs.version }}
+          tag_name: v${{ steps.version.outputs.version }}
           name: v${{ steps.version.outputs.version }}
           files: releases/OpenIsland-${{ steps.version.outputs.version }}.dmg
           generate_release_notes: true
@@ -286,7 +286,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          VERSION="${{ needs.build.outputs.version }}"
+          VERSION="v${{ needs.build.outputs.version }}"
           gh release view "$VERSION" --json body --jq '.body' > current-body.md
           { cat current-body.md; echo ""; cat virustotal-results.md; } > updated-body.md
           gh release edit "$VERSION" --notes-file updated-body.md
@@ -318,7 +318,7 @@ jobs:
             {
               "version": "${{ needs.build.outputs.version }}",
               "build_number": "${{ needs.build.outputs.build_number }}",
-              "download_url": "https://github.com/engels74/open-island/releases/download/${{ needs.build.outputs.version }}/OpenIsland-${{ needs.build.outputs.version }}.dmg",
+              "download_url": "https://github.com/engels74/open-island/releases/download/v${{ needs.build.outputs.version }}/OpenIsland-${{ needs.build.outputs.version }}.dmg",
               "ed_signature": "${{ needs.build.outputs.ed_signature }}",
               "file_size": "${{ needs.build.outputs.dmg_size }}",
               "min_system_version": "${{ needs.build.outputs.min_system }}"

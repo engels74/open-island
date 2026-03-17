@@ -14,11 +14,21 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		A1000000000000000000E001 /* Exceptions for "OpenIsland" folder in "OpenIsland" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = A10000000000000000000040 /* OpenIsland */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		A10000000000000000000010 /* OpenIsland */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				A1000000000000000000E001 /* Exceptions for "OpenIsland" folder in "OpenIsland" target */,
+			);
 			path = OpenIsland;
 			sourceTree = "<group>";
 		};
@@ -76,6 +86,7 @@
 				A1000000000000000000C004 /* OIModules */,
 				A1000000000000000000C005 /* OIState */,
 				A1000000000000000000C006 /* OIUI */,
+				A1000000000000000000C007 /* Sparkle */,
 			);
 			productName = OpenIsland;
 			productReference = A10000000000000000000001 /* OpenIsland.app */;
@@ -111,6 +122,7 @@
 			projectRoot = "";
 			packageReferences = (
 				A1000000000000000000D001 /* XCLocalSwiftPackageReference "OpenIslandKit" */,
+				A1000000000000000000D002 /* XCRemoteSwiftPackageReference "Sparkle" */,
 			);
 			targets = (
 				A10000000000000000000040 /* OpenIsland */,
@@ -268,6 +280,7 @@
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = OpenIsland/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Open Island";
 				INFOPLIST_KEY_LSUIElement = YES;
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
@@ -292,6 +305,7 @@
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = OpenIsland/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Open Island";
 				INFOPLIST_KEY_LSUIElement = YES;
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
@@ -335,6 +349,17 @@
 		};
 /* End XCLocalSwiftPackageReference section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		A1000000000000000000D002 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.6.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
 		A1000000000000000000C001 /* OICore */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -359,6 +384,11 @@
 		A1000000000000000000C006 /* OIUI */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = OIUI;
+		};
+		A1000000000000000000C007 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1000000000000000000D002 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
