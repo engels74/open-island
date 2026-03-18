@@ -1,5 +1,7 @@
 # open-island
 
+![Open Island logo](Design/oi-logo.svg)
+
 Provider-agnostic macOS notch overlay for monitoring CLI/TUI coding agents.
 
 open-island sits in your MacBook's notch area and gives you live visibility
@@ -69,6 +71,7 @@ just clean           # remove build artifacts
 ## Project Structure
 
 ```text
+Design/              # logo and design assets
 OpenIsland/          # macOS app (Xcode project)
 OpenIslandKit/       # SPM package with all library modules
   Sources/
