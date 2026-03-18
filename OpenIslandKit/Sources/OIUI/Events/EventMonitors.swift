@@ -17,13 +17,13 @@ public final class EventMonitors {
     /// - Parameters:
     ///   - onHoverEnter: Called when the mouse enters the notch area.
     ///   - onHoverExit: Called when the mouse leaves the notch area.
-    ///   - onClickOutside: Called when a click occurs outside the panel area.
+    ///   - onClickOutside: Called with the triggering event when a click occurs outside the panel area.
     ///   - onKeyboardShortcut: Called when the keyboard shortcut is triggered.
     ///   - onDrag: Called with mouse position during drag interactions.
     public init(
         onHoverEnter: @escaping () -> Void,
         onHoverExit: @escaping () -> Void,
-        onClickOutside: @escaping () -> Void,
+        onClickOutside: @escaping (NSEvent) -> Void,
         onKeyboardShortcut: @escaping () -> Void,
         onDrag: @escaping (CGPoint) -> Void,
     ) {
@@ -89,7 +89,7 @@ public final class EventMonitors {
 
     private let onHoverEnter: () -> Void
     private let onHoverExit: () -> Void
-    private let onClickOutside: () -> Void
+    private let onClickOutside: (NSEvent) -> Void
     private let onKeyboardShortcut: () -> Void
     private let onDrag: (CGPoint) -> Void
 
@@ -169,13 +169,13 @@ public final class EventMonitors {
             scope: .both,
         ) { [weak self] event in
             MainActor.assumeIsolated {
-                self?.handleClick()
+                self?.handleClick(event)
             }
             return event
         }
     }
 
-    private func handleClick() {
+    private func handleClick(_ event: NSEvent) {
         guard let geometry, let panelSize else { return }
 
         let globalPoint = NSEvent.mouseLocation
@@ -185,7 +185,7 @@ public final class EventMonitors {
         )
 
         if geometry.isPointOutsidePanel(localPoint, size: panelSize) {
-            self.onClickOutside()
+            self.onClickOutside(event)
         }
     }
 

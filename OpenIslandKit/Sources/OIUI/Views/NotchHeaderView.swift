@@ -82,7 +82,11 @@ package struct NotchHeaderView: View {
     /// Modules that declare `showInExpandedHeader == true`, visible in the opened header.
     private var expandedHeaderModules: [any NotchModule] {
         self.viewModel.registry.allModules
-            .filter { $0.showInExpandedHeader && $0.isVisible(context: self.viewModel.visibilityContext) }
+            .filter {
+                $0.showInExpandedHeader
+                    && !self.viewModel.registry.layoutConfig.isHidden($0.id)
+                    && $0.isVisible(context: self.viewModel.visibilityContext)
+            }
             .sorted { $0.defaultOrder < $1.defaultOrder }
     }
 
@@ -90,7 +94,11 @@ package struct NotchHeaderView: View {
     /// persistence between closed and opened states.
     private var mascotModule: (any NotchModule)? {
         self.viewModel.registry.allModules
-            .first { $0.id == "mascot" && $0.isVisible(context: self.viewModel.visibilityContext) }
+            .first {
+                $0.id == "mascot"
+                    && !self.viewModel.registry.layoutConfig.isHidden($0.id)
+                    && $0.isVisible(context: self.viewModel.visibilityContext)
+            }
     }
 
     // MARK: - Closed State

@@ -63,9 +63,9 @@ final class AppCoordinator {
             onHoverExit: {
                 vm.notchClose()
             },
-            onClickOutside: {
+            onClickOutside: { event in
                 vm.notchClose()
-                Self.repostClickAtCurrentLocation()
+                Self.repostClick(for: event)
             },
             onKeyboardShortcut: {
                 if vm.status == .opened {
@@ -181,31 +181,54 @@ final class AppCoordinator {
     private var geometryObservationTask: Task<Void, Never>?
     private var panelSizeObservationTask: Task<Void, Never>?
 
-    /// Re-posts a left mouse click at the current cursor location.
+    /// Re-posts a mouse click for click-outside dismissal so the click reaches
+    /// whatever is behind the notch panel (e.g. a menu bar item).
     ///
-    /// Used by click-outside dismissal so the click reaches whatever is behind
-    /// the notch panel (e.g. a menu bar item). Mirrors the CGEvent pattern in
-    /// `NotchPanel.repostMouseEvent()`.
-    private static func repostClickAtCurrentLocation() {
-        guard let mainScreen = NSScreen.main else { return }
+    /// Preserves the original event type (left/right), modifier flags, and click
+    /// count. Mirrors the `CGEvent` pattern in `NotchPanel.repostMouseEvent()`.
+    private static func repostClick(for event: NSEvent) {
+        // CGEvent coordinates use a global space anchored to the top-left of
+        // the primary display. `NSScreen.screens.first` is always the primary
+        // display, unlike `NSScreen.main` which is the screen with the key window.
+        guard let primaryScreen = NSScreen.screens.first else { return }
 
         // AppKit uses bottom-left origin; CGEvent uses top-left origin.
         let appKitPoint = NSEvent.mouseLocation
-        let cgPoint = CGPoint(x: appKitPoint.x, y: mainScreen.frame.height - appKitPoint.y)
+        let cgPoint = CGPoint(x: appKitPoint.x, y: primaryScreen.frame.height - appKitPoint.y)
+
+        let cgDownType: CGEventType
+        let cgUpType: CGEventType
+        let mouseButton: CGMouseButton
+
+        switch event.type {
+        case .rightMouseDown:
+            cgDownType = .rightMouseDown
+            cgUpType = .rightMouseUp
+            mouseButton = .right
+        default:
+            cgDownType = .leftMouseDown
+            cgUpType = .leftMouseUp
+            mouseButton = .left
+        }
 
         guard let mouseDown = CGEvent(
             mouseEventSource: nil,
-            mouseType: .leftMouseDown,
+            mouseType: cgDownType,
             mouseCursorPosition: cgPoint,
-            mouseButton: .left,
+            mouseButton: mouseButton,
         ),
             let mouseUp = CGEvent(
                 mouseEventSource: nil,
-                mouseType: .leftMouseUp,
+                mouseType: cgUpType,
                 mouseCursorPosition: cgPoint,
-                mouseButton: .left,
+                mouseButton: mouseButton,
             )
         else { return }
+
+        mouseDown.flags = CGEventFlags(rawValue: UInt64(event.modifierFlags.rawValue))
+        mouseDown.setIntegerValueField(.mouseEventClickState, value: Int64(event.clickCount))
+        mouseUp.flags = CGEventFlags(rawValue: UInt64(event.modifierFlags.rawValue))
+        mouseUp.setIntegerValueField(.mouseEventClickState, value: Int64(event.clickCount))
 
         mouseDown.post(tap: .cghidEventTap)
         mouseUp.post(tap: .cghidEventTap)

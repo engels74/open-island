@@ -182,6 +182,9 @@ public final class NotchViewModel {
 
             try? await Task.sleep(for: .seconds(1))
 
+            // Only close if still in the popping state — the user or
+            // activity coordinator may have opened the notch during the animation.
+            guard self.status == .popping else { return }
             self.status = .closed
             self.activeStatusContinuation?.yield(.closed)
         }
