@@ -3,6 +3,7 @@ public import Observation
 public import OICore
 public import OIModules
 public import OIWindow
+public import SwiftUI
 
 // MARK: - NotchViewModel
 
@@ -194,6 +195,15 @@ public final class NotchViewModel {
     public func setHovered(_ hovered: Bool) {
         self.isHovered = hovered
     }
+
+    // MARK: Package
+
+    /// Accent color for the mascot, tracked by Observation so views
+    /// using this value re-render when the color changes in settings.
+    ///
+    /// Initialized from `AppSettings.mascotColor` and kept in sync by
+    /// `SettingsMenuView` when the user picks a new color.
+    package var mascotColor: Color = AppSettings.mascotColor
 
     // MARK: Private
 
