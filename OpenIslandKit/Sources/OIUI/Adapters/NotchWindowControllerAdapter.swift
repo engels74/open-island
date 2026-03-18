@@ -56,6 +56,7 @@ public final class NotchWindowControllerAdapter: WindowControllerHandle {
 
     public func tearDown() {
         self.controller.hide()
+        self.controller.window?.orderOut(nil)
         self.controller.window?.close()
     }
 
