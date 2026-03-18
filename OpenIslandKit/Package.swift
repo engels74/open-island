@@ -54,6 +54,9 @@ let package = Package(
         .target(
             name: "OIModules",
             dependencies: ["OICore"],
+            resources: [
+                .process("Resources"),
+            ],
             swiftSettings: upcomingFeatures,
         ),
         .target(

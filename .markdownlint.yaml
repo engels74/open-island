@@ -1,6 +1,13 @@
 # Markdownlint configuration
 # See: https://github.com/DavidAnson/markdownlint/blob/main/doc/Rules.md
 
-# MD013/line-length — exclude tables (cannot be wrapped)
+# MD013/line-length — exclude tables; relax length for badge URLs
 MD013:
   tables: false
+  line_length: 200
+
+# MD033/no-inline-html — README uses <div>, <img>, <a>, <p>, <h3> for centered header block
+MD033: false
+
+# MD041/first-line-heading — README starts with <div align="center"> instead of a heading
+MD041: false

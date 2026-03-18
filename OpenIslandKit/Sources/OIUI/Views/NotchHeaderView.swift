@@ -62,6 +62,7 @@ package struct NotchHeaderView: View {
     private var renderContext: ModuleRenderContext {
         ModuleRenderContext(
             animationNamespace: self.headerNamespace,
+            accentColor: self.viewModel.mascotColor,
             isHighlighted: self.viewModel.visibilityContext.isProcessing,
             activeProviderCount: self.viewModel.visibilityContext.activeProviders.count,
         )
