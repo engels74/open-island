@@ -91,8 +91,12 @@ public struct NotchView: View {
         )
         .scaleEffect(isPopping ? 1.02 : 1.0)
         .onHover { hovering in
-            withAnimation(.spring(response: 0.38, dampingFraction: 0.8)) {
+            if self.reduceMotion {
                 self.viewModel.setHovered(hovering)
+            } else {
+                withAnimation(.spring(response: 0.38, dampingFraction: 0.8)) {
+                    self.viewModel.setHovered(hovering)
+                }
             }
         }
         .animation(self.reduceMotion ? .none : self.openCloseAnimation(isOpened: isOpened), value: isOpened)
