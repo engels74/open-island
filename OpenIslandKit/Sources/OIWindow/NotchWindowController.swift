@@ -77,6 +77,7 @@ package final class NotchWindowController: NSWindowController {
     }
 
     deinit {
+        self.statusTask?.cancel()
         if let observer = self.resizeObserver {
             NotificationCenter.default.removeObserver(observer)
         }
