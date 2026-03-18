@@ -56,16 +56,15 @@ package struct ModuleLayoutSettingsView: View {
     // MARK: Package
 
     package var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 12) {
             self.header
 
-            HStack(alignment: .top, spacing: 12) {
+            HStack(alignment: .top, spacing: 8) {
                 self.columnView(for: .left)
                 self.columnView(for: .right)
                 self.columnView(for: .hidden)
             }
         }
-        .padding(16)
     }
 
     // MARK: Private
@@ -77,12 +76,12 @@ package struct ModuleLayoutSettingsView: View {
     private var header: some View {
         HStack {
             Text("Module Layout")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.primary)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.white.opacity(0.5))
 
             Spacer()
 
-            Button("Reset to Defaults") {
+            Button("Reset") {
                 self.registry.resetLayoutToDefaults()
             }
             .font(.system(size: 11))
@@ -99,15 +98,16 @@ package struct ModuleLayoutSettingsView: View {
         VStack(spacing: 0) {
             // Column header
             Label(placement.title, systemImage: placement.systemImage)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(.secondary)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(.white.opacity(0.5))
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 6)
+                .padding(.vertical, 5)
 
             Divider()
+                .background(Color.white.opacity(0.08))
 
             // Module list or empty state
-            VStack(spacing: 4) {
+            VStack(spacing: 3) {
                 if modules.isEmpty {
                     self.emptyState(for: placement)
                 } else {
@@ -116,17 +116,17 @@ package struct ModuleLayoutSettingsView: View {
                     }
                 }
             }
-            .padding(8)
-            .frame(maxWidth: .infinity, minHeight: 60)
+            .padding(6)
+            .frame(maxWidth: .infinity, minHeight: 50)
         }
         .background {
             RoundedRectangle(cornerRadius: 8)
-                .fill(.quaternary.opacity(isTargeted ? 1 : 0.5))
+                .fill(.white.opacity(isTargeted ? 0.06 : 0.03))
         }
         .overlay {
             if isTargeted {
                 RoundedRectangle(cornerRadius: 8)
-                    .strokeBorder(.blue.opacity(0.6), lineWidth: 2)
+                    .strokeBorder(.blue.opacity(0.5), lineWidth: 1.5)
             }
         }
         .dropDestination(for: DraggedModule.self) { items, _ in
@@ -140,32 +140,32 @@ package struct ModuleLayoutSettingsView: View {
     }
 
     private func moduleRow(_ module: any NotchModule) -> some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 5) {
             Image(systemName: "line.3.horizontal")
-                .font(.system(size: 10))
-                .foregroundStyle(.tertiary)
+                .font(.system(size: 9))
+                .foregroundStyle(.white.opacity(0.3))
 
             Text(module.id)
-                .font(.system(size: 12))
-                .foregroundStyle(.primary)
+                .font(.system(size: 11))
+                .foregroundStyle(.white.opacity(0.7))
                 .lineLimit(1)
 
             Spacer()
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 5)
         .background(
             RoundedRectangle(cornerRadius: 6)
-                .fill(.background.opacity(0.8)),
+                .fill(.white.opacity(0.05)),
         )
         .draggable(DraggedModule(moduleID: module.id))
     }
 
     private func emptyState(for placement: ModulePlacement) -> some View {
-        Text(placement == .hidden ? "Drop here to hide" : "Drop modules here")
-            .font(.system(size: 11))
-            .foregroundStyle(.tertiary)
-            .frame(maxWidth: .infinity, minHeight: 40)
+        Text(placement == .hidden ? "Drop to hide" : "Drop here")
+            .font(.system(size: 10))
+            .foregroundStyle(.white.opacity(0.25))
+            .frame(maxWidth: .infinity, minHeight: 36)
             .multilineTextAlignment(.center)
     }
 

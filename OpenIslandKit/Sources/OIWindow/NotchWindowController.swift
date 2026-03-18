@@ -27,6 +27,29 @@ package enum OpenReason: Sendable {
     }
 }
 
+// MARK: - NotchWindowStatus
+
+/// Snapshot emitted by the status stream to drive panel interactivity.
+///
+/// Carries both the open/closed flag and whether the open transition should
+/// activate the app (make it key and frontmost). Notifications and boot
+/// animations pass `shouldActivate = false` to avoid stealing focus.
+package struct NotchWindowStatus: Sendable {
+    // MARK: Lifecycle
+
+    package init(isOpened: Bool, shouldActivate: Bool = false) {
+        self.isOpened = isOpened
+        self.shouldActivate = shouldActivate
+    }
+
+    // MARK: Package
+
+    /// Whether the notch panel is open.
+    package let isOpened: Bool
+    /// Whether the app should activate and the panel should become key.
+    package let shouldActivate: Bool
+}
+
 // MARK: - NotchWindowController
 
 /// Manages the lifecycle of the notch panel: creation, positioning, show/hide,
@@ -122,25 +145,30 @@ package final class NotchWindowController: NSWindowController {
         self.repositionForContentSize()
     }
 
-    /// Subscribes to a boolean stream that drives panel interactivity.
+    /// Subscribes to a status stream that drives panel interactivity and focus.
     ///
     /// The OIUI layer adapts `NotchViewModel.makeStatusStream()` into a
-    /// `Bool` stream (`true` = opened, `false` = closed) and passes it here.
-    /// The controller toggles `ignoresMouseEvents` and `isInteractive` on
-    /// each status change.
+    /// `NotchWindowStatus` stream and passes it here. The controller toggles
+    /// `ignoresMouseEvents` and `isInteractive` on each status change, and
+    /// activates the app when `shouldActivate` is true.
     ///
     /// Calling this again cancels the previous subscription.
-    package func subscribeToStatusStream(_ stream: AsyncStream<Bool>) {
+    package func subscribeToStatusStream(_ stream: AsyncStream<NotchWindowStatus>) {
         self.statusTask?.cancel()
         self.statusTask = Task { @MainActor [weak self] in
-            for await isOpened in stream {
+            for await status in stream {
                 guard let self, !Task.isCancelled else { break }
-                if isOpened {
+                if status.isOpened {
                     self.hostingView.activeHitRect = nil
                     self.hostingView.isInteractive = true
                     self.window?.ignoresMouseEvents = false
                     self.window?.orderFrontRegardless()
                     self.repositionForContentSize()
+
+                    if status.shouldActivate {
+                        NSApp.activate()
+                        self.window?.makeKey()
+                    }
                 } else {
                     self.hostingView.isInteractive = false
                     self.hostingView.activeHitRect = nil

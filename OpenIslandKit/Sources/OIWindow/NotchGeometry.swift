@@ -32,7 +32,7 @@ public struct NotchGeometry: Sendable, Equatable {
     // MARK: Public
 
     /// Fixed panel height when the notch is opened.
-    public static let windowHeight: CGFloat = 750
+    public static let windowHeight: CGFloat = 620
 
     /// The hardware notch rect in screen-local coordinates (origin = bottom-left of screen).
     public let deviceNotchRect: CGRect
