@@ -163,6 +163,7 @@ private extension SettingsMenuView {
                             set: {
                                 self.mascotColor = $0
                                 AppSettings.mascotColor = $0
+                                self.viewModel.mascotColor = $0
                             },
                         ),
                         supportsOpacity: false,

@@ -72,7 +72,7 @@ public struct MascotModule: NotchModule {
                     radius: 2,
                 )
         } else {
-            Image("OILogo", bundle: .main)
+            Image("OILogo", bundle: .module)
                 .renderingMode(.template)
                 .resizable()
                 .aspectRatio(contentMode: .fit)

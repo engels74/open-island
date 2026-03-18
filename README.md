@@ -1,8 +1,27 @@
-# open-island
-
-![Open Island logo](Design/oi-logo.svg)
-
-Provider-agnostic macOS notch overlay for monitoring CLI/TUI coding agents.
+<div align="center">
+  <img src="Design/oi-logo.svg" alt="Open Island logo" width="256" height="256">
+  <p>
+    <a href="https://github.com/engels74/open-island/releases/latest">
+      <img src="https://img.shields.io/github/v/release/engels74/open-island?style=rounded&color=white&labelColor=000000&label=release" alt="Release Version" />
+    </a>
+    <a href="https://github.com/engels74/open-island/releases">
+      <img alt="GitHub Downloads" src="https://img.shields.io/github/downloads/engels74/open-island/total?style=rounded&color=white&labelColor=000000">
+    </a>
+    <a href="https://opensource.org/licenses/AGPL-3.0">
+      <img src="https://img.shields.io/badge/License-AGPL%203.0-blue.svg?style=rounded&labelColor=000000" alt="License: AGPL 3.0">
+    </a>
+    <a href="#">
+      <img src="https://img.shields.io/badge/Swift-6-F05138.svg?style=rounded&labelColor=000000" alt="Swift 6">
+    </a>
+    <a href="https://deepwiki.com/engels74/open-island">
+      <img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki">
+    </a>
+  </p>
+  <h3 align="center">Open Island</h3>
+  <p align="center">
+    Provider-agnostic macOS notch overlay for monitoring CLI/TUI coding agents.
+  </p>
+</div>
 
 open-island sits in your MacBook's notch area and gives you live visibility
 into what your coding agents are doing — active sessions, permission requests
