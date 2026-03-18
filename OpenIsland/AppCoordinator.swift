@@ -187,14 +187,12 @@ final class AppCoordinator {
     /// Preserves the original event type (left/right), modifier flags, and click
     /// count. Mirrors the `CGEvent` pattern in `NotchPanel.repostMouseEvent()`.
     private static func repostClick(for event: NSEvent) {
-        // CGEvent coordinates use a global space anchored to the top-left of
-        // the primary display. `NSScreen.screens.first` is always the primary
-        // display, unlike `NSScreen.main` which is the screen with the key window.
-        guard let primaryScreen = NSScreen.screens.first else { return }
-
-        // AppKit uses bottom-left origin; CGEvent uses top-left origin.
-        let appKitPoint = NSEvent.mouseLocation
-        let cgPoint = CGPoint(x: appKitPoint.x, y: primaryScreen.frame.height - appKitPoint.y)
+        // Use the event's own CGEvent location rather than NSEvent.mouseLocation.
+        // NSEvent.mouseLocation queries the *current* cursor position, which could
+        // differ from the triggering event's position if the mouse moves between
+        // event receipt and repost. CGEvent.location gives the recorded event
+        // position directly in CG coordinates (top-left origin) — no conversion needed.
+        guard let cgPoint = event.cgEvent?.location else { return }
 
         let cgDownType: CGEventType
         let cgUpType: CGEventType
