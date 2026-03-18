@@ -34,10 +34,37 @@ public struct ActivitySpinnerModule: NotchModule {
 
     @MainActor
     private func body(context: ModuleRenderContext) -> some View {
-        ProgressView()
-            .controlSize(.mini)
-            .tint(context.accentColor)
+        CyclingSpinnerView(color: context.accentColor)
     }
+}
+
+// MARK: - CyclingSpinnerView
+
+@MainActor
+package struct CyclingSpinnerView: View {
+    // MARK: Lifecycle
+
+    package init(color: Color) {
+        self.color = color
+    }
+
+    // MARK: Package
+
+    package let color: Color
+
+    package var body: some View {
+        TimelineView(.periodic(from: .now, by: 0.15)) { context in
+            let phase = Int(context.date.timeIntervalSinceReferenceDate / 0.15) % self.symbols.count
+            Text(self.symbols[phase])
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(self.color)
+                .frame(width: 12, alignment: .center)
+        }
+    }
+
+    // MARK: Private
+
+    private let symbols = ["·", "✢", "✳", "∗", "✻", "✽"]
 }
 
 // MARK: - Preview

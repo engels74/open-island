@@ -66,6 +66,11 @@ public struct MascotModule: NotchModule {
         Image(systemName: self.iconName)
             .font(.system(size: 12, weight: .medium))
             .foregroundStyle(context.accentColor)
+            .symbolEffect(.pulse, isActive: context.isHighlighted)
+            .shadow(
+                color: context.isHighlighted ? context.accentColor.opacity(0.3) : .clear,
+                radius: 2,
+            )
     }
 }
 

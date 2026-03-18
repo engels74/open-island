@@ -43,7 +43,10 @@ public final class NotchWindowControllerAdapter: WindowControllerHandle {
 
         self.controller.subscribeToStatusStream(boolStream)
         self.controller.show(reason: .boot)
-        self.controller.playBootAnimationIfNeeded()
+
+        // Boot animation driven through view model status (.popping → .closed)
+        // instead of directly calling show/hide on the window controller.
+        viewModel.performBootAnimation()
     }
 
     // MARK: Public

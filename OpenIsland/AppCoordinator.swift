@@ -65,6 +65,7 @@ final class AppCoordinator {
             },
             onClickOutside: {
                 vm.notchClose()
+                Self.repostClickAtCurrentLocation()
             },
             onKeyboardShortcut: {
                 if vm.status == .opened {
@@ -132,6 +133,7 @@ final class AppCoordinator {
             let notchView = NotchView(
                 viewModel: self.viewModel,
                 sessionMonitor: self.sessionMonitor,
+                activityCoordinator: self.activityCoordinator,
             ) { [weak self] in
                 self?.updateManager?.checkForUpdates()
             }
@@ -178,6 +180,36 @@ final class AppCoordinator {
     private var eventBridgeTask: Task<Void, Never>?
     private var geometryObservationTask: Task<Void, Never>?
     private var panelSizeObservationTask: Task<Void, Never>?
+
+    /// Re-posts a left mouse click at the current cursor location.
+    ///
+    /// Used by click-outside dismissal so the click reaches whatever is behind
+    /// the notch panel (e.g. a menu bar item). Mirrors the CGEvent pattern in
+    /// `NotchPanel.repostMouseEvent()`.
+    private static func repostClickAtCurrentLocation() {
+        guard let mainScreen = NSScreen.main else { return }
+
+        // AppKit uses bottom-left origin; CGEvent uses top-left origin.
+        let appKitPoint = NSEvent.mouseLocation
+        let cgPoint = CGPoint(x: appKitPoint.x, y: mainScreen.frame.height - appKitPoint.y)
+
+        guard let mouseDown = CGEvent(
+            mouseEventSource: nil,
+            mouseType: .leftMouseDown,
+            mouseCursorPosition: cgPoint,
+            mouseButton: .left,
+        ),
+            let mouseUp = CGEvent(
+                mouseEventSource: nil,
+                mouseType: .leftMouseUp,
+                mouseCursorPosition: cgPoint,
+                mouseButton: .left,
+            )
+        else { return }
+
+        mouseDown.post(tap: .cghidEventTap)
+        mouseUp.post(tap: .cghidEventTap)
+    }
 
     /// Spawns a task that keeps ``EventMonitors/geometry`` in sync with
     /// ``ScreenObserver/geometry`` via `withObservationTracking`.
