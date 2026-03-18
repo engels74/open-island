@@ -7,7 +7,7 @@
 /// let name = json["data"]?["name"]?.stringValue
 /// let first = json["items"]?[0]?.intValue
 /// ```
-package enum JSONValue: Sendable, Equatable, Codable {
+public enum JSONValue: Sendable, Equatable, Codable {
     case string(String)
     case int(Int)
     case double(Double)
@@ -20,7 +20,7 @@ package enum JSONValue: Sendable, Equatable, Codable {
 
     // MARK: - Codable
 
-    package init(from decoder: any Decoder) throws {
+    public init(from decoder: any Decoder) throws {
         let container = try decoder.singleValueContainer()
 
         if container.decodeNil() {
@@ -66,45 +66,45 @@ package enum JSONValue: Sendable, Equatable, Codable {
         )
     }
 
-    // MARK: Package
+    // MARK: Public
 
     // MARK: - Convenience Properties
 
-    package var stringValue: String? {
+    public var stringValue: String? {
         if case let .string(v) = self { return v }
         return nil
     }
 
-    package var intValue: Int? {
+    public var intValue: Int? {
         if case let .int(v) = self { return v }
         return nil
     }
 
-    package var doubleValue: Double? {
+    public var doubleValue: Double? {
         if case let .double(v) = self { return v }
         return nil
     }
 
-    package var boolValue: Bool? {
+    public var boolValue: Bool? {
         if case let .bool(v) = self { return v }
         return nil
     }
 
-    package var arrayValue: [Self]? {
+    public var arrayValue: [Self]? {
         if case let .array(v) = self { return v }
         return nil
     }
 
-    package var objectValue: [String: Self]? {
+    public var objectValue: [String: Self]? {
         if case let .object(v) = self { return v }
         return nil
     }
 
-    package var isNull: Bool {
+    public var isNull: Bool {
         self == .null
     }
 
-    package func encode(to encoder: any Encoder) throws {
+    public func encode(to encoder: any Encoder) throws {
         var container = encoder.singleValueContainer()
         switch self {
         case let .string(value): try container.encode(value)
@@ -121,14 +121,14 @@ package enum JSONValue: Sendable, Equatable, Codable {
 
     /// Access a value by key when `self` is `.object`.
     /// Returns `nil` for type mismatches.
-    package subscript(key: String) -> Self? {
+    public subscript(key: String) -> Self? {
         if case let .object(dict) = self { return dict[key] }
         return nil
     }
 
     /// Access a value by index when `self` is `.array`.
     /// Returns `nil` for type mismatches or out-of-bounds indices.
-    package subscript(index: Int) -> Self? {
+    public subscript(index: Int) -> Self? {
         if case let .array(arr) = self, arr.indices.contains(index) { return arr[index] }
         return nil
     }
@@ -137,7 +137,7 @@ package enum JSONValue: Sendable, Equatable, Codable {
 // MARK: ExpressibleByStringLiteral
 
 extension JSONValue: ExpressibleByStringLiteral {
-    package init(stringLiteral value: String) {
+    public init(stringLiteral value: String) {
         self = .string(value)
     }
 }
@@ -145,7 +145,7 @@ extension JSONValue: ExpressibleByStringLiteral {
 // MARK: ExpressibleByIntegerLiteral
 
 extension JSONValue: ExpressibleByIntegerLiteral {
-    package init(integerLiteral value: Int) {
+    public init(integerLiteral value: Int) {
         self = .int(value)
     }
 }
@@ -153,7 +153,7 @@ extension JSONValue: ExpressibleByIntegerLiteral {
 // MARK: ExpressibleByFloatLiteral
 
 extension JSONValue: ExpressibleByFloatLiteral {
-    package init(floatLiteral value: Double) {
+    public init(floatLiteral value: Double) {
         self = .double(value)
     }
 }
@@ -161,7 +161,7 @@ extension JSONValue: ExpressibleByFloatLiteral {
 // MARK: ExpressibleByBooleanLiteral
 
 extension JSONValue: ExpressibleByBooleanLiteral {
-    package init(booleanLiteral value: Bool) {
+    public init(booleanLiteral value: Bool) {
         self = .bool(value)
     }
 }
@@ -169,7 +169,7 @@ extension JSONValue: ExpressibleByBooleanLiteral {
 // MARK: ExpressibleByArrayLiteral
 
 extension JSONValue: ExpressibleByArrayLiteral {
-    package init(arrayLiteral elements: JSONValue...) {
+    public init(arrayLiteral elements: JSONValue...) {
         self = .array(elements)
     }
 }
@@ -177,7 +177,7 @@ extension JSONValue: ExpressibleByArrayLiteral {
 // MARK: ExpressibleByDictionaryLiteral
 
 extension JSONValue: ExpressibleByDictionaryLiteral {
-    package init(dictionaryLiteral elements: (String, JSONValue)...) {
+    public init(dictionaryLiteral elements: (String, JSONValue)...) {
         self = .object(Dictionary(uniqueKeysWithValues: elements))
     }
 }
@@ -185,7 +185,7 @@ extension JSONValue: ExpressibleByDictionaryLiteral {
 // MARK: ExpressibleByNilLiteral
 
 extension JSONValue: ExpressibleByNilLiteral {
-    package init(nilLiteral: ()) {
+    public init(nilLiteral: ()) {
         self = .null
     }
 }

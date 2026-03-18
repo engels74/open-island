@@ -1,4 +1,4 @@
-package import SwiftUI
+public import SwiftUI
 
 // MARK: - TimerModule
 
@@ -6,32 +6,32 @@ package import SwiftUI
 ///
 /// Always visible when there are active providers. Displays a compact
 /// `mm:ss` or `h:mm:ss` formatted duration.
-package struct TimerModule: NotchModule {
+public struct TimerModule: NotchModule {
     // MARK: Lifecycle
 
     /// - Parameter startDate: The reference date for elapsed time calculation.
     ///   Defaults to `nil` (no timer shown until a session starts).
-    package init(startDate: Date? = nil) {
+    public init(startDate: Date? = nil) {
         self.startDate = startDate
     }
 
-    // MARK: Package
+    // MARK: Public
 
-    package let id = "timer"
-    package let defaultSide = ModuleSide.right
-    package let defaultOrder = 3
-    package let showInExpandedHeader = false
+    public let id = "timer"
+    public let defaultSide = ModuleSide.right
+    public let defaultOrder = 3
+    public let showInExpandedHeader = false
 
-    package func isVisible(context: ModuleVisibilityContext) -> Bool {
+    public func isVisible(context: ModuleVisibilityContext) -> Bool {
         !context.activeProviders.isEmpty
     }
 
-    package func preferredWidth() -> CGFloat {
+    public func preferredWidth() -> CGFloat {
         40
     }
 
     @MainActor
-    package func makeBody(context: ModuleRenderContext) -> AnyView {
+    public func makeBody(context: ModuleRenderContext) -> AnyView {
         AnyView(self.body(context: context))
     }
 

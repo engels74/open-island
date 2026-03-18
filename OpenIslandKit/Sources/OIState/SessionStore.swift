@@ -1,5 +1,5 @@
-package import Foundation
-package import OICore
+public import Foundation
+public import OICore
 
 // MARK: - SessionStore
 
@@ -8,20 +8,20 @@ package import OICore
 /// Events enter through ``process(_:)`` and are dispatched to internal
 /// handlers that mutate ``sessions``. State changes are broadcast to
 /// subscribers via ``publishState()``.
-package actor SessionStore {
+public actor SessionStore {
     // MARK: Lifecycle
 
-    package init() {}
+    public init() {}
 
-    // MARK: Package
+    // MARK: Public
 
     /// Sorted snapshot of all active sessions, ordered by most-recent activity.
-    package var currentSessions: [SessionState] {
+    public var currentSessions: [SessionState] {
         self.sessions.values.sorted { $0.lastActivityAt > $1.lastActivityAt }
     }
 
     /// Look up a single session by ID.
-    package func session(for id: String) -> SessionState? {
+    public func session(for id: String) -> SessionState? {
         self.sessions[id]
     }
 
@@ -30,7 +30,7 @@ package actor SessionStore {
     /// The `sending` annotation (SE-0430) documents ownership transfer into
     /// the actor's isolation domain — the canonical boundary where events
     /// cross from provider actors into the ``SessionStore``.
-    package func process(_ event: sending SessionEvent) async {
+    public func process(_ event: sending SessionEvent) async {
         self.recordAudit(event)
 
         switch event {

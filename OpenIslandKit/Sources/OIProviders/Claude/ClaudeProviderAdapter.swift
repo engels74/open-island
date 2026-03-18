@@ -1,5 +1,5 @@
 import Foundation
-package import OICore
+public import OICore
 import Synchronization
 
 // MARK: - AdapterState
@@ -18,21 +18,21 @@ private struct AdapterState: Sendable {
 ///
 /// Owns the socket server, event normalizer pipeline, and (when available) hook installer
 /// and conversation parser. Merges socket events into a single ``AsyncStream<ProviderEvent>``.
-package final class ClaudeProviderAdapter: ProviderAdapter, Sendable {
+public final class ClaudeProviderAdapter: ProviderAdapter, Sendable {
     // MARK: Lifecycle
 
-    package init(socketPath: String = "/tmp/open-island-claude.sock") {
+    public init(socketPath: String = "/tmp/open-island-claude.sock") {
         self.socketServer = ClaudeHookSocketServer(socketPath: socketPath)
         self.state = Mutex(.init())
     }
 
-    // MARK: Package
+    // MARK: Public
 
-    package let providerID: ProviderID = .claude
-    package let metadata: ProviderMetadata = .metadata(for: .claude)
-    package let transportType: ProviderTransportType = .hookSocket
+    public let providerID: ProviderID = .claude
+    public let metadata: ProviderMetadata = .metadata(for: .claude)
+    public let transportType: ProviderTransportType = .hookSocket
 
-    package func start() async throws(ProviderStartupError) {
+    public func start() async throws(ProviderStartupError) {
         let alreadyRunning = self.state.withLock { $0.isRunning }
         guard !alreadyRunning else {
             throw .alreadyRunning
@@ -77,7 +77,7 @@ package final class ClaudeProviderAdapter: ProviderAdapter, Sendable {
         }
     }
 
-    package func stop() async {
+    public func stop() async {
         // Extract continuation and task before finishing to avoid re-entrant
         // Mutex access (finish() triggers onTermination synchronously).
         let (continuation, processingTask) = self.state.withLock { state -> (AsyncStream<ProviderEvent>.Continuation?, Task<Void, Never>?) in
@@ -103,7 +103,7 @@ package final class ClaudeProviderAdapter: ProviderAdapter, Sendable {
         continuation?.finish()
     }
 
-    package func events() -> AsyncStream<ProviderEvent> {
+    public func events() -> AsyncStream<ProviderEvent> {
         if let stream = self.state.withLock({ $0.eventStream }) {
             return stream
         }
@@ -114,7 +114,7 @@ package final class ClaudeProviderAdapter: ProviderAdapter, Sendable {
         return stream
     }
 
-    package func respondToPermission(
+    public func respondToPermission(
         _ request: PermissionRequest,
         decision: PermissionDecision,
     ) async throws {
@@ -125,7 +125,7 @@ package final class ClaudeProviderAdapter: ProviderAdapter, Sendable {
         }
     }
 
-    package func isSessionAlive(_ sessionID: String) -> Bool {
+    public func isSessionAlive(_ sessionID: String) -> Bool {
         // TODO: Check kill(pid, 0) once session → PID tracking is implemented.
         // For now, return true — actual PID checking will be added when we have
         // session PID mapping from SessionStart events.

@@ -1,10 +1,10 @@
-package import OICore
-package import SwiftUI
+public import OICore
+public import SwiftUI
 
 // MARK: - ModuleSide
 
 /// Which side of the notch a module appears on.
-package enum ModuleSide: String, Sendable, Codable, Hashable, BitwiseCopyable {
+public enum ModuleSide: String, Sendable, Codable, Hashable, BitwiseCopyable {
     case left
     case right
 }
@@ -16,10 +16,10 @@ package enum ModuleSide: String, Sendable, Codable, Hashable, BitwiseCopyable {
 /// The layout engine constructs this from current session data without
 /// requiring modules to reach into global singletons, keeping the module
 /// system testable in isolation.
-package struct ModuleVisibilityContext: Sendable, Equatable {
+public struct ModuleVisibilityContext: Sendable, Equatable {
     // MARK: Lifecycle
 
-    package init(
+    public init(
         isProcessing: Bool = false,
         hasPendingPermission: Bool = false,
         hasWaitingForInput: Bool = false,
@@ -33,22 +33,22 @@ package struct ModuleVisibilityContext: Sendable, Equatable {
         self.aggregateProviderState = aggregateProviderState
     }
 
-    // MARK: Package
+    // MARK: Public
 
     /// Whether any active session is currently processing.
-    package let isProcessing: Bool
+    public let isProcessing: Bool
 
     /// Whether any active session has a pending permission request.
-    package let hasPendingPermission: Bool
+    public let hasPendingPermission: Bool
 
     /// Whether any active session is waiting for user input.
-    package let hasWaitingForInput: Bool
+    public let hasWaitingForInput: Bool
 
     /// Set of providers with active sessions.
-    package let activeProviders: Set<ProviderID>
+    public let activeProviders: Set<ProviderID>
 
     /// Per-provider activity summaries for provider-aware module decisions.
-    package let aggregateProviderState: [ProviderID: ProviderActivitySummary]
+    public let aggregateProviderState: [ProviderID: ProviderActivitySummary]
 }
 
 // MARK: - ModuleRenderContext
@@ -59,10 +59,10 @@ package struct ModuleVisibilityContext: Sendable, Equatable {
 /// that is not `Sendable`) and is only used within `@ViewBuilder` rendering
 /// contexts on the main thread.
 @MainActor
-package struct ModuleRenderContext {
+public struct ModuleRenderContext {
     // MARK: Lifecycle
 
-    package init(
+    public init(
         animationNamespace: Namespace.ID,
         accentColor: Color = .white,
         isHighlighted: Bool = false,
@@ -74,23 +74,23 @@ package struct ModuleRenderContext {
         self.activeProviderCount = activeProviderCount
     }
 
-    // MARK: Package
+    // MARK: Public
 
     /// Animation namespace for matched geometry effects across modules.
-    package let animationNamespace: Namespace.ID
+    public let animationNamespace: Namespace.ID
 
     /// Accent color derived from the active provider or system theme.
-    package let accentColor: Color
+    public let accentColor: Color
 
     /// Whether this module's area is visually highlighted (e.g., during hover).
-    package let isHighlighted: Bool
+    public let isHighlighted: Bool
 
     /// Number of active providers, derived from ``ModuleVisibilityContext/activeProviders``.
     ///
     /// Modules that display provider-count-dependent content should use this
     /// value rather than injecting a separate count, keeping visibility and
     /// rendering in sync with the same source of truth.
-    package let activeProviderCount: Int
+    public let activeProviderCount: Int
 }
 
 // MARK: - NotchModule
@@ -122,7 +122,7 @@ package struct ModuleRenderContext {
 /// @ViewBuilder
 /// private func myViewBody(context: ModuleRenderContext) -> some View { ... }
 /// ```
-package protocol NotchModule: Identifiable where ID == String {
+public protocol NotchModule: Identifiable where ID == String {
     /// Unique identifier for this module.
     var id: String { get }
 

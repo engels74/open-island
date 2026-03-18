@@ -1,5 +1,5 @@
 import Foundation
-package import OICore
+public import OICore
 import Synchronization
 
 // MARK: - CodexProviderAdapter
@@ -9,22 +9,22 @@ import Synchronization
 /// Owns the ``CodexAppServerClient`` (JSON-RPC communication), ``CodexEventNormalizer``
 /// (event mapping), and ``CodexSessionRolloutParser`` (chat history). Merges notification
 /// and server-request streams into a single ``AsyncStream<ProviderEvent>``.
-package final class CodexProviderAdapter: ProviderAdapter, Sendable {
+public final class CodexProviderAdapter: ProviderAdapter, Sendable {
     // MARK: Lifecycle
 
-    package init(binaryPath: String = "codex") {
+    public init(binaryPath: String = "codex") {
         self.client = CodexAppServerClient(binaryPath: binaryPath)
         self.binaryPath = binaryPath
         self.state = Mutex(.init())
     }
 
-    // MARK: Package
+    // MARK: Public
 
-    package let providerID: ProviderID = .codex
-    package let metadata: ProviderMetadata = .metadata(for: .codex)
-    package let transportType: ProviderTransportType = .jsonRPC
+    public let providerID: ProviderID = .codex
+    public let metadata: ProviderMetadata = .metadata(for: .codex)
+    public let transportType: ProviderTransportType = .jsonRPC
 
-    package func start() async throws(ProviderStartupError) {
+    public func start() async throws(ProviderStartupError) {
         let alreadyRunning = self.state.withLock { $0.isRunning }
         guard !alreadyRunning else {
             throw .alreadyRunning
@@ -103,7 +103,7 @@ package final class CodexProviderAdapter: ProviderAdapter, Sendable {
         continuation.yield(.sessionStarted(sessionID, cwd: "", pid: nil))
     }
 
-    package func stop() async {
+    public func stop() async {
         let extracted = self.state.withLock { adapterState -> (
             continuation: AsyncStream<ProviderEvent>.Continuation?,
             sessionID: String?,
@@ -146,7 +146,7 @@ package final class CodexProviderAdapter: ProviderAdapter, Sendable {
         extracted.continuation?.finish()
     }
 
-    package func events() -> AsyncStream<ProviderEvent> {
+    public func events() -> AsyncStream<ProviderEvent> {
         if let stream = state.withLock({ $0.eventStream }) {
             return stream
         }
@@ -157,7 +157,7 @@ package final class CodexProviderAdapter: ProviderAdapter, Sendable {
         return stream
     }
 
-    package func respondToPermission(
+    public func respondToPermission(
         _ request: PermissionRequest,
         decision: PermissionDecision,
     ) async throws {
@@ -183,7 +183,7 @@ package final class CodexProviderAdapter: ProviderAdapter, Sendable {
         try await self.client.sendResponse(id: rpcRequestID, result: jsonValue)
     }
 
-    package func isSessionAlive(_ sessionID: String) -> Bool {
+    public func isSessionAlive(_ sessionID: String) -> Bool {
         let currentSessionID = self.state.withLock { $0.sessionID }
         guard sessionID == currentSessionID else { return false }
         // isRunning is set to false both by stop() and by the notification

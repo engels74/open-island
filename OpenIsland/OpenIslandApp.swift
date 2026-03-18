@@ -1,5 +1,5 @@
 import AppKit
-@testable import OICore
+import OICore
 import SwiftUI
 
 @main

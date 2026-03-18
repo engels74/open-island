@@ -1,6 +1,6 @@
 import Foundation
-import Observation
-package import OICore
+public import Observation
+public import OICore
 import Synchronization
 
 // MARK: - NotchActivityCoordinator
@@ -20,10 +20,10 @@ import Synchronization
 ///   interacted since the auto-expand.
 @Observable
 @MainActor
-package final class NotchActivityCoordinator {
+public final class NotchActivityCoordinator {
     // MARK: Lifecycle
 
-    package init(notchViewModel: NotchViewModel, sessionMonitor: SessionMonitor, soundManager: SoundManager) {
+    public init(notchViewModel: NotchViewModel, sessionMonitor: SessionMonitor, soundManager: SoundManager) {
         self.notchViewModel = notchViewModel
         self.sessionMonitor = sessionMonitor
         self.soundManager = soundManager
@@ -35,14 +35,14 @@ package final class NotchActivityCoordinator {
         bounceResetTask?.cancel()
     }
 
-    // MARK: Package
+    // MARK: Public
 
     /// Whether a bounce animation is active. Views observe this to trigger
     /// a brief attention animation on the notch.
-    package private(set) var isBouncing = false
+    public private(set) var isBouncing = false
 
     /// Begin observing session changes. Call once after initialization.
-    package func start() {
+    public func start() {
         guard self.observationTask == nil else { return }
         self.observationTask = Task { [weak self] in
             while !Task.isCancelled {
@@ -95,7 +95,7 @@ package final class NotchActivityCoordinator {
     }
 
     /// Stop observing session changes.
-    package func stop() {
+    public func stop() {
         self.observationTask?.cancel()
         self.observationTask = nil
         self.autoCollapseTask?.cancel()
@@ -108,7 +108,7 @@ package final class NotchActivityCoordinator {
     ///
     /// Cancels any pending auto-collapse timer so the notch stays in its
     /// user-chosen state.
-    package func userDidInteract() {
+    public func userDidInteract() {
         self.autoCollapseTask?.cancel()
         self.autoCollapseTask = nil
         self.didAutoExpand = false

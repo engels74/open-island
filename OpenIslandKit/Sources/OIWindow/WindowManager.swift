@@ -1,4 +1,4 @@
-import Observation
+public import Observation
 import Synchronization
 
 // MARK: - WindowControllerHandle
@@ -9,7 +9,7 @@ import Synchronization
 /// and cannot import OIUI (where `NotchWindowController` is defined). The OIUI
 /// layer provides a factory that returns a handle conforming to this protocol.
 @MainActor
-package protocol WindowControllerHandle: AnyObject {
+public protocol WindowControllerHandle: AnyObject {
     /// Updates the window controller with new notch geometry.
     func updateGeometry(_ geometry: NotchGeometry)
 
@@ -29,7 +29,7 @@ package protocol WindowControllerHandle: AnyObject {
 /// module free of OIUI dependencies.
 @MainActor
 @Observable
-package final class WindowManager {
+public final class WindowManager {
     // MARK: Lifecycle
 
     /// Creates a `WindowManager` with the given screen observer and window controller factory.
@@ -38,7 +38,7 @@ package final class WindowManager {
     ///   - screenObserver: The observer that publishes screen geometry changes.
     ///   - controllerFactory: A closure that creates a `WindowControllerHandle` for a given geometry.
     ///     The OIUI layer provides this, typically wrapping `NotchWindowController`.
-    package init(
+    public init(
         screenObserver: ScreenObserver,
         controllerFactory: @escaping @MainActor (NotchGeometry) -> any WindowControllerHandle,
     ) {
@@ -53,17 +53,17 @@ package final class WindowManager {
         // methods on the protocol.
     }
 
-    // MARK: Package
+    // MARK: Public
 
     /// Whether the window is currently active (a notch screen is available and the controller is live).
-    package var isActive: Bool {
+    public var isActive: Bool {
         self.activeController != nil
     }
 
     /// Sets up the initial window and begins observing screen changes.
     ///
     /// Call this once from the app delegate or SwiftUI `App.init`.
-    package func start() {
+    public func start() {
         // Create window for the initial geometry, if available.
         if let geometry = self.screenObserver.geometry {
             self.createController(for: geometry)
@@ -124,7 +124,7 @@ package final class WindowManager {
     }
 
     /// Tears down the current window and stops observing.
-    package func stop() {
+    public func stop() {
         self.observationTask?.cancel()
         self.observationTask = nil
         self.destroyController()

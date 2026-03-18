@@ -1,33 +1,33 @@
-package import OICore
+public import OICore
 
 /// Central registry managing all provider adapters.
 ///
 /// Starts/stops adapters, provides lookup by ID, and merges
 /// all provider event streams into a single `AsyncStream`.
-package actor ProviderRegistry {
+public actor ProviderRegistry {
     // MARK: Lifecycle
 
-    package init() {}
+    public init() {}
 
-    // MARK: Package
+    // MARK: Public
 
     /// All registered provider IDs.
-    package var registeredProviders: [ProviderID] {
+    public var registeredProviders: [ProviderID] {
         Array(self.adapters.keys)
     }
 
     /// Register a provider adapter.
-    package func register(_ adapter: any ProviderAdapter) {
+    public func register(_ adapter: any ProviderAdapter) {
         self.adapters[adapter.providerID] = adapter
     }
 
     /// Look up an adapter by provider ID.
-    package func adapter(for id: ProviderID) -> (any ProviderAdapter)? {
+    public func adapter(for id: ProviderID) -> (any ProviderAdapter)? {
         self.adapters[id]
     }
 
     /// Start all registered adapters concurrently.
-    package func startAll() async throws {
+    public func startAll() async throws {
         try await withThrowingTaskGroup(of: Void.self) { group in
             for adapter in self.adapters.values {
                 group.addTask {
@@ -39,7 +39,7 @@ package actor ProviderRegistry {
     }
 
     /// Stop all registered adapters concurrently.
-    package func stopAll() async {
+    public func stopAll() async {
         await withTaskGroup(of: Void.self) { group in
             for adapter in self.adapters.values {
                 group.addTask {
@@ -54,7 +54,7 @@ package actor ProviderRegistry {
     /// Uses `withThrowingDiscardingTaskGroup` (SE-0381) for long-running
     /// event forwarding — child task results are automatically discarded
     /// to prevent memory leaks.
-    package func mergedEvents() -> AsyncStream<ProviderEvent> {
+    public func mergedEvents() -> AsyncStream<ProviderEvent> {
         let currentAdapters = Array(adapters.values)
         let (stream, continuation) = AsyncStream<ProviderEvent>.makeStream(
             // Merged event stream — preserve ordering across all providers.

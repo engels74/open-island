@@ -1,5 +1,5 @@
-@preconcurrency package import AppKit
-import Observation
+@preconcurrency public import AppKit
+public import Observation
 
 // MARK: - ScreenObserver
 
@@ -10,10 +10,10 @@ import Observation
 /// connect, disconnect, or reconfigure.
 @MainActor
 @Observable
-package final class ScreenObserver {
+public final class ScreenObserver {
     // MARK: Lifecycle
 
-    package init(selector: ScreenSelector = .automatic) {
+    public init(selector: ScreenSelector = .automatic) {
         self.selector = selector
         self.geometry = Self.computeGeometry(selector: selector)
         self.startObserving()
@@ -26,20 +26,20 @@ package final class ScreenObserver {
         debounceTask?.cancel()
     }
 
-    // MARK: Package
+    // MARK: Public
 
     /// The current notch geometry, or `nil` when no notch screen is available.
-    package private(set) var geometry: NotchGeometry?
+    public private(set) var geometry: NotchGeometry?
 
     /// The current screen selector (automatic or user-selected).
-    package var selector: ScreenSelector {
+    public var selector: ScreenSelector {
         didSet {
             self.geometry = Self.computeGeometry(selector: self.selector)
         }
     }
 
     /// Whether a notch-capable screen is currently connected.
-    package var hasNotchScreen: Bool {
+    public var hasNotchScreen: Bool {
         self.geometry != nil
     }
 

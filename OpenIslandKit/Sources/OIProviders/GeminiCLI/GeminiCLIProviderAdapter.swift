@@ -1,5 +1,5 @@
 import Foundation
-package import OICore
+public import OICore
 import Synchronization
 
 // MARK: - AdapterState
@@ -23,21 +23,21 @@ private struct AdapterState: Sendable {
 /// Gemini CLI uses a hook-based transport identical to Claude Code's architecture:
 /// hook scripts send JSON events over a Unix domain socket, with `BeforeTool`
 /// connections held open for permission interception.
-package final class GeminiCLIProviderAdapter: ProviderAdapter, Sendable {
+public final class GeminiCLIProviderAdapter: ProviderAdapter, Sendable {
     // MARK: Lifecycle
 
-    package init(socketPath: String = "/tmp/open-island-gemini.sock") {
+    public init(socketPath: String = "/tmp/open-island-gemini.sock") {
         self.socketServer = GeminiHookSocketServer(socketPath: socketPath)
         self.state = Mutex(.init())
     }
 
-    // MARK: Package
+    // MARK: Public
 
-    package let providerID: ProviderID = .geminiCLI
-    package let metadata: ProviderMetadata = .metadata(for: .geminiCLI)
-    package let transportType: ProviderTransportType = .hookSocket
+    public let providerID: ProviderID = .geminiCLI
+    public let metadata: ProviderMetadata = .metadata(for: .geminiCLI)
+    public let transportType: ProviderTransportType = .hookSocket
 
-    package func start() async throws(ProviderStartupError) {
+    public func start() async throws(ProviderStartupError) {
         let alreadyRunning = self.state.withLock { $0.isRunning }
         guard !alreadyRunning else {
             throw .alreadyRunning
@@ -81,7 +81,7 @@ package final class GeminiCLIProviderAdapter: ProviderAdapter, Sendable {
         }
     }
 
-    package func stop() async {
+    public func stop() async {
         // Extract continuation and task before finishing to avoid re-entrant
         // Mutex access (finish() triggers onTermination synchronously).
         let (continuation, processingTask) = self.state.withLock { state -> (AsyncStream<ProviderEvent>.Continuation?, Task<Void, Never>?) in
@@ -108,7 +108,7 @@ package final class GeminiCLIProviderAdapter: ProviderAdapter, Sendable {
         continuation?.finish()
     }
 
-    package func events() -> AsyncStream<ProviderEvent> {
+    public func events() -> AsyncStream<ProviderEvent> {
         if let stream = self.state.withLock({ $0.eventStream }) {
             return stream
         }
@@ -119,7 +119,7 @@ package final class GeminiCLIProviderAdapter: ProviderAdapter, Sendable {
         return stream
     }
 
-    package func respondToPermission(
+    public func respondToPermission(
         _ request: PermissionRequest,
         decision: PermissionDecision,
     ) async throws {
@@ -130,7 +130,7 @@ package final class GeminiCLIProviderAdapter: ProviderAdapter, Sendable {
         }
     }
 
-    package func isSessionAlive(_ sessionID: String) -> Bool {
+    public func isSessionAlive(_ sessionID: String) -> Bool {
         // TODO: Check kill(pid, 0) once session → PID tracking is implemented.
         // For now, return true — actual PID checking will be added when we have
         // session PID mapping from SessionStart events.

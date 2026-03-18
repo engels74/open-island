@@ -1,18 +1,18 @@
 /// Static metadata describing a provider's display properties and CLI configuration.
-package struct ProviderMetadata: Sendable, Equatable {
-    package let displayName: String
-    package let iconName: String
-    package let accentColorHex: String
-    package let cliBinaryNames: [String]
-    package let transportType: ProviderTransportType
-    package let configFileFormat: ConfigFileFormat
+public struct ProviderMetadata: Sendable, Equatable {
+    public let displayName: String
+    public let iconName: String
+    public let accentColorHex: String
+    public let cliBinaryNames: [String]
+    public let transportType: ProviderTransportType
+    public let configFileFormat: ConfigFileFormat
 
     /// Base directory for session log files, using `~` for the home directory.
     /// Consumers must expand the tilde before filesystem access
     /// (e.g., via `NSString.expandingTildeInPath`).
-    package let sessionLogDirectoryPath: String
+    public let sessionLogDirectoryPath: String
 
-    package static func metadata(for providerID: ProviderID) -> Self {
+    public static func metadata(for providerID: ProviderID) -> Self {
         switch providerID {
         case .claude:
             Self(

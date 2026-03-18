@@ -1,31 +1,31 @@
-package import Foundation
+public import Foundation
 
 // MARK: - ModuleLayoutEntry
 
 /// A single module's persisted layout configuration.
-package struct ModuleLayoutEntry: Codable, Sendable, Equatable {
+public struct ModuleLayoutEntry: Codable, Sendable, Equatable {
     // MARK: Lifecycle
 
-    package init(moduleID: String, side: ModuleSide, order: Int, isHidden: Bool = false) {
+    public init(moduleID: String, side: ModuleSide, order: Int, isHidden: Bool = false) {
         self.moduleID = moduleID
         self.side = side
         self.order = order
         self.isHidden = isHidden
     }
 
-    // MARK: Package
+    // MARK: Public
 
     /// The module's unique identifier (matches `NotchModule.id`).
-    package let moduleID: String
+    public let moduleID: String
 
     /// Which side of the notch this module is placed on.
-    package var side: ModuleSide
+    public var side: ModuleSide
 
     /// Sort order within its side (lower values are laid out first from the outer edge inward).
-    package var order: Int
+    public var order: Int
 
     /// Whether the user has hidden this module.
-    package var isHidden: Bool
+    public var isHidden: Bool
 }
 
 // MARK: - ModuleLayoutConfig
@@ -35,20 +35,20 @@ package struct ModuleLayoutEntry: Codable, Sendable, Equatable {
 /// On load, the config is reconciled against the live registry:
 /// - Stale entries (modules no longer registered) are pruned.
 /// - Newly registered modules are appended at their default positions.
-package struct ModuleLayoutConfig: Codable, Sendable, Equatable {
+public struct ModuleLayoutConfig: Codable, Sendable, Equatable {
     // MARK: Lifecycle
 
-    package init(entries: [ModuleLayoutEntry] = []) {
+    public init(entries: [ModuleLayoutEntry] = []) {
         self.entries = entries
     }
 
-    // MARK: Package
+    // MARK: Public
 
     /// Per-module layout entries.
-    package var entries: [ModuleLayoutEntry]
+    public var entries: [ModuleLayoutEntry]
 
     /// Loads the config from `UserDefaults`, returning an empty config if none exists.
-    package static func load(from defaults: UserDefaults = .standard) -> Self {
+    public static func load(from defaults: UserDefaults = .standard) -> Self {
         guard let data = defaults.data(forKey: defaultsKey),
               let config = try? JSONDecoder().decode(Self.self, from: data)
         else {
@@ -58,7 +58,7 @@ package struct ModuleLayoutConfig: Codable, Sendable, Equatable {
     }
 
     /// Saves the config to `UserDefaults`.
-    package func save(to defaults: UserDefaults = .standard) {
+    public func save(to defaults: UserDefaults = .standard) {
         guard let data = try? JSONEncoder().encode(self) else { return }
         defaults.set(data, forKey: Self.defaultsKey)
     }
@@ -67,7 +67,7 @@ package struct ModuleLayoutConfig: Codable, Sendable, Equatable {
     ///
     /// - Removes entries whose `moduleID` is not in `registeredModules`.
     /// - Adds entries for newly registered modules using their default side and order.
-    package mutating func reconcile(with registeredModules: [any NotchModule]) {
+    public mutating func reconcile(with registeredModules: [any NotchModule]) {
         let registeredIDs = Set(registeredModules.map(\.id))
 
         // Prune stale entries
@@ -85,17 +85,17 @@ package struct ModuleLayoutConfig: Codable, Sendable, Equatable {
     }
 
     /// Returns the effective side for a module, falling back to the module's default.
-    package func effectiveSide(for module: any NotchModule) -> ModuleSide {
+    public func effectiveSide(for module: any NotchModule) -> ModuleSide {
         self.entries.first { $0.moduleID == module.id }?.side ?? module.defaultSide
     }
 
     /// Returns the effective order for a module, falling back to the module's default.
-    package func effectiveOrder(for module: any NotchModule) -> Int {
+    public func effectiveOrder(for module: any NotchModule) -> Int {
         self.entries.first { $0.moduleID == module.id }?.order ?? module.defaultOrder
     }
 
     /// Whether a module is hidden by the user.
-    package func isHidden(_ moduleID: String) -> Bool {
+    public func isHidden(_ moduleID: String) -> Bool {
         self.entries.first { $0.moduleID == moduleID }?.isHidden ?? false
     }
 

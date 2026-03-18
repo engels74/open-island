@@ -1,10 +1,10 @@
-package import Foundation
+public import Foundation
 
 /// A point-in-time snapshot of token usage for a session.
-package struct TokenUsageSnapshot: Sendable, Equatable {
+public struct TokenUsageSnapshot: Sendable, Equatable {
     // MARK: Lifecycle
 
-    package init(
+    public init(
         promptTokens: Int? = nil,
         completionTokens: Int? = nil,
         totalTokens: Int? = nil,
@@ -16,10 +16,10 @@ package struct TokenUsageSnapshot: Sendable, Equatable {
         self.timestamp = timestamp
     }
 
-    // MARK: Package
+    // MARK: Public
 
-    package let promptTokens: Int?
-    package let completionTokens: Int?
-    package let totalTokens: Int?
-    package let timestamp: Date
+    public let promptTokens: Int?
+    public let completionTokens: Int?
+    public let totalTokens: Int?
+    public let timestamp: Date
 }

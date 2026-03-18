@@ -1,11 +1,11 @@
-package import OICore
+public import OICore
 
 /// The core protocol that all provider implementations conform to.
 ///
 /// Each supported AI coding assistant (Claude Code, Codex, Gemini CLI, OpenCode)
 /// implements this protocol via a concrete actor. The ``ProviderRegistry`` manages
 /// adapters through this interface.
-package protocol ProviderAdapter: Sendable {
+public protocol ProviderAdapter: Sendable {
     var providerID: ProviderID { get }
     var metadata: ProviderMetadata { get }
     var transportType: ProviderTransportType { get }

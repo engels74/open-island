@@ -2,7 +2,7 @@ import OICore
 import OIModules
 import OIState
 import OIWindow
-package import SwiftUI
+public import SwiftUI
 
 // MARK: - NotchView
 
@@ -23,10 +23,10 @@ package import SwiftUI
 /// and a content area (visible when opened). The shape's corner radii and the
 /// container size animate between closed and opened states using layered spring
 /// curves.
-package struct NotchView: View {
+public struct NotchView: View {
     // MARK: Lifecycle
 
-    package init(
+    public init(
         viewModel: NotchViewModel,
         sessionMonitor: SessionMonitor,
         onCheckForUpdates: (() -> Void)? = nil,
@@ -38,9 +38,9 @@ package struct NotchView: View {
         self.updateStatusContent = updateStatusContent
     }
 
-    // MARK: Package
+    // MARK: Public
 
-    package var body: some View {
+    public var body: some View {
         let isOpened = self.viewModel.status == .opened
         let size = isOpened ? self.viewModel.openedSize : self.closedSize
 

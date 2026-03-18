@@ -1,5 +1,5 @@
-package import OIWindow
-package import SwiftUI
+public import OIWindow
+public import SwiftUI
 
 // MARK: - NotchWindowControllerAdapter
 
@@ -10,7 +10,7 @@ package import SwiftUI
 /// `NotchWindowController`, maps the view model's `NotchStatus` stream into
 /// the `Bool` stream the controller expects, and triggers the boot animation.
 @MainActor
-package final class NotchWindowControllerAdapter: WindowControllerHandle {
+public final class NotchWindowControllerAdapter: WindowControllerHandle {
     // MARK: Lifecycle
 
     /// Creates an adapter that owns a new ``NotchWindowController``.
@@ -19,13 +19,13 @@ package final class NotchWindowControllerAdapter: WindowControllerHandle {
     ///   - geometry: Initial screen geometry for the notch panel.
     ///   - content: The SwiftUI root view hosted inside the panel.
     ///   - viewModel: Provides the ``NotchStatus`` stream mapped to `Bool`.
-    package init(geometry: NotchGeometry, content: AnyView, viewModel: NotchViewModel) {
+    public init(geometry: NotchGeometry, content: AnyView, viewModel: NotchViewModel) {
         self.controller = NotchWindowController(geometry: geometry, content: content)
 
         // Map NotchStatus → Bool: opened/popping = true, closed = false.
         let statusStream = viewModel.makeStatusStream()
         let boolStream = AsyncStream<Bool> { continuation in
-            Task { @MainActor in
+            let task = Task { @MainActor in
                 for await status in statusStream {
                     let isOpened = switch status {
                     case .opened,
@@ -36,6 +36,9 @@ package final class NotchWindowControllerAdapter: WindowControllerHandle {
                 }
                 continuation.finish()
             }
+            continuation.onTermination = { _ in
+                task.cancel()
+            }
         }
 
         self.controller.subscribeToStatusStream(boolStream)
@@ -43,15 +46,15 @@ package final class NotchWindowControllerAdapter: WindowControllerHandle {
         self.controller.playBootAnimationIfNeeded()
     }
 
-    // MARK: Package
+    // MARK: Public
 
     // MARK: - WindowControllerHandle
 
-    package func updateGeometry(_ geometry: NotchGeometry) {
+    public func updateGeometry(_ geometry: NotchGeometry) {
         self.controller.updateGeometry(geometry)
     }
 
-    package func tearDown() {
+    public func tearDown() {
         self.controller.hide()
         self.controller.window?.close()
     }

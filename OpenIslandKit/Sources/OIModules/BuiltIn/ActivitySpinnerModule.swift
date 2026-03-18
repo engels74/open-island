@@ -1,32 +1,32 @@
-package import SwiftUI
+public import SwiftUI
 
 // MARK: - ActivitySpinnerModule
 
 /// Shows a small spinner when any provider session is actively processing.
 ///
 /// Visible only when ``ModuleVisibilityContext/isProcessing`` is `true`.
-package struct ActivitySpinnerModule: NotchModule {
+public struct ActivitySpinnerModule: NotchModule {
     // MARK: Lifecycle
 
-    package init() {}
+    public init() {}
 
-    // MARK: Package
+    // MARK: Public
 
-    package let id = "activity-spinner"
-    package let defaultSide = ModuleSide.right
-    package let defaultOrder = 0
-    package let showInExpandedHeader = false
+    public let id = "activity-spinner"
+    public let defaultSide = ModuleSide.right
+    public let defaultOrder = 0
+    public let showInExpandedHeader = false
 
-    package func isVisible(context: ModuleVisibilityContext) -> Bool {
+    public func isVisible(context: ModuleVisibilityContext) -> Bool {
         context.isProcessing
     }
 
-    package func preferredWidth() -> CGFloat {
+    public func preferredWidth() -> CGFloat {
         20
     }
 
     @MainActor
-    package func makeBody(context: ModuleRenderContext) -> AnyView {
+    public func makeBody(context: ModuleRenderContext) -> AnyView {
         AnyView(self.body(context: context))
     }
 

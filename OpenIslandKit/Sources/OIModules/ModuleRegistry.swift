@@ -1,6 +1,6 @@
-package import Foundation
-import Observation
-package import OICore
+public import Foundation
+public import Observation
+public import OICore
 
 // MARK: - ModuleRegistry
 
@@ -10,23 +10,23 @@ package import OICore
 /// Views query modules filtered by side and sorted by display order.
 @Observable
 @MainActor
-package final class ModuleRegistry {
+public final class ModuleRegistry {
     // MARK: Lifecycle
 
-    package init() {}
+    public init() {}
 
-    // MARK: Package
+    // MARK: Public
 
     /// All registered modules in insertion order.
-    package private(set) var allModules: [any NotchModule] = []
+    public private(set) var allModules: [any NotchModule] = []
 
     /// Persisted layout configuration for module arrangement.
-    package private(set) var layoutConfig = ModuleLayoutConfig()
+    public private(set) var layoutConfig = ModuleLayoutConfig()
 
     /// Register a module for display in the closed-state notch.
     ///
     /// Duplicate registrations (matching ``NotchModule/id``) are ignored.
-    package func register(_ module: any NotchModule) {
+    public func register(_ module: any NotchModule) {
         guard !self.allModules.contains(where: { $0.id == module.id }) else { return }
         self.allModules.append(module)
     }
@@ -36,7 +36,7 @@ package final class ModuleRegistry {
     /// Call this after all modules have been registered. Prunes stale entries
     /// for modules no longer in the registry and adds entries for newly
     /// registered modules at their default positions.
-    package func applyPersistedLayout(from defaults: UserDefaults = .standard) {
+    public func applyPersistedLayout(from defaults: UserDefaults = .standard) {
         self.layoutConfig = ModuleLayoutConfig.load(from: defaults)
         self.layoutConfig.reconcile(with: self.allModules)
         self.layoutConfig.save(to: defaults)
@@ -44,7 +44,7 @@ package final class ModuleRegistry {
 
     /// Returns modules for a given side, sorted by the effective order from
     /// the persisted layout config. Hidden modules are excluded.
-    package func effectiveModules(for side: ModuleSide) -> [any NotchModule] {
+    public func effectiveModules(for side: ModuleSide) -> [any NotchModule] {
         self.allModules
             .filter { !self.layoutConfig.isHidden($0.id) }
             .filter { self.layoutConfig.effectiveSide(for: $0) == side }
@@ -56,7 +56,7 @@ package final class ModuleRegistry {
     }
 
     /// Returns modules assigned to the given side, sorted by ``NotchModule/defaultOrder``.
-    package func modules(for side: ModuleSide) -> [any NotchModule] {
+    public func modules(for side: ModuleSide) -> [any NotchModule] {
         self.allModules
             .filter { $0.defaultSide == side }
             .sorted {
@@ -65,13 +65,13 @@ package final class ModuleRegistry {
     }
 
     /// Replaces the layout config and persists to `UserDefaults`.
-    package func updateLayoutConfig(_ config: ModuleLayoutConfig, saveTo defaults: UserDefaults = .standard) {
+    public func updateLayoutConfig(_ config: ModuleLayoutConfig, saveTo defaults: UserDefaults = .standard) {
         self.layoutConfig = config
         self.layoutConfig.save(to: defaults)
     }
 
     /// Resets the layout config to factory defaults based on registered modules.
-    package func resetLayoutToDefaults(saveTo defaults: UserDefaults = .standard) {
+    public func resetLayoutToDefaults(saveTo defaults: UserDefaults = .standard) {
         var config = ModuleLayoutConfig()
         config.reconcile(with: self.allModules)
         self.layoutConfig = config

@@ -1,14 +1,14 @@
-package import OICore
+public import OICore
 
 /// Summarizes a provider's current activity state for module visibility decisions.
 ///
 /// Modules use this to make provider-aware UI decisions (e.g., showing Codex risk
 /// level indicators or Claude-specific status) without coupling to a specific
 /// provider's identity.
-package struct ProviderActivitySummary: Sendable, Equatable {
+public struct ProviderActivitySummary: Sendable, Equatable {
     // MARK: Lifecycle
 
-    package init(
+    public init(
         phase: SessionPhase,
         activeToolCount: Int = 0,
         pendingPermissionCount: Int = 0,
@@ -20,17 +20,17 @@ package struct ProviderActivitySummary: Sendable, Equatable {
         self.currentRisk = currentRisk
     }
 
-    // MARK: Package
+    // MARK: Public
 
     /// The provider's current session phase.
-    package let phase: SessionPhase
+    public let phase: SessionPhase
 
     /// Number of tool calls currently in progress.
-    package let activeToolCount: Int
+    public let activeToolCount: Int
 
     /// Number of permission requests awaiting user action.
-    package let pendingPermissionCount: Int
+    public let pendingPermissionCount: Int
 
     /// Highest risk level among pending permissions, if any.
-    package let currentRisk: PermissionRisk?
+    public let currentRisk: PermissionRisk?
 }

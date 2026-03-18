@@ -1,10 +1,10 @@
 // MARK: - ToolCallItem
 
 /// A tool invocation within a provider session, tracked for UI display.
-package struct ToolCallItem: Sendable, Identifiable {
+public struct ToolCallItem: Sendable, Identifiable {
     // MARK: Lifecycle
 
-    package init(
+    public init(
         id: String,
         name: String,
         input: JSONValue? = nil,
@@ -22,21 +22,21 @@ package struct ToolCallItem: Sendable, Identifiable {
         self.providerSpecific = providerSpecific
     }
 
-    // MARK: Package
+    // MARK: Public
 
-    package let id: String
-    package let name: String
-    package let input: JSONValue?
-    package var status: ToolStatus
-    package var result: JSONValue?
-    package var nestedTools: [Self]
-    package let providerSpecific: JSONValue?
+    public let id: String
+    public let name: String
+    public let input: JSONValue?
+    public var status: ToolStatus
+    public var result: JSONValue?
+    public var nestedTools: [Self]
+    public let providerSpecific: JSONValue?
 }
 
 // MARK: - ToolStatus
 
 /// Execution status of a tool call.
-package enum ToolStatus: Sendable, Hashable, BitwiseCopyable {
+public enum ToolStatus: Sendable, Hashable, BitwiseCopyable {
     case running
     case success
     case error

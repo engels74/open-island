@@ -1,12 +1,14 @@
 import AppKit
-@testable import OICore
-@testable import OIModules
-@testable import OIProviders
-@testable import OIState
-@testable import OIUI
-@testable import OIWindow
+import Observation
+import OICore
+import OIModules
+import OIProviders
+import OIState
+import OIUI
+import OIWindow
 import os
 import SwiftUI
+import Synchronization
 
 // MARK: - AppCoordinator
 
@@ -144,7 +146,13 @@ final class AppCoordinator {
         // 6. Start EventMonitors.
         self.eventMonitors.startAll()
 
-        // 7. Start NotchActivityCoordinator.
+        // 7. Keep EventMonitors geometry in sync with ScreenObserver.
+        self.geometryObservationTask = self.startGeometryObservation()
+
+        // 8. Wire panel size so EventMonitors knows the opened panel bounds.
+        self.panelSizeObservationTask = self.startPanelSizeObservation()
+
+        // 9. Start NotchActivityCoordinator.
         self.activityCoordinator.start()
     }
 
@@ -168,4 +176,107 @@ final class AppCoordinator {
     private var windowManager: WindowManager?
     private weak var updateManager: UpdateManager?
     private var eventBridgeTask: Task<Void, Never>?
+    private var geometryObservationTask: Task<Void, Never>?
+    private var panelSizeObservationTask: Task<Void, Never>?
+
+    /// Spawns a task that keeps ``EventMonitors/geometry`` in sync with
+    /// ``ScreenObserver/geometry`` via `withObservationTracking`.
+    private func startGeometryObservation() -> Task<Void, Never> {
+        Task { [weak self] in
+            guard let self else { return }
+            while !Task.isCancelled {
+                let state = Mutex<CheckedContinuation<Void, Never>?>(nil)
+
+                await withTaskCancellationHandler {
+                    await withCheckedContinuation { continuation in
+                        let shouldResumeNow = state.withLock { stored -> Bool in
+                            if Task.isCancelled {
+                                return true
+                            }
+                            stored = continuation
+                            return false
+                        }
+                        if shouldResumeNow {
+                            continuation.resume()
+                            return
+                        }
+
+                        withObservationTracking {
+                            _ = self.screenObserver.geometry
+                        } onChange: {
+                            let cont = state.withLock { stored -> CheckedContinuation<Void, Never>? in
+                                let captured = stored
+                                stored = nil
+                                return captured
+                            }
+                            cont?.resume()
+                        }
+                    }
+                } onCancel: {
+                    let cont = state.withLock { stored -> CheckedContinuation<Void, Never>? in
+                        let captured = stored
+                        stored = nil
+                        return captured
+                    }
+                    cont?.resume()
+                }
+
+                guard !Task.isCancelled else { break }
+                self.eventMonitors.geometry = self.screenObserver.geometry
+            }
+        }
+    }
+
+    /// Spawns a task that observes ``NotchViewModel/status`` and
+    /// ``NotchViewModel/openedSize``, forwarding the opened panel size
+    /// to ``EventMonitors/panelSize`` so hover tracking uses the right bounds.
+    private func startPanelSizeObservation() -> Task<Void, Never> {
+        Task { [weak self] in
+            guard let self else { return }
+            while !Task.isCancelled {
+                let state = Mutex<CheckedContinuation<Void, Never>?>(nil)
+
+                await withTaskCancellationHandler {
+                    await withCheckedContinuation { continuation in
+                        let shouldResumeNow = state.withLock { stored -> Bool in
+                            if Task.isCancelled {
+                                return true
+                            }
+                            stored = continuation
+                            return false
+                        }
+                        if shouldResumeNow {
+                            continuation.resume()
+                            return
+                        }
+
+                        withObservationTracking {
+                            _ = self.viewModel.status
+                            _ = self.viewModel.openedSize
+                        } onChange: {
+                            let cont = state.withLock { stored -> CheckedContinuation<Void, Never>? in
+                                let captured = stored
+                                stored = nil
+                                return captured
+                            }
+                            cont?.resume()
+                        }
+                    }
+                } onCancel: {
+                    let cont = state.withLock { stored -> CheckedContinuation<Void, Never>? in
+                        let captured = stored
+                        stored = nil
+                        return captured
+                    }
+                    cont?.resume()
+                }
+
+                guard !Task.isCancelled else { break }
+                let status = self.viewModel.status
+                self.eventMonitors.panelSize = status == .opened || status == .popping
+                    ? self.viewModel.openedSize
+                    : nil
+            }
+        }
+    }
 }

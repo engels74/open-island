@@ -1,5 +1,5 @@
-@preconcurrency package import AppKit
-package import OIWindow
+@preconcurrency public import AppKit
+public import OIWindow
 
 // MARK: - EventMonitors
 
@@ -9,7 +9,7 @@ package import OIWindow
 /// shortcuts, and mouse drag tracking. The coordinator owns individual monitors
 /// and exposes `startAll()` / `stopAll()` for lifecycle management.
 @MainActor
-package final class EventMonitors {
+public final class EventMonitors {
     // MARK: Lifecycle
 
     /// Creates the event monitor coordinator.
@@ -20,7 +20,7 @@ package final class EventMonitors {
     ///   - onClickOutside: Called when a click occurs outside the panel area.
     ///   - onKeyboardShortcut: Called when the keyboard shortcut is triggered.
     ///   - onDrag: Called with mouse position during drag interactions.
-    package init(
+    public init(
         onHoverEnter: @escaping () -> Void,
         onHoverExit: @escaping () -> Void,
         onClickOutside: @escaping () -> Void,
@@ -34,25 +34,25 @@ package final class EventMonitors {
         self.onDrag = onDrag
     }
 
-    // MARK: Package
+    // MARK: Public
 
     /// The current notch geometry for hit testing. Update when geometry changes.
-    package var geometry: NotchGeometry?
+    public var geometry: NotchGeometry?
 
     /// The opened panel size for click-outside detection. Set to `nil` when closed.
-    package var panelSize: CGSize?
+    public var panelSize: CGSize?
 
     /// Whether the mouse is currently hovering over the notch area.
-    package private(set) var isHovering = false
+    public private(set) var isHovering = false
 
     /// The keyboard shortcut modifier flags. Defaults to Option.
-    package var shortcutModifiers: NSEvent.ModifierFlags = .option
+    public var shortcutModifiers: NSEvent.ModifierFlags = .option
 
     /// The keyboard shortcut key code. Defaults to "n" (key code 45).
-    package var shortcutKeyCode: UInt16 = 45
+    public var shortcutKeyCode: UInt16 = 45
 
     /// Installs all event monitors.
-    package func startAll() {
+    public func startAll() {
         guard !self.isRunning else { return }
         self.isRunning = true
         self.buildMonitors()
@@ -62,7 +62,7 @@ package final class EventMonitors {
     }
 
     /// Removes all event monitors and resets hover state.
-    package func stopAll() {
+    public func stopAll() {
         guard self.isRunning else { return }
         self.isRunning = false
         for monitor in self.monitors {

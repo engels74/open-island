@@ -2,7 +2,7 @@
 
 /// An internal event for ``SessionStore``, encompassing provider events
 /// and UI-initiated actions.
-package enum SessionEvent: Sendable {
+public enum SessionEvent: Sendable {
     case providerEvent(ProviderEvent)
     case permissionApproved(SessionID, requestID: String)
     case permissionDenied(SessionID, requestID: String, reason: String?)
@@ -13,7 +13,7 @@ package enum SessionEvent: Sendable {
 // MARK: - UserAction
 
 /// Actions initiated by the user through the UI.
-package enum UserAction: Sendable {
+public enum UserAction: Sendable {
     case scrollToBottom
     case copyToClipboard(String)
     case cancelOperation
