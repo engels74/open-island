@@ -1,12 +1,12 @@
-package import Foundation
+public import Foundation
 
 // MARK: - ChatHistoryItem
 
 /// A single item in a session's chat history.
-package struct ChatHistoryItem: Sendable, Identifiable {
+public struct ChatHistoryItem: Sendable, Identifiable {
     // MARK: Lifecycle
 
-    package init(
+    public init(
         id: String,
         timestamp: Date,
         type: ChatItemType,
@@ -20,19 +20,19 @@ package struct ChatHistoryItem: Sendable, Identifiable {
         self.providerSpecific = providerSpecific
     }
 
-    // MARK: Package
+    // MARK: Public
 
-    package let id: String
-    package let timestamp: Date
-    package let type: ChatItemType
-    package let content: String
-    package let providerSpecific: JSONValue?
+    public let id: String
+    public let timestamp: Date
+    public let type: ChatItemType
+    public let content: String
+    public let providerSpecific: JSONValue?
 }
 
 // MARK: - ChatItemType
 
 /// The kind of chat history item.
-package enum ChatItemType: Sendable, Hashable {
+public enum ChatItemType: Sendable, Hashable {
     case user
     case assistant
     case toolCall

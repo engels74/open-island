@@ -1,5 +1,5 @@
 @preconcurrency import AppKit
-package import Foundation
+public import Foundation
 
 // MARK: - SoundManager
 
@@ -10,10 +10,10 @@ package import Foundation
 /// Suppression modes allow silencing sounds based on app focus or
 /// terminal visibility state.
 @MainActor
-package final class SoundManager {
+public final class SoundManager {
     // MARK: Lifecycle
 
-    package init(
+    public init(
         globalCooldown: TimeInterval = 5,
         sessionCooldown: TimeInterval = 15,
     ) {
@@ -21,7 +21,7 @@ package final class SoundManager {
         self.sessionCooldown = sessionCooldown
     }
 
-    // MARK: Package
+    // MARK: Public
 
     /// Plays the notification sound for a session if all suppression and
     /// rate-limiting checks pass.
@@ -30,7 +30,7 @@ package final class SoundManager {
     ///   - sessionID: Unique identifier for the session requesting attention.
     ///   - sound: Which sound to play.
     ///   - suppression: Current suppression policy.
-    package func playIfAllowed(
+    public func playIfAllowed(
         for sessionID: String,
         sound: NotificationSound,
         suppression: SoundSuppression,
@@ -60,7 +60,7 @@ package final class SoundManager {
     }
 
     /// Removes tracking state for a session that has ended.
-    package func clearSession(_ sessionID: String) {
+    public func clearSession(_ sessionID: String) {
         self.sessionLastPlayed.removeValue(forKey: sessionID)
     }
 

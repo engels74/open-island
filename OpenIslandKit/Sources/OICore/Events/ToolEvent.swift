@@ -1,33 +1,33 @@
-package import Foundation
+public import Foundation
 
 // MARK: - ToolEvent
 
 /// Describes a tool invocation within a provider session.
-package struct ToolEvent: Sendable {
+public struct ToolEvent: Sendable {
     // MARK: Lifecycle
 
-    package init(id: String, name: String, input: JSONValue? = nil, startedAt: Date) {
+    public init(id: String, name: String, input: JSONValue? = nil, startedAt: Date) {
         self.id = id
         self.name = name
         self.input = input
         self.startedAt = startedAt
     }
 
-    // MARK: Package
+    // MARK: Public
 
-    package let id: String
-    package let name: String
-    package let input: JSONValue?
-    package let startedAt: Date
+    public let id: String
+    public let name: String
+    public let input: JSONValue?
+    public let startedAt: Date
 }
 
 // MARK: - ToolResult
 
 /// The result of a completed tool invocation.
-package struct ToolResult: Sendable {
+public struct ToolResult: Sendable {
     // MARK: Lifecycle
 
-    package init(
+    public init(
         output: JSONValue? = nil,
         isSuccess: Bool,
         duration: TimeInterval? = nil,
@@ -39,10 +39,10 @@ package struct ToolResult: Sendable {
         self.errorMessage = errorMessage
     }
 
-    // MARK: Package
+    // MARK: Public
 
-    package let output: JSONValue?
-    package let isSuccess: Bool
-    package let duration: TimeInterval?
-    package let errorMessage: String?
+    public let output: JSONValue?
+    public let isSuccess: Bool
+    public let duration: TimeInterval?
+    public let errorMessage: String?
 }

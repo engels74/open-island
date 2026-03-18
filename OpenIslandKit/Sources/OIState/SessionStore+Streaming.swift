@@ -1,5 +1,5 @@
-package import Foundation
-package import OICore
+public import Foundation
+public import OICore
 
 extension SessionStore {
     /// Creates a new subscriber stream that receives session state snapshots.
@@ -7,7 +7,7 @@ extension SessionStore {
     /// Each subscriber immediately receives the current state and all subsequent
     /// updates broadcast via ``publishState()``. The stream uses `.bufferingNewest(1)`
     /// so slow consumers always see the latest snapshot.
-    package func sessionsStream() -> AsyncStream<[SessionState]> {
+    public func sessionsStream() -> AsyncStream<[SessionState]> {
         let (stream, continuation) = AsyncStream<[SessionState]>.makeStream(
             bufferingPolicy: .bufferingNewest(1),
         )

@@ -10,6 +10,7 @@ struct OpenIslandApp: App {
         SingleInstanceGuard.ensureSingleInstance()
         NSApplication.shared.setActivationPolicy(.accessory)
         self.updateManager.start()
+        self.coordinator.start(updateManager: self.updateManager)
     }
 
     // MARK: Internal
@@ -23,4 +24,5 @@ struct OpenIslandApp: App {
     // MARK: Private
 
     @State private var updateManager = UpdateManager()
+    @State private var coordinator = AppCoordinator()
 }

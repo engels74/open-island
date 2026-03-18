@@ -1,10 +1,10 @@
-package import Foundation
+public import Foundation
 
 /// Context for a permission approval request from a provider.
-package struct PermissionContext: Sendable {
+public struct PermissionContext: Sendable {
     // MARK: Lifecycle
 
-    package init(
+    public init(
         toolUseID: String,
         toolName: String,
         toolInput: JSONValue? = nil,
@@ -18,18 +18,18 @@ package struct PermissionContext: Sendable {
         self.risk = risk
     }
 
-    // MARK: Package
+    // MARK: Public
 
-    package let toolUseID: String
-    package let toolName: String
-    package let toolInput: JSONValue?
-    package let timestamp: Date
-    package let risk: PermissionRisk?
+    public let toolUseID: String
+    public let toolName: String
+    public let toolInput: JSONValue?
+    public let timestamp: Date
+    public let risk: PermissionRisk?
 
     /// Human-readable summary for display.
     ///
     /// Shows the tool name with a brief input summary when available.
-    package var displaySummary: String {
+    public var displaySummary: String {
         if let input = toolInput?["command"]?.stringValue {
             return "\(self.toolName): \(input)"
         }

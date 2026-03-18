@@ -1,5 +1,5 @@
 import Foundation
-package import OICore
+public import OICore
 import Synchronization
 
 // MARK: - OpenCodeProviderAdapter
@@ -10,21 +10,21 @@ import Synchronization
 /// ``OpenCodeServerDiscovery`` (server location), and ``OpenCodeEventNormalizer`` (event mapping).
 /// Connects to OpenCode's HTTP server via SSE and normalizes events into a single
 /// ``AsyncStream<ProviderEvent>``.
-package final class OpenCodeProviderAdapter: ProviderAdapter, Sendable {
+public final class OpenCodeProviderAdapter: ProviderAdapter, Sendable {
     // MARK: Lifecycle
 
-    package init(configuredPort: Int? = nil) {
+    public init(configuredPort: Int? = nil) {
         self.discovery = OpenCodeServerDiscovery(configuredPort: configuredPort)
         self.state = Mutex(.init())
     }
 
-    // MARK: Package
+    // MARK: Public
 
-    package let providerID: ProviderID = .openCode
-    package let metadata: ProviderMetadata = .metadata(for: .openCode)
-    package let transportType: ProviderTransportType = .httpSSE
+    public let providerID: ProviderID = .openCode
+    public let metadata: ProviderMetadata = .metadata(for: .openCode)
+    public let transportType: ProviderTransportType = .httpSSE
 
-    package func start() async throws(ProviderStartupError) {
+    public func start() async throws(ProviderStartupError) {
         let alreadyRunning = self.state.withLock { $0.isRunning }
         guard !alreadyRunning else {
             throw .alreadyRunning
@@ -94,7 +94,7 @@ package final class OpenCodeProviderAdapter: ProviderAdapter, Sendable {
         }
     }
 
-    package func stop() async {
+    public func stop() async {
         let extracted = self.state.withLock { adapterState -> (
             continuation: AsyncStream<ProviderEvent>.Continuation?,
             activeSessionIDs: Set<String>,
@@ -140,7 +140,7 @@ package final class OpenCodeProviderAdapter: ProviderAdapter, Sendable {
         extracted.continuation?.finish()
     }
 
-    package func events() -> AsyncStream<ProviderEvent> {
+    public func events() -> AsyncStream<ProviderEvent> {
         if let stream = state.withLock({ $0.eventStream }) {
             return stream
         }
@@ -151,7 +151,7 @@ package final class OpenCodeProviderAdapter: ProviderAdapter, Sendable {
         return stream
     }
 
-    package func respondToPermission(
+    public func respondToPermission(
         _ request: PermissionRequest,
         decision: PermissionDecision,
     ) async throws {
@@ -182,7 +182,7 @@ package final class OpenCodeProviderAdapter: ProviderAdapter, Sendable {
         )
     }
 
-    package func isSessionAlive(_ sessionID: String) -> Bool {
+    public func isSessionAlive(_ sessionID: String) -> Bool {
         self.state.withLock { adapterState in
             adapterState.isRunning && adapterState.activeSessionIDs.contains(sessionID)
         }

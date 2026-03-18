@@ -1,5 +1,5 @@
 /// Sound to play when a session needs user attention.
-package enum NotificationSound: String, Sendable, Hashable, Codable, CaseIterable {
+public enum NotificationSound: String, Sendable, Hashable, Codable, CaseIterable {
     case `default`
     case subtle
     case chime

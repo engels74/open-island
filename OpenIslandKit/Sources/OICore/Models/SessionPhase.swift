@@ -4,7 +4,7 @@
 ///
 /// Forms a state machine with validated transitions via ``canTransition(to:)``.
 /// The `.ended` phase is terminal — no transitions out.
-package enum SessionPhase: Sendable {
+public enum SessionPhase: Sendable {
     case idle
     case processing
     case waitingForInput
@@ -12,7 +12,7 @@ package enum SessionPhase: Sendable {
     case compacting
     case ended
 
-    // MARK: Package
+    // MARK: Public
 
     /// Whether a transition from `self` to `target` is valid.
     ///
@@ -23,7 +23,7 @@ package enum SessionPhase: Sendable {
     /// - `.waitingForApproval` → `.processing`, `.ended`
     /// - `.compacting` → `.processing`, `.ended`
     /// - `.ended` → (terminal)
-    package func canTransition(to target: Self) -> Bool {
+    public func canTransition(to target: Self) -> Bool {
         switch (self, target) {
         case (.idle, .processing),
              (.idle, .ended),
@@ -48,7 +48,7 @@ package enum SessionPhase: Sendable {
 
 /// Compares by case only — ignores associated values on `.waitingForApproval`.
 extension SessionPhase: Equatable {
-    package static func == (lhs: SessionPhase, rhs: SessionPhase) -> Bool {
+    public static func == (lhs: SessionPhase, rhs: SessionPhase) -> Bool {
         switch (lhs, rhs) {
         case (.idle, .idle),
              (.processing, .processing),

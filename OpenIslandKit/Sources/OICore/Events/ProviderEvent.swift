@@ -1,11 +1,11 @@
 /// A unique identifier for a provider session.
-package typealias SessionID = String
+public typealias SessionID = String
 
 // MARK: - ProviderEvent
 
 /// A normalized event emitted by any provider, representing all observable
 /// state changes during a coding assistant session.
-package enum ProviderEvent: Sendable {
+public enum ProviderEvent: Sendable {
     case sessionStarted(SessionID, cwd: String, pid: Int32?)
     case sessionEnded(SessionID)
     case userPromptSubmitted(SessionID)

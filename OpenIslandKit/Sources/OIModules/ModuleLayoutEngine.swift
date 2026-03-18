@@ -1,24 +1,24 @@
-package import Foundation
+public import Foundation
 
 // MARK: - ModuleLayout
 
 /// The computed layout for a single module within the closed-state notch.
-package struct ModuleLayout: Sendable {
+public struct ModuleLayout: Sendable {
     /// The module's identifier (matches `NotchModule.id`).
-    package let moduleID: String
+    public let moduleID: String
 
     /// Which side of the notch this module is placed on.
-    package let side: ModuleSide
+    public let side: ModuleSide
 
     /// Horizontal offset from the outer edge of this module's side, in points.
     ///
     /// Measured inward from the side boundary: for left-side modules, this is the
     /// distance from the left edge of the expansion zone; for right-side modules,
     /// this is the distance from the right edge of the expansion zone.
-    package let offsetFromEdge: CGFloat
+    public let offsetFromEdge: CGFloat
 
     /// The module's width in points, as returned by `preferredWidth()`.
-    package let width: CGFloat
+    public let width: CGFloat
 }
 
 // MARK: - ModuleLayoutResult
@@ -44,25 +44,25 @@ package struct ModuleLayout: Sendable {
 ///   Both sides are padded to this width so the notch remains visually centered.
 /// - `totalExpansionWidth`: `symmetricSideWidth × 2`. This is the amount the
 ///   closed-state notch extends *beyond* the device notch rect.
-package struct ModuleLayoutResult: Sendable {
+public struct ModuleLayoutResult: Sendable {
     /// Per-module positions, sorted by side then by display order.
-    package let modules: [ModuleLayout]
+    public let modules: [ModuleLayout]
 
     /// The width of each side after symmetry enforcement, in points.
     ///
     /// Equal to `max(leftNaturalWidth, rightNaturalWidth)`.
-    package let symmetricSideWidth: CGFloat
+    public let symmetricSideWidth: CGFloat
 
     /// Total horizontal expansion beyond the device notch rect, in points.
     ///
     /// Equal to `symmetricSideWidth × 2`.
-    package let totalExpansionWidth: CGFloat
+    public let totalExpansionWidth: CGFloat
 
     /// Natural (pre-symmetry) width of the left side, in points.
-    package let leftNaturalWidth: CGFloat
+    public let leftNaturalWidth: CGFloat
 
     /// Natural (pre-symmetry) width of the right side, in points.
-    package let rightNaturalWidth: CGFloat
+    public let rightNaturalWidth: CGFloat
 }
 
 // MARK: - ModuleLayoutEngine
@@ -90,16 +90,16 @@ package struct ModuleLayoutResult: Sendable {
 /// 5. Enforce symmetry: `symmetricSideWidth = max(left, right)`.
 /// 6. `totalExpansionWidth = symmetricSideWidth × 2`.
 /// 7. Compute per-module offsets from the outer edge inward.
-package enum ModuleLayoutEngine {
-    // MARK: Package
+public enum ModuleLayoutEngine {
+    // MARK: Public
 
     // MARK: - Constants
 
     /// Spacing between adjacent modules on the same side, in points.
-    package static let interModuleSpacing: CGFloat = 8
+    public static let interModuleSpacing: CGFloat = 8
 
     /// Inset from the outermost edge of the expansion zone to the first module, in points.
-    package static let outerEdgeInset: CGFloat = 6
+    public static let outerEdgeInset: CGFloat = 6
 
     // MARK: - Layout computation
 
@@ -113,7 +113,7 @@ package enum ModuleLayoutEngine {
     ///     side/order from the config are used instead of module defaults.
     /// - Returns: A `ModuleLayoutResult` with per-module positions and total width.
     ///   Returns a zero-width result when no modules are visible.
-    package static func layout(
+    public static func layout(
         modules: [any NotchModule],
         context: ModuleVisibilityContext,
         config: ModuleLayoutConfig? = nil,

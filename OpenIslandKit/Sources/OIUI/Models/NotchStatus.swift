@@ -1,5 +1,5 @@
 /// The visual state of the notch panel.
-package enum NotchStatus: Sendable {
+public enum NotchStatus: Sendable {
     /// Panel is hidden; only the closed-state header modules are visible.
     case closed
     /// Panel is fully expanded showing content.

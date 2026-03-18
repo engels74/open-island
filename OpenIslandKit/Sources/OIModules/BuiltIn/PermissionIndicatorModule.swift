@@ -1,4 +1,4 @@
-package import SwiftUI
+public import SwiftUI
 
 // MARK: - PermissionIndicatorModule
 
@@ -6,28 +6,28 @@ package import SwiftUI
 /// permission request.
 ///
 /// Visible only when ``ModuleVisibilityContext/hasPendingPermission`` is `true`.
-package struct PermissionIndicatorModule: NotchModule {
+public struct PermissionIndicatorModule: NotchModule {
     // MARK: Lifecycle
 
-    package init() {}
+    public init() {}
 
-    // MARK: Package
+    // MARK: Public
 
-    package let id = "permission-indicator"
-    package let defaultSide = ModuleSide.left
-    package let defaultOrder = 1
-    package let showInExpandedHeader = false
+    public let id = "permission-indicator"
+    public let defaultSide = ModuleSide.left
+    public let defaultOrder = 1
+    public let showInExpandedHeader = false
 
-    package func isVisible(context: ModuleVisibilityContext) -> Bool {
+    public func isVisible(context: ModuleVisibilityContext) -> Bool {
         context.hasPendingPermission
     }
 
-    package func preferredWidth() -> CGFloat {
+    public func preferredWidth() -> CGFloat {
         20
     }
 
     @MainActor
-    package func makeBody(context: ModuleRenderContext) -> AnyView {
+    public func makeBody(context: ModuleRenderContext) -> AnyView {
         AnyView(self.body(context: context))
     }
 

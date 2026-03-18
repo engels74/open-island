@@ -1,5 +1,5 @@
-package import OICore
-package import SwiftUI
+public import OICore
+public import SwiftUI
 
 // MARK: - MascotModule
 
@@ -8,30 +8,30 @@ package import SwiftUI
 /// When a single provider is active, displays that provider's icon.
 /// When multiple providers are active or none are specified, displays a generic icon.
 /// Always visible regardless of session state.
-package struct MascotModule: NotchModule {
+public struct MascotModule: NotchModule {
     // MARK: Lifecycle
 
-    package init(activeProviders: Set<ProviderID> = []) {
+    public init(activeProviders: Set<ProviderID> = []) {
         self.activeProviders = activeProviders
     }
 
-    // MARK: Package
+    // MARK: Public
 
-    package let id = "mascot"
-    package let defaultSide = ModuleSide.left
-    package let defaultOrder = 0
-    package let showInExpandedHeader = false
+    public let id = "mascot"
+    public let defaultSide = ModuleSide.left
+    public let defaultOrder = 0
+    public let showInExpandedHeader = false
 
-    package func isVisible(context: ModuleVisibilityContext) -> Bool {
+    public func isVisible(context: ModuleVisibilityContext) -> Bool {
         true
     }
 
-    package func preferredWidth() -> CGFloat {
+    public func preferredWidth() -> CGFloat {
         20
     }
 
     @MainActor
-    package func makeBody(context: ModuleRenderContext) -> AnyView {
+    public func makeBody(context: ModuleRenderContext) -> AnyView {
         AnyView(self.body(context: context))
     }
 

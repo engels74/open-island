@@ -1,12 +1,12 @@
-package import Foundation
+public import Foundation
 
 // MARK: - PermissionRequest
 
 /// A request from a provider for the user to approve or deny a tool action.
-package struct PermissionRequest: Sendable {
+public struct PermissionRequest: Sendable {
     // MARK: Lifecycle
 
-    package init(
+    public init(
         id: String,
         toolName: String,
         toolInput: JSONValue? = nil,
@@ -20,16 +20,16 @@ package struct PermissionRequest: Sendable {
         self.risk = risk
     }
 
-    // MARK: Package
+    // MARK: Public
 
-    package let id: String
-    package let toolName: String
-    package let toolInput: JSONValue?
-    package let timestamp: Date
-    package let risk: PermissionRisk?
+    public let id: String
+    public let toolName: String
+    public let toolInput: JSONValue?
+    public let timestamp: Date
+    public let risk: PermissionRisk?
 
     /// A human-readable summary of this permission request.
-    package var displaySummary: String {
+    public var displaySummary: String {
         if let risk {
             return "\(self.toolName) (\(risk))"
         }
@@ -40,7 +40,7 @@ package struct PermissionRequest: Sendable {
 // MARK: - PermissionDecision
 
 /// The user's decision in response to a permission request.
-package enum PermissionDecision: Sendable {
+public enum PermissionDecision: Sendable {
     case allow
     case deny(reason: String?)
 }

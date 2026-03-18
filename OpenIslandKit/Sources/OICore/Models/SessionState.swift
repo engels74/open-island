@@ -1,10 +1,10 @@
-package import Foundation
+public import Foundation
 
 /// Complete snapshot of a provider session's current state.
-package struct SessionState: Sendable, Identifiable {
+public struct SessionState: Sendable, Identifiable {
     // MARK: Lifecycle
 
-    package init(
+    public init(
         id: String,
         providerID: ProviderID,
         phase: SessionPhase = .idle,
@@ -30,17 +30,17 @@ package struct SessionState: Sendable, Identifiable {
         self.tokenUsage = tokenUsage
     }
 
-    // MARK: Package
+    // MARK: Public
 
-    package let id: String
-    package let providerID: ProviderID
-    package var phase: SessionPhase
-    package let projectName: String
-    package let cwd: String
-    package let pid: Int32?
-    package var chatItems: [ChatHistoryItem]
-    package var activeTools: [ToolCallItem]
-    package let createdAt: Date
-    package var lastActivityAt: Date
-    package var tokenUsage: TokenUsageSnapshot?
+    public let id: String
+    public let providerID: ProviderID
+    public var phase: SessionPhase
+    public let projectName: String
+    public let cwd: String
+    public let pid: Int32?
+    public var chatItems: [ChatHistoryItem]
+    public var activeTools: [ToolCallItem]
+    public let createdAt: Date
+    public var lastActivityAt: Date
+    public var tokenUsage: TokenUsageSnapshot?
 }

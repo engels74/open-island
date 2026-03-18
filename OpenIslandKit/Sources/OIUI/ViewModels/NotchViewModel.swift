@@ -1,8 +1,8 @@
-package import Foundation
-import Observation
-package import OICore
-package import OIModules
-package import OIWindow
+public import Foundation
+public import Observation
+public import OICore
+public import OIModules
+public import OIWindow
 
 // MARK: - NotchViewModel
 
@@ -13,14 +13,14 @@ package import OIWindow
 /// show/hide transitions.
 @Observable
 @MainActor
-package final class NotchViewModel {
+public final class NotchViewModel {
     // MARK: Lifecycle
 
     /// Creates a new view model.
     ///
     /// Automatically loads any persisted module layout configuration from
     /// `UserDefaults` and reconciles it against the registry's current modules.
-    package init(geometry: NotchGeometry, registry: ModuleRegistry = ModuleRegistry()) {
+    public init(geometry: NotchGeometry, registry: ModuleRegistry = ModuleRegistry()) {
         self.geometry = geometry
         self.registry = registry
         self.status = .closed
@@ -32,40 +32,40 @@ package final class NotchViewModel {
         registry.applyPersistedLayout()
     }
 
-    // MARK: Package
+    // MARK: Public
 
     /// Current visual state of the notch panel.
-    package private(set) var status: NotchStatus
+    public private(set) var status: NotchStatus
 
     /// The content currently displayed (or to be restored on next open).
-    package private(set) var contentType: NotchContentType
+    public private(set) var contentType: NotchContentType
 
     /// Why the notch was most recently opened.
-    package private(set) var openReason: NotchOpenReason
+    public private(set) var openReason: NotchOpenReason
 
     /// Screen geometry driving panel position and sizing.
-    package var geometry: NotchGeometry
+    public var geometry: NotchGeometry
 
     /// Module registry holding all registered notch modules.
-    package let registry: ModuleRegistry
+    public let registry: ModuleRegistry
 
     /// The current module visibility context used for layout decisions.
     ///
     /// Defaults to sensible values. The integration layer will update this
     /// from live `SessionStore` data in a later phase.
-    package var visibilityContext = ModuleVisibilityContext()
+    public var visibilityContext = ModuleVisibilityContext()
 
     /// Token incremented when a settings-menu selector expands or collapses.
     ///
     /// Observed by SwiftUI to trigger size re-computation of the settings
     /// panel without requiring the view to know about individual selectors.
-    package var selectorUpdateToken: UInt64
+    public var selectorUpdateToken: UInt64
 
     /// Computes the closed-state module layout from the current registry and visibility context.
     ///
     /// This is the **single source of truth** for closed-state width, consumed by both
     /// `NotchView` (visual boundary) and `PassThroughHostingView` (hit-test boundary).
-    package var moduleLayout: ModuleLayoutResult {
+    public var moduleLayout: ModuleLayoutResult {
         ModuleLayoutEngine.layout(
             modules: self.registry.allModules,
             context: self.visibilityContext,
@@ -77,7 +77,7 @@ package final class NotchViewModel {
     ///
     /// Varies by content type. For `.menu`, the token dependency ensures
     /// the size is recomputed whenever a selector expands/collapses.
-    package var openedSize: CGSize {
+    public var openedSize: CGSize {
         // Touch the token so Observation tracks it for `.menu`.
         _ = self.selectorUpdateToken
 
@@ -97,7 +97,7 @@ package final class NotchViewModel {
     ///
     /// **Single-consumer by convention**: calling this method again finishes
     /// the previous stream to prevent resource leaks.
-    package func makeStatusStream() -> AsyncStream<NotchStatus> {
+    public func makeStatusStream() -> AsyncStream<NotchStatus> {
         // Finish any existing stream before creating a new one.
         self.activeStatusContinuation?.finish()
 
@@ -127,7 +127,7 @@ package final class NotchViewModel {
     /// Opens the notch panel for the given reason.
     ///
     /// Sets ``status`` to `.opened` and yields to the status stream.
-    package func notchOpen(reason: NotchOpenReason) {
+    public func notchOpen(reason: NotchOpenReason) {
         self.openReason = reason
         self.status = .opened
         self.activeStatusContinuation?.yield(.opened)
@@ -137,7 +137,7 @@ package final class NotchViewModel {
     ///
     /// Preserves the current ``contentType`` so the user returns to
     /// the same view on the next open.
-    package func notchClose() {
+    public func notchClose() {
         // contentType is intentionally NOT reset — state preservation.
         self.status = .closed
         self.activeStatusContinuation?.yield(.closed)
@@ -147,13 +147,13 @@ package final class NotchViewModel {
     ///
     /// Can be called while opened or closed. When closed, this sets the
     /// content that will be shown on the next open.
-    package func switchContent(_ newContent: NotchContentType) {
+    public func switchContent(_ newContent: NotchContentType) {
         self.contentType = newContent
     }
 
     /// Increments the selector update token, causing ``openedSize`` to
     /// be re-evaluated by any observing views.
-    package func invalidateMenuLayout() {
+    public func invalidateMenuLayout() {
         self.selectorUpdateToken &+= 1
     }
 

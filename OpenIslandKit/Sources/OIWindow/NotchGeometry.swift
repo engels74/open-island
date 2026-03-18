@@ -1,4 +1,4 @@
-@preconcurrency package import AppKit
+@preconcurrency public import AppKit
 
 // MARK: - NotchGeometry
 
@@ -6,7 +6,7 @@
 ///
 /// All coordinates use AppKit's bottom-left origin convention.
 /// The struct is fully `Sendable` — no mutable state, no reference types.
-package struct NotchGeometry: Sendable, Equatable {
+public struct NotchGeometry: Sendable, Equatable {
     // MARK: Lifecycle
 
     /// Creates geometry from a notch size and the screen it belongs to.
@@ -14,7 +14,7 @@ package struct NotchGeometry: Sendable, Equatable {
     /// - Parameters:
     ///   - notchSize: The physical notch dimensions (width × height).
     ///   - screenFrame: The screen's frame in global coordinates.
-    package init(notchSize: CGSize, screenFrame: CGRect) {
+    public init(notchSize: CGSize, screenFrame: CGRect) {
         self.screenRect = screenFrame
 
         // The notch is centered horizontally at the top of the screen.
@@ -29,21 +29,21 @@ package struct NotchGeometry: Sendable, Equatable {
         )
     }
 
-    // MARK: Package
+    // MARK: Public
 
     /// Fixed panel height when the notch is opened.
-    package static let windowHeight: CGFloat = 750
+    public static let windowHeight: CGFloat = 750
 
     /// The hardware notch rect in screen-local coordinates (origin = bottom-left of screen).
-    package let deviceNotchRect: CGRect
+    public let deviceNotchRect: CGRect
 
     /// The full screen frame in global (multi-display) coordinates.
-    package let screenRect: CGRect
+    public let screenRect: CGRect
 
     // MARK: - Derived Geometry
 
     /// The notch rect with hit-test padding applied (screen-local coordinates).
-    package var paddedNotchRect: CGRect {
+    public var paddedNotchRect: CGRect {
         self.deviceNotchRect.insetBy(
             dx: -Self.horizontalPadding,
             dy: -Self.verticalPadding,
@@ -51,7 +51,7 @@ package struct NotchGeometry: Sendable, Equatable {
     }
 
     /// The notch rect in global (multi-display) screen coordinates.
-    package var notchRectInScreenCoordinates: CGRect {
+    public var notchRectInScreenCoordinates: CGRect {
         CGRect(
             x: self.deviceNotchRect.origin.x + self.screenRect.origin.x,
             y: self.deviceNotchRect.origin.y + self.screenRect.origin.y,
@@ -66,7 +66,7 @@ package struct NotchGeometry: Sendable, Equatable {
     ///
     /// The window spans the full screen width and uses the fixed `windowHeight`,
     /// positioned at the top of the screen.
-    package var windowFrame: CGRect {
+    public var windowFrame: CGRect {
         CGRect(
             x: self.screenRect.origin.x,
             y: self.screenRect.maxY - Self.windowHeight,
@@ -78,7 +78,7 @@ package struct NotchGeometry: Sendable, Equatable {
     /// The opened panel rect in global screen coordinates, given a panel size.
     ///
     /// The panel hangs down from the notch, centered on the notch's horizontal center.
-    package func panelRectInScreenCoordinates(size: CGSize) -> CGRect {
+    public func panelRectInScreenCoordinates(size: CGSize) -> CGRect {
         let panelX = self.notchRectInScreenCoordinates.midX - size.width / 2
         // Panel top aligns with screen top (maxY), extends downward.
         let panelY = self.screenRect.maxY - size.height
@@ -90,12 +90,12 @@ package struct NotchGeometry: Sendable, Equatable {
     /// Whether the point falls within the padded notch area (screen-local coordinates).
     ///
     /// Uses ±10px horizontal and ±5px vertical padding around the hardware notch rect.
-    package func isPointInNotch(_ point: CGPoint) -> Bool {
+    public func isPointInNotch(_ point: CGPoint) -> Bool {
         self.paddedNotchRect.contains(point)
     }
 
     /// Whether the point is inside the opened panel bounds (screen-local coordinates).
-    package func isPointInsidePanel(_ point: CGPoint, size: CGSize) -> Bool {
+    public func isPointInsidePanel(_ point: CGPoint, size: CGSize) -> Bool {
         let panelRect = self.panelRectLocal(size: size)
         return panelRect.contains(point)
     }
@@ -103,7 +103,7 @@ package struct NotchGeometry: Sendable, Equatable {
     /// Whether the point is outside the opened panel bounds (screen-local coordinates).
     ///
     /// Used for click-outside dismissal.
-    package func isPointOutsidePanel(_ point: CGPoint, size: CGSize) -> Bool {
+    public func isPointOutsidePanel(_ point: CGPoint, size: CGSize) -> Bool {
         !self.isPointInsidePanel(point, size: size)
     }
 

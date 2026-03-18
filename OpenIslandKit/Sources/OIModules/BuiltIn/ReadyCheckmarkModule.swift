@@ -1,4 +1,4 @@
-package import SwiftUI
+public import SwiftUI
 
 // MARK: - ReadyCheckmarkModule
 
@@ -6,28 +6,28 @@ package import SwiftUI
 /// currently processing.
 ///
 /// Visible when NOT processing AND at least one active provider exists.
-package struct ReadyCheckmarkModule: NotchModule {
+public struct ReadyCheckmarkModule: NotchModule {
     // MARK: Lifecycle
 
-    package init() {}
+    public init() {}
 
-    // MARK: Package
+    // MARK: Public
 
-    package let id = "ready-checkmark"
-    package let defaultSide = ModuleSide.right
-    package let defaultOrder = 1
-    package let showInExpandedHeader = false
+    public let id = "ready-checkmark"
+    public let defaultSide = ModuleSide.right
+    public let defaultOrder = 1
+    public let showInExpandedHeader = false
 
-    package func isVisible(context: ModuleVisibilityContext) -> Bool {
+    public func isVisible(context: ModuleVisibilityContext) -> Bool {
         !context.isProcessing && !context.activeProviders.isEmpty
     }
 
-    package func preferredWidth() -> CGFloat {
+    public func preferredWidth() -> CGFloat {
         20
     }
 
     @MainActor
-    package func makeBody(context: ModuleRenderContext) -> AnyView {
+    public func makeBody(context: ModuleRenderContext) -> AnyView {
         AnyView(self.body(context: context))
     }
 

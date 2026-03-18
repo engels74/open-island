@@ -1,4 +1,4 @@
-package import SwiftUI
+public import SwiftUI
 
 // MARK: - SessionDotsModule
 
@@ -8,28 +8,28 @@ package import SwiftUI
 /// Visible whenever there are active providers. The rendered count is derived
 /// from ``ModuleRenderContext/activeProviderCount`` — the same source of truth
 /// used by ``isVisible(context:)`` — to prevent visibility/rendering drift.
-package struct SessionDotsModule: NotchModule {
+public struct SessionDotsModule: NotchModule {
     // MARK: Lifecycle
 
-    package init() {}
+    public init() {}
 
-    // MARK: Package
+    // MARK: Public
 
-    package let id = "session-dots"
-    package let defaultSide = ModuleSide.right
-    package let defaultOrder = 2
-    package let showInExpandedHeader = false
+    public let id = "session-dots"
+    public let defaultSide = ModuleSide.right
+    public let defaultOrder = 2
+    public let showInExpandedHeader = false
 
-    package func isVisible(context: ModuleVisibilityContext) -> Bool {
+    public func isVisible(context: ModuleVisibilityContext) -> Bool {
         !context.activeProviders.isEmpty
     }
 
-    package func preferredWidth() -> CGFloat {
+    public func preferredWidth() -> CGFloat {
         30
     }
 
     @MainActor
-    package func makeBody(context: ModuleRenderContext) -> AnyView {
+    public func makeBody(context: ModuleRenderContext) -> AnyView {
         AnyView(self.body(context: context))
     }
 

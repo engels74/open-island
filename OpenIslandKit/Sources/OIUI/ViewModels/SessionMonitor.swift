@@ -1,6 +1,6 @@
-import Observation
-package import OICore
-package import OIState
+public import Observation
+public import OICore
+public import OIState
 
 // MARK: - SessionMonitor
 
@@ -12,10 +12,10 @@ package import OIState
 /// ``SessionStore/process(_:)`` as ``SessionEvent`` values.
 @MainActor
 @Observable
-package final class SessionMonitor {
+public final class SessionMonitor {
     // MARK: Lifecycle
 
-    package init(store: SessionStore) {
+    public init(store: SessionStore) {
         self.store = store
     }
 
@@ -23,16 +23,16 @@ package final class SessionMonitor {
         streamTask?.cancel()
     }
 
-    // MARK: Package
+    // MARK: Public
 
     /// Active sessions, sorted by most-recent activity, excluding ended sessions.
-    package private(set) var instances: [SessionState] = []
+    public private(set) var instances: [SessionState] = []
 
     /// Start subscribing to the session store's stream.
     ///
     /// Call once after initialization. The subscription runs until ``stop()``
     /// is called or the monitor is deinitialized.
-    package func start() {
+    public func start() {
         guard self.streamTask == nil else { return }
         self.streamTask = Task { [weak self] in
             guard let self else { return }
@@ -45,27 +45,27 @@ package final class SessionMonitor {
     }
 
     /// Stop the session stream subscription.
-    package func stop() {
+    public func stop() {
         self.streamTask?.cancel()
         self.streamTask = nil
     }
 
     /// Approve a pending permission request.
-    package func approvePermission(sessionID: String, requestID: String) {
+    public func approvePermission(sessionID: String, requestID: String) {
         Task {
             await self.store.process(.permissionApproved(sessionID, requestID: requestID))
         }
     }
 
     /// Deny a pending permission request.
-    package func denyPermission(sessionID: String, requestID: String, reason: String? = nil) {
+    public func denyPermission(sessionID: String, requestID: String, reason: String? = nil) {
         Task {
             await self.store.process(.permissionDenied(sessionID, requestID: requestID, reason: reason))
         }
     }
 
     /// Archive (end) a session.
-    package func archiveSession(sessionID: String) {
+    public func archiveSession(sessionID: String) {
         Task {
             await self.store.process(.archiveSession(sessionID))
         }

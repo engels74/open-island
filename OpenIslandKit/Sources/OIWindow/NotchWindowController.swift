@@ -113,10 +113,12 @@ package final class NotchWindowController: NSWindowController {
                     self.hostingView.activeHitRect = nil
                     self.hostingView.isInteractive = true
                     self.window?.ignoresMouseEvents = false
+                    self.window?.orderFrontRegardless()
                 } else {
                     self.hostingView.isInteractive = false
                     self.hostingView.activeHitRect = nil
                     self.window?.ignoresMouseEvents = true
+                    self.window?.orderOut(nil)
                 }
             }
         }
