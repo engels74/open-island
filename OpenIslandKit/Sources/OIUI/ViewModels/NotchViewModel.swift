@@ -91,11 +91,11 @@ public final class NotchViewModel {
 
         switch self.contentType {
         case .instances:
-            return CGSize(width: 720, height: 480)
+            return CGSize(width: min(self.geometry.screenRect.width * 0.4, 480), height: 320)
         case .chat:
-            return CGSize(width: 720, height: 580)
+            return CGSize(width: min(self.geometry.screenRect.width * 0.5, 600), height: 580)
         case .menu:
-            return CGSize(width: 420, height: 380)
+            return CGSize(width: min(self.geometry.screenRect.width * 0.4, 480), height: 380)
         }
     }
 

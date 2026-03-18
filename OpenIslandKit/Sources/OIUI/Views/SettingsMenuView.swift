@@ -27,15 +27,19 @@ package struct SettingsMenuView: View {
 
     package var body: some View {
         ScrollView(.vertical, showsIndicators: false) {
-            VStack(spacing: 16) {
+            VStack(spacing: 0) {
                 self.soundSection
+                SettingsDivider()
                 self.displaySection
+                SettingsDivider()
                 self.providersSection
+                SettingsDivider()
                 self.modulesSection
+                SettingsDivider()
                 self.aboutSection
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
         }
         .onAppear { self.loadSettings() }
     }
@@ -103,7 +107,7 @@ private extension SettingsMenuView {
 
     var soundSection: some View {
         SettingsSection(title: "Sound") {
-            VStack(spacing: 8) {
+            VStack(spacing: 2) {
                 LabeledPicker(
                     label: "Notification Sound",
                     selection: Binding(
@@ -148,30 +152,18 @@ private extension SettingsMenuView {
 
     var displaySection: some View {
         SettingsSection(title: "Display") {
-            VStack(spacing: 8) {
-                HStack {
-                    Text("Mascot Color")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-
-                    Spacer()
-
-                    ColorPicker(
-                        "",
-                        selection: Binding(
-                            get: { self.mascotColor },
-                            set: {
-                                self.mascotColor = $0
-                                AppSettings.mascotColor = $0
-                                self.viewModel.mascotColor = $0
-                            },
-                        ),
-                        supportsOpacity: false,
-                    )
-                    .labelsHidden()
-                    .frame(width: 24, height: 24)
-                    .accessibilityLabel("Mascot Color")
-                }
+            VStack(spacing: 2) {
+                SettingsColorRow(
+                    label: "Mascot Color",
+                    selection: Binding(
+                        get: { self.mascotColor },
+                        set: {
+                            self.mascotColor = $0
+                            AppSettings.mascotColor = $0
+                            self.viewModel.mascotColor = $0
+                        },
+                    ),
+                )
 
                 SettingsToggle(
                     label: "Mascot Always Visible",
@@ -202,7 +194,7 @@ private extension SettingsMenuView {
 
     var providersSection: some View {
         SettingsSection(title: "Providers") {
-            VStack(spacing: 6) {
+            VStack(spacing: 4) {
                 ForEach(ProviderID.allKnown, id: \.rawValue) { providerID in
                     self.providerRow(providerID)
                 }
@@ -354,26 +346,9 @@ private extension SettingsMenuView {
 
     var aboutSection: some View {
         SettingsSection(title: "About") {
-            VStack(spacing: 6) {
-                HStack {
-                    Text("Version")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Text(self.appVersion)
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundStyle(.white.opacity(0.7))
-                }
-
-                HStack {
-                    Text("Build")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Text(self.buildNumber)
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundStyle(.white.opacity(0.7))
-                }
+            VStack(spacing: 2) {
+                SettingsInfoRow(label: "Version", value: self.appVersion)
+                SettingsInfoRow(label: "Build", value: self.buildNumber)
 
                 SettingsToggle(
                     label: "Verbose Logging",
@@ -413,7 +388,8 @@ private extension SettingsMenuView {
 
     func providerConfig(for providerID: ProviderID) -> some View {
         VStack(spacing: 6) {
-            Divider().opacity(0.3)
+            Divider()
+                .background(Color.white.opacity(0.08))
 
             switch providerID {
             case .claude:
@@ -427,6 +403,7 @@ private extension SettingsMenuView {
             case .example: EmptyView()
             }
         }
+        .padding(.leading, 28)
     }
 
     // MARK: - Load / Sync
@@ -471,12 +448,12 @@ private struct ProviderRowView<Config: View>: View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
                 Image(systemName: meta.iconName)
-                    .font(.system(size: 11))
+                    .font(.system(size: 12))
                     .foregroundStyle(Color(hex: meta.accentColorHex) ?? .white)
                     .frame(width: 16)
                     .accessibilityHidden(true)
                 Text(meta.displayName)
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(.white.opacity(self.isHovered ? 1.0 : 0.85))
                 Spacer()
 
@@ -516,19 +493,19 @@ private struct ProviderRowView<Config: View>: View {
                     isExpanded ? "Collapses provider configuration" : "Expands provider configuration",
                 )
             }
-            .padding(.vertical, 6)
-            .padding(.horizontal, 8)
+            .padding(.vertical, 10)
+            .padding(.horizontal, 12)
 
             if isExpanded {
                 self.config
-                    .padding(.horizontal, 8)
-                    .padding(.bottom, 8)
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 10)
                     .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
         .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(.white.opacity(self.isHovered ? 0.1 : 0.05)),
+            RoundedRectangle(cornerRadius: 8)
+                .fill(.white.opacity(self.isHovered ? 0.08 : 0.03)),
         )
         .onHover { self.isHovered = $0 }
     }
@@ -548,9 +525,8 @@ private struct SettingsSection<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(self.title)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.5))
-                .textCase(.uppercase)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.secondary)
                 .accessibilityAddTraits(.isHeader)
 
             self.content
@@ -571,16 +547,16 @@ private struct SettingsToggle: View {
     var body: some View {
         Toggle(isOn: self.$isOn) {
             Text(self.label)
-                .font(.system(size: 11))
-                .foregroundStyle(.white.opacity(self.isHovered ? 0.9 : 0.6))
+                .font(.system(size: 13))
+                .foregroundStyle(.white.opacity(self.isHovered ? 0.9 : 0.7))
         }
         .toggleStyle(.switch)
         .controlSize(.mini)
-        .padding(.vertical, 2)
-        .padding(.horizontal, 4)
+        .padding(.vertical, 10)
+        .padding(.horizontal, 12)
         .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(.white.opacity(self.isHovered ? 0.06 : 0)),
+            RoundedRectangle(cornerRadius: 8)
+                .fill(.white.opacity(self.isHovered ? 0.08 : 0)),
         )
         .onHover { self.isHovered = $0 }
     }
@@ -592,8 +568,10 @@ private struct SettingsToggle: View {
 
 // MARK: - SettingsTextField
 
-/// Compact labeled text field.
+/// Compact labeled text field with hover highlight.
 private struct SettingsTextField: View {
+    // MARK: Internal
+
     let label: String
     @Binding var text: String
 
@@ -601,15 +579,28 @@ private struct SettingsTextField: View {
 
     var body: some View {
         HStack {
-            Text(self.label).font(.system(size: 10)).foregroundStyle(.secondary)
+            Text(self.label)
+                .font(.system(size: 11))
+                .foregroundStyle(.white.opacity(self.isHovered ? 0.9 : 0.7))
             Spacer()
             TextField(self.placeholder, text: self.$text)
                 .textFieldStyle(.roundedBorder)
-                .font(.system(size: 10))
+                .font(.system(size: 11))
                 .frame(maxWidth: 160)
                 .controlSize(.small)
         }
+        .padding(.vertical, 8)
+        .padding(.horizontal, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(.white.opacity(self.isHovered ? 0.08 : 0)),
+        )
+        .onHover { self.isHovered = $0 }
     }
+
+    // MARK: Private
+
+    @State private var isHovered = false
 }
 
 // MARK: - LabeledPicker
@@ -627,8 +618,8 @@ private struct LabeledPicker<T: Hashable>: View {
     var body: some View {
         HStack {
             Text(self.label)
-                .font(.system(size: 11))
-                .foregroundStyle(.white.opacity(self.isHovered ? 0.9 : 0.6))
+                .font(.system(size: 13))
+                .foregroundStyle(.white.opacity(self.isHovered ? 0.9 : 0.7))
             Spacer()
             Picker("", selection: self.$selection) {
                 ForEach(self.options, id: \.self) { option in
@@ -639,11 +630,11 @@ private struct LabeledPicker<T: Hashable>: View {
             .pickerStyle(.menu)
             .controlSize(.small)
         }
-        .padding(.vertical, 2)
-        .padding(.horizontal, 4)
+        .padding(.vertical, 10)
+        .padding(.horizontal, 12)
         .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(.white.opacity(self.isHovered ? 0.06 : 0)),
+            RoundedRectangle(cornerRadius: 8)
+                .fill(.white.opacity(self.isHovered ? 0.08 : 0)),
         )
         .onHover { self.isHovered = $0 }
     }
@@ -665,24 +656,94 @@ private struct UpdateButton: View {
         Button {
             self.action()
         } label: {
-            HStack {
+            HStack(spacing: 6) {
                 Image(systemName: "arrow.triangle.2.circlepath")
-                    .font(.system(size: 10))
-                Text("Check for Updates")
                     .font(.system(size: 11))
+                Text("Check for Updates")
+                    .font(.system(size: 13))
             }
             .foregroundStyle(.white.opacity(self.isHovered ? 0.9 : 0.7))
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 6)
+            .padding(.vertical, 10)
             .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(.white.opacity(self.isHovered ? 0.12 : 0.08)),
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(.white.opacity(self.isHovered ? 0.12 : 0.06)),
             )
         }
         .buttonStyle(.plain)
         .onHover { self.isHovered = $0 }
         .accessibilityLabel("Check for Updates")
         .accessibilityHint("Checks for new versions of Open Island")
+    }
+
+    // MARK: Private
+
+    @State private var isHovered = false
+}
+
+// MARK: - SettingsDivider
+
+/// Subtle divider between sections.
+private struct SettingsDivider: View {
+    var body: some View {
+        Divider()
+            .background(Color.white.opacity(0.08))
+            .padding(.vertical, 4)
+    }
+}
+
+// MARK: - SettingsInfoRow
+
+/// Read-only info row with label and value.
+private struct SettingsInfoRow: View {
+    let label: String
+    let value: String
+
+    var body: some View {
+        HStack {
+            Text(self.label)
+                .font(.system(size: 13))
+                .foregroundStyle(.white.opacity(0.7))
+            Spacer()
+            Text(self.value)
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundStyle(.white.opacity(0.5))
+        }
+        .padding(.vertical, 10)
+        .padding(.horizontal, 12)
+    }
+}
+
+// MARK: - SettingsColorRow
+
+/// Color picker row with hover highlight.
+private struct SettingsColorRow: View {
+    // MARK: Internal
+
+    let label: String
+
+    @Binding var selection: Color
+
+    var body: some View {
+        HStack {
+            Text(self.label)
+                .font(.system(size: 13))
+                .foregroundStyle(.white.opacity(self.isHovered ? 0.9 : 0.7))
+
+            Spacer()
+
+            ColorPicker("", selection: self.$selection, supportsOpacity: false)
+                .labelsHidden()
+                .frame(width: 24, height: 24)
+                .accessibilityLabel(self.label)
+        }
+        .padding(.vertical, 10)
+        .padding(.horizontal, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(.white.opacity(self.isHovered ? 0.08 : 0)),
+        )
+        .onHover { self.isHovered = $0 }
     }
 
     // MARK: Private

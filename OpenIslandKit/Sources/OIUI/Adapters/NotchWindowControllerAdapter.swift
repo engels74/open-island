@@ -18,13 +18,13 @@ public final class NotchWindowControllerAdapter: WindowControllerHandle {
     /// - Parameters:
     ///   - geometry: Initial screen geometry for the notch panel.
     ///   - content: The SwiftUI root view hosted inside the panel.
-    ///   - viewModel: Provides the ``NotchStatus`` stream mapped to `Bool`.
+    ///   - viewModel: Provides the ``NotchStatus`` stream mapped to ``NotchWindowStatus``.
     public init(geometry: NotchGeometry, content: AnyView, viewModel: NotchViewModel) {
         self.controller = NotchWindowController(geometry: geometry, content: content)
 
-        // Map NotchStatus → Bool: opened/popping = true, closed = false.
+        // Map NotchStatus → NotchWindowStatus with activation info from openReason.
         let statusStream = viewModel.makeStatusStream()
-        let boolStream = AsyncStream<Bool> { continuation in
+        let windowStatusStream = AsyncStream<NotchWindowStatus> { continuation in
             let task = Task { @MainActor in
                 for await status in statusStream {
                     let isOpened = switch status {
@@ -32,7 +32,10 @@ public final class NotchWindowControllerAdapter: WindowControllerHandle {
                          .popping: true
                     case .closed: false
                     }
-                    continuation.yield(isOpened)
+                    // Only activate app for interactive opens (click/hover),
+                    // not for notifications, permission requests, or boot.
+                    let shouldActivate = isOpened && Self.shouldActivate(for: viewModel.openReason)
+                    continuation.yield(NotchWindowStatus(isOpened: isOpened, shouldActivate: shouldActivate))
                 }
                 continuation.finish()
             }
@@ -41,7 +44,7 @@ public final class NotchWindowControllerAdapter: WindowControllerHandle {
             }
         }
 
-        self.controller.subscribeToStatusStream(boolStream)
+        self.controller.subscribeToStatusStream(windowStatusStream)
         self.controller.show(reason: .boot)
 
         // Boot animation driven through view model status (.popping → .closed)
@@ -66,4 +69,19 @@ public final class NotchWindowControllerAdapter: WindowControllerHandle {
     // MARK: Private
 
     private let controller: NotchWindowController
+
+    /// Whether the given open reason should activate the app and make the panel key.
+    ///
+    /// Interactive opens (click, hover) activate so the app receives keyboard
+    /// events like Cmd+Q. Automatic opens (notification, permission, boot)
+    /// do not activate to avoid stealing focus from the user's current app.
+    private static func shouldActivate(for reason: NotchOpenReason) -> Bool {
+        switch reason {
+        case .click,
+             .hover: true
+        case .notification,
+             .permissionRequest,
+             .boot: false
+        }
+    }
 }

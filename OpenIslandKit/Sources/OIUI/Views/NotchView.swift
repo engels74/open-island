@@ -68,13 +68,36 @@ public struct NotchView: View {
                 bottomCornerRadius: isOpened ? 24 : 14,
             ),
         )
-        .scaleEffect(isPopping ? 1.02 : 1.0)
-        .shadow(
-            color: (isOpened || isPopping || self.viewModel.isHovered) ? .black.opacity(0.7) : .clear,
-            radius: isPopping ? 8 : 6,
+        .background {
+            // Shadow applied to a separate NotchShape behind the clipped content
+            // so it follows the rounded contour. Placing .shadow() directly after
+            // .clipShape() renders the shadow on the view's rectangular frame,
+            // producing visible rectangular edge artifacts on hover.
+            NotchShape(
+                topCornerRadius: isOpened ? 19 : 6,
+                bottomCornerRadius: isOpened ? 24 : 14,
+            )
+            .fill(.black)
+            .shadow(
+                color: self.shadowColor(isOpened: isOpened, isPopping: isPopping),
+                radius: self.shadowRadius(isOpened: isOpened, isPopping: isPopping),
+            )
+        }
+        .contentShape(
+            NotchShape(
+                topCornerRadius: isOpened ? 19 : 6,
+                bottomCornerRadius: isOpened ? 24 : 14,
+            ),
         )
+        .scaleEffect(isPopping ? 1.02 : 1.0)
         .onHover { hovering in
-            self.viewModel.setHovered(hovering)
+            if self.reduceMotion {
+                self.viewModel.setHovered(hovering)
+            } else {
+                withAnimation(.spring(response: 0.38, dampingFraction: 0.8)) {
+                    self.viewModel.setHovered(hovering)
+                }
+            }
         }
         .animation(self.reduceMotion ? .none : self.openCloseAnimation(isOpened: isOpened), value: isOpened)
         .animation(self.reduceMotion ? .none : .smooth(duration: 0.4), value: isPopping)
@@ -136,6 +159,32 @@ public struct NotchView: View {
                 onCheckForUpdates: self.onCheckForUpdates,
                 updateStatusContent: self.updateStatusContent,
             )
+        }
+    }
+
+    // MARK: - Shadow
+
+    /// Tiered shadow color: subtle glow on hover, full shadow when opened/popping.
+    private func shadowColor(isOpened: Bool, isPopping: Bool) -> Color {
+        if isOpened || isPopping {
+            .black.opacity(0.7)
+        } else if self.viewModel.isHovered {
+            .black.opacity(0.3)
+        } else {
+            .clear
+        }
+    }
+
+    /// Tiered shadow radius: small hint on hover, medium when opened, large when popping.
+    private func shadowRadius(isOpened: Bool, isPopping: Bool) -> CGFloat {
+        if isPopping {
+            8
+        } else if isOpened {
+            6
+        } else if self.viewModel.isHovered {
+            3
+        } else {
+            0
         }
     }
 
