@@ -14,8 +14,9 @@ package import SwiftUI
 package struct NotchHeaderView: View {
     // MARK: Lifecycle
 
-    package init(viewModel: NotchViewModel) {
+    package init(viewModel: NotchViewModel, activityCoordinator: NotchActivityCoordinator? = nil) {
         self.viewModel = viewModel
+        self.activityCoordinator = activityCoordinator
     }
 
     // MARK: Package
@@ -44,6 +45,7 @@ package struct NotchHeaderView: View {
     @Namespace private var headerNamespace
 
     private let viewModel: NotchViewModel
+    private let activityCoordinator: NotchActivityCoordinator?
 
     private var title: String {
         switch self.viewModel.contentType {
@@ -60,6 +62,7 @@ package struct NotchHeaderView: View {
     private var renderContext: ModuleRenderContext {
         ModuleRenderContext(
             animationNamespace: self.headerNamespace,
+            isHighlighted: self.viewModel.visibilityContext.isProcessing,
             activeProviderCount: self.viewModel.visibilityContext.activeProviders.count,
         )
     }
@@ -79,8 +82,23 @@ package struct NotchHeaderView: View {
     /// Modules that declare `showInExpandedHeader == true`, visible in the opened header.
     private var expandedHeaderModules: [any NotchModule] {
         self.viewModel.registry.allModules
-            .filter { $0.showInExpandedHeader && $0.isVisible(context: self.viewModel.visibilityContext) }
+            .filter {
+                $0.showInExpandedHeader
+                    && !self.viewModel.registry.layoutConfig.isHidden($0.id)
+                    && $0.isVisible(context: self.viewModel.visibilityContext)
+            }
             .sorted { $0.defaultOrder < $1.defaultOrder }
+    }
+
+    /// The mascot module (if registered and visible), used for matchedGeometryEffect
+    /// persistence between closed and opened states.
+    private var mascotModule: (any NotchModule)? {
+        self.viewModel.registry.allModules
+            .first {
+                $0.id == "mascot"
+                    && !self.viewModel.registry.layoutConfig.isHidden($0.id)
+                    && $0.isVisible(context: self.viewModel.visibilityContext)
+            }
     }
 
     // MARK: - Closed State
@@ -100,10 +118,16 @@ package struct NotchHeaderView: View {
                 .frame(width: self.viewModel.geometry.deviceNotchRect.width)
 
             // Right-side modules — mirrored symmetric width.
+            // Bounce: offset outward when the activity coordinator signals a bounce.
             self.closedModuleRow(modules: self.closedRightModules, side: .right)
                 .frame(
                     width: self.viewModel.moduleLayout.symmetricSideWidth,
                     alignment: .trailing,
+                )
+                .offset(x: self.activityCoordinator?.isBouncing == true ? 16 : 0)
+                .animation(
+                    self.reduceMotion ? .none : .spring(response: 0.3, dampingFraction: 0.5),
+                    value: self.activityCoordinator?.isBouncing,
                 )
         }
     }
@@ -112,6 +136,18 @@ package struct NotchHeaderView: View {
 
     private var openedHeader: some View {
         HStack(spacing: 12) {
+            // Mascot — matched geometry target so the icon morphs smoothly
+            // from its closed-state position into the opened header.
+            if let mascot = self.mascotModule {
+                mascot.makeBody(context: self.renderContext)
+                    .frame(width: mascot.preferredWidth())
+                    .matchedGeometryEffect(
+                        id: mascot.id,
+                        in: self.headerNamespace,
+                        isSource: false,
+                    )
+            }
+
             self.leadingControls
             Spacer()
             self.titleText
@@ -188,8 +224,7 @@ package struct NotchHeaderView: View {
     }
 
     private var activityIndicator: some View {
-        ProgressView()
-            .controlSize(.small)
+        CyclingSpinnerView(color: self.renderContext.accentColor)
             .matchedGeometryEffect(id: "activity", in: self.headerNamespace)
             .accessibilityLabel("Activity in progress")
     }
@@ -208,6 +243,11 @@ package struct NotchHeaderView: View {
                 ForEach(modules, id: \.id) { module in
                     module.makeBody(context: self.renderContext)
                         .frame(width: module.preferredWidth())
+                        .matchedGeometryEffect(
+                            id: module.id,
+                            in: self.headerNamespace,
+                            isSource: true,
+                        )
                 }
             }
             .padding(side == .left ? .leading : .trailing, ModuleLayoutEngine.outerEdgeInset)

@@ -63,8 +63,9 @@ final class AppCoordinator {
             onHoverExit: {
                 vm.notchClose()
             },
-            onClickOutside: {
+            onClickOutside: { event in
                 vm.notchClose()
+                Self.repostClick(for: event)
             },
             onKeyboardShortcut: {
                 if vm.status == .opened {
@@ -132,6 +133,7 @@ final class AppCoordinator {
             let notchView = NotchView(
                 viewModel: self.viewModel,
                 sessionMonitor: self.sessionMonitor,
+                activityCoordinator: self.activityCoordinator,
             ) { [weak self] in
                 self?.updateManager?.checkForUpdates()
             }
@@ -178,6 +180,57 @@ final class AppCoordinator {
     private var eventBridgeTask: Task<Void, Never>?
     private var geometryObservationTask: Task<Void, Never>?
     private var panelSizeObservationTask: Task<Void, Never>?
+
+    /// Re-posts a mouse click for click-outside dismissal so the click reaches
+    /// whatever is behind the notch panel (e.g. a menu bar item).
+    ///
+    /// Preserves the original event type (left/right), modifier flags, and click
+    /// count. Mirrors the `CGEvent` pattern in `NotchPanel.repostMouseEvent()`.
+    private static func repostClick(for event: NSEvent) {
+        // Use the event's own CGEvent location rather than NSEvent.mouseLocation.
+        // NSEvent.mouseLocation queries the *current* cursor position, which could
+        // differ from the triggering event's position if the mouse moves between
+        // event receipt and repost. CGEvent.location gives the recorded event
+        // position directly in CG coordinates (top-left origin) — no conversion needed.
+        guard let cgPoint = event.cgEvent?.location else { return }
+
+        let cgDownType: CGEventType
+        let cgUpType: CGEventType
+        let mouseButton: CGMouseButton
+
+        switch event.type {
+        case .rightMouseDown:
+            cgDownType = .rightMouseDown
+            cgUpType = .rightMouseUp
+            mouseButton = .right
+        default:
+            cgDownType = .leftMouseDown
+            cgUpType = .leftMouseUp
+            mouseButton = .left
+        }
+
+        guard let mouseDown = CGEvent(
+            mouseEventSource: nil,
+            mouseType: cgDownType,
+            mouseCursorPosition: cgPoint,
+            mouseButton: mouseButton,
+        ),
+            let mouseUp = CGEvent(
+                mouseEventSource: nil,
+                mouseType: cgUpType,
+                mouseCursorPosition: cgPoint,
+                mouseButton: mouseButton,
+            )
+        else { return }
+
+        mouseDown.flags = CGEventFlags(rawValue: UInt64(event.modifierFlags.rawValue))
+        mouseDown.setIntegerValueField(.mouseEventClickState, value: Int64(event.clickCount))
+        mouseUp.flags = CGEventFlags(rawValue: UInt64(event.modifierFlags.rawValue))
+        mouseUp.setIntegerValueField(.mouseEventClickState, value: Int64(event.clickCount))
+
+        mouseDown.post(tap: .cghidEventTap)
+        mouseUp.post(tap: .cghidEventTap)
+    }
 
     /// Spawns a task that keeps ``EventMonitors/geometry`` in sync with
     /// ``ScreenObserver/geometry`` via `withObservationTracking`.

@@ -29,11 +29,13 @@ public struct NotchView: View {
     public init(
         viewModel: NotchViewModel,
         sessionMonitor: SessionMonitor,
+        activityCoordinator: NotchActivityCoordinator? = nil,
         onCheckForUpdates: (() -> Void)? = nil,
         updateStatusContent: AnyView? = nil,
     ) {
         self.viewModel = viewModel
         self.sessionMonitor = sessionMonitor
+        self.activityCoordinator = activityCoordinator
         self.onCheckForUpdates = onCheckForUpdates
         self.updateStatusContent = updateStatusContent
     }
@@ -42,16 +44,13 @@ public struct NotchView: View {
 
     public var body: some View {
         let isOpened = self.viewModel.status == .opened
+        let isPopping = self.viewModel.status == .popping
         let size = isOpened ? self.viewModel.openedSize : self.closedSize
 
         ZStack(alignment: .top) {
-            // Background fill
-            RoundedRectangle(cornerRadius: isOpened ? 24 : 14)
-                .fill(.black)
-
             VStack(spacing: 0) {
                 // Header — always visible
-                NotchHeaderView(viewModel: self.viewModel)
+                NotchHeaderView(viewModel: self.viewModel, activityCoordinator: self.activityCoordinator)
                     .frame(height: isOpened ? 44 : self.closedSize.height)
 
                 // Content — visible when opened
@@ -62,15 +61,27 @@ public struct NotchView: View {
             }
         }
         .frame(width: size.width, height: size.height)
+        .background(.black)
         .clipShape(
             NotchShape(
                 topCornerRadius: isOpened ? 19 : 6,
                 bottomCornerRadius: isOpened ? 24 : 14,
             ),
         )
-        .shadow(color: .black.opacity(isOpened ? 0.35 : 0.15), radius: isOpened ? 20 : 4, y: isOpened ? 8 : 2)
+        .scaleEffect(isPopping ? 1.02 : 1.0)
+        .shadow(
+            color: (isOpened || isPopping || self.viewModel.isHovered) ? .black.opacity(0.7) : .clear,
+            radius: isPopping ? 8 : 6,
+        )
+        .onHover { hovering in
+            self.viewModel.setHovered(hovering)
+        }
         .animation(self.reduceMotion ? .none : self.openCloseAnimation(isOpened: isOpened), value: isOpened)
+        .animation(self.reduceMotion ? .none : .smooth(duration: 0.4), value: isPopping)
         .animation(self.reduceMotion ? .none : .smooth(duration: 0.3), value: self.viewModel.contentType.discriminator)
+        .animation(self.reduceMotion ? .none : .smooth, value: self.viewModel.visibilityContext.isProcessing)
+        .animation(self.reduceMotion ? .none : .smooth, value: self.viewModel.visibilityContext.hasPendingPermission)
+        .animation(self.reduceMotion ? .none : .smooth, value: self.viewModel.visibilityContext.hasWaitingForInput)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(isOpened ? "Open Island panel, expanded" : "Open Island panel, collapsed")
     }
@@ -81,6 +92,7 @@ public struct NotchView: View {
 
     private var viewModel: NotchViewModel
     private var sessionMonitor: SessionMonitor
+    private var activityCoordinator: NotchActivityCoordinator?
     private var onCheckForUpdates: (() -> Void)?
     private var updateStatusContent: AnyView?
 
@@ -102,7 +114,9 @@ public struct NotchView: View {
     /// Content insertion/removal transition.
     private var contentTransition: AnyTransition {
         .asymmetric(
-            insertion: .scale(scale: 0.95, anchor: .top).combined(with: .opacity),
+            insertion: .scale(scale: 0.8, anchor: .top)
+                .combined(with: .opacity)
+                .animation(.smooth(duration: 0.35)),
             removal: .opacity.animation(.easeOut(duration: 0.15)),
         )
     }

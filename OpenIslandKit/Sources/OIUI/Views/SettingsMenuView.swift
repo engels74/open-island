@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import OICore
 import OIModules
 package import SwiftUI
@@ -389,26 +390,7 @@ private extension SettingsMenuView {
                 }
 
                 if let onCheckForUpdates {
-                    Button {
-                        onCheckForUpdates()
-                    } label: {
-                        HStack {
-                            Image(systemName: "arrow.triangle.2.circlepath")
-                                .font(.system(size: 10))
-                            Text("Check for Updates")
-                                .font(.system(size: 11))
-                        }
-                        .foregroundStyle(.white.opacity(0.7))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 6)
-                        .background(
-                            RoundedRectangle(cornerRadius: 6)
-                                .fill(.white.opacity(0.08)),
-                        )
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Check for Updates")
-                    .accessibilityHint("Checks for new versions of Open Island")
+                    UpdateButton(action: onCheckForUpdates)
                 }
             }
         }
@@ -416,76 +398,16 @@ private extension SettingsMenuView {
 
     // MARK: - Provider Row & Config
 
-    @ViewBuilder
     func providerRow(_ providerID: ProviderID) -> some View {
-        let meta = ProviderMetadata.metadata(for: providerID)
-        let isEnabled = self.enabledProviders.contains(providerID)
-        let isExpanded = self.expandedProvider == providerID
-
-        VStack(spacing: 0) {
-            HStack(spacing: 8) {
-                Image(systemName: meta.iconName)
-                    .font(.system(size: 11))
-                    .foregroundStyle(Color(hex: meta.accentColorHex) ?? .white)
-                    .frame(width: 16)
-                    .accessibilityHidden(true)
-                Text(meta.displayName)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.white)
-                Spacer()
-                self.providerToggle(providerID, isEnabled: isEnabled, displayName: meta.displayName)
-                self.providerExpandButton(providerID, isExpanded: isExpanded, displayName: meta.displayName)
-            }
-            .padding(.vertical, 6)
-            .padding(.horizontal, 8)
-            if isExpanded {
-                self.providerConfig(for: providerID)
-                    .padding(.horizontal, 8)
-                    .padding(.bottom, 8)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
-            }
+        ProviderRowView(
+            providerID: providerID,
+            enabledProviders: self.$enabledProviders,
+            expandedProvider: self.$expandedProvider,
+            reduceMotion: self.reduceMotion,
+            viewModel: self.viewModel,
+        ) {
+            self.providerConfig(for: providerID)
         }
-        .background(RoundedRectangle(cornerRadius: 6).fill(.white.opacity(0.05)))
-    }
-
-    private func providerToggle(_ providerID: ProviderID, isEnabled: Bool, displayName: String) -> some View {
-        Toggle("", isOn: Binding(
-            get: { isEnabled },
-            set: { newValue in
-                if newValue {
-                    self.enabledProviders.insert(providerID)
-                } else {
-                    self.enabledProviders.remove(providerID)
-                }
-                AppSettings.enabledProviders = self.enabledProviders
-            },
-        ))
-        .labelsHidden()
-        .toggleStyle(.switch)
-        .controlSize(.mini)
-        .accessibilityLabel("Enable \(displayName)")
-    }
-
-    private func providerExpandButton(
-        _ providerID: ProviderID, isExpanded: Bool, displayName: String,
-    ) -> some View {
-        Button {
-            let newValue: ProviderID? = isExpanded ? nil : providerID
-            if self.reduceMotion {
-                self.expandedProvider = newValue
-            } else {
-                withAnimation(.easeInOut(duration: 0.2)) { self.expandedProvider = newValue }
-            }
-            self.viewModel.invalidateMenuLayout()
-        } label: {
-            Image(systemName: "chevron.right")
-                .font(.system(size: 9, weight: .semibold))
-                .foregroundStyle(.secondary)
-                .rotationEffect(.degrees(isExpanded ? 90 : 0))
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("\(displayName) settings")
-        .accessibilityHint(isExpanded ? "Collapses provider configuration" : "Expands provider configuration")
     }
 
     func providerConfig(for providerID: ProviderID) -> some View {
@@ -526,6 +448,95 @@ private extension SettingsMenuView {
     }
 }
 
+// MARK: - ProviderRowView
+
+/// Provider row with hover highlight and expand/collapse config.
+private struct ProviderRowView<Config: View>: View {
+    // MARK: Internal
+
+    let providerID: ProviderID
+    @Binding var enabledProviders: Set<ProviderID>
+    @Binding var expandedProvider: ProviderID?
+
+    let reduceMotion: Bool
+    let viewModel: NotchViewModel
+    @ViewBuilder let config: Config
+
+    var body: some View {
+        let meta = ProviderMetadata.metadata(for: self.providerID)
+        let isEnabled = self.enabledProviders.contains(self.providerID)
+        let isExpanded = self.expandedProvider == self.providerID
+
+        VStack(spacing: 0) {
+            HStack(spacing: 8) {
+                Image(systemName: meta.iconName)
+                    .font(.system(size: 11))
+                    .foregroundStyle(Color(hex: meta.accentColorHex) ?? .white)
+                    .frame(width: 16)
+                    .accessibilityHidden(true)
+                Text(meta.displayName)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.white.opacity(self.isHovered ? 1.0 : 0.85))
+                Spacer()
+
+                Toggle("", isOn: Binding(
+                    get: { isEnabled },
+                    set: { newValue in
+                        if newValue {
+                            self.enabledProviders.insert(self.providerID)
+                        } else {
+                            self.enabledProviders.remove(self.providerID)
+                        }
+                        AppSettings.enabledProviders = self.enabledProviders
+                    },
+                ))
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .controlSize(.mini)
+                .accessibilityLabel("Enable \(meta.displayName)")
+
+                Button {
+                    let newValue: ProviderID? = isExpanded ? nil : self.providerID
+                    if self.reduceMotion {
+                        self.expandedProvider = newValue
+                    } else {
+                        withAnimation(.smooth(duration: 0.25)) { self.expandedProvider = newValue }
+                    }
+                    self.viewModel.invalidateMenuLayout()
+                } label: {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("\(meta.displayName) settings")
+                .accessibilityHint(
+                    isExpanded ? "Collapses provider configuration" : "Expands provider configuration",
+                )
+            }
+            .padding(.vertical, 6)
+            .padding(.horizontal, 8)
+
+            if isExpanded {
+                self.config
+                    .padding(.horizontal, 8)
+                    .padding(.bottom, 8)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(.white.opacity(self.isHovered ? 0.1 : 0.05)),
+        )
+        .onHover { self.isHovered = $0 }
+    }
+
+    // MARK: Private
+
+    @State private var isHovered = false
+}
+
 // MARK: - SettingsSection
 
 /// Grouped section with a header label and content.
@@ -550,17 +561,32 @@ private struct SettingsSection<Content: View>: View {
 
 /// Compact toggle row matching the notch aesthetic.
 private struct SettingsToggle: View {
+    // MARK: Internal
+
     let label: String
 
     @Binding var isOn: Bool
 
     var body: some View {
         Toggle(isOn: self.$isOn) {
-            Text(self.label).font(.system(size: 11)).foregroundStyle(.secondary)
+            Text(self.label)
+                .font(.system(size: 11))
+                .foregroundStyle(.white.opacity(self.isHovered ? 0.9 : 0.6))
         }
         .toggleStyle(.switch)
         .controlSize(.mini)
+        .padding(.vertical, 2)
+        .padding(.horizontal, 4)
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(.white.opacity(self.isHovered ? 0.06 : 0)),
+        )
+        .onHover { self.isHovered = $0 }
     }
+
+    // MARK: Private
+
+    @State private var isHovered = false
 }
 
 // MARK: - SettingsTextField
@@ -589,6 +615,8 @@ private struct SettingsTextField: View {
 
 /// Compact labeled picker for enum-backed settings.
 private struct LabeledPicker<T: Hashable>: View {
+    // MARK: Internal
+
     let label: String
     @Binding var selection: T
 
@@ -597,7 +625,9 @@ private struct LabeledPicker<T: Hashable>: View {
 
     var body: some View {
         HStack {
-            Text(self.label).font(.system(size: 11)).foregroundStyle(.secondary)
+            Text(self.label)
+                .font(.system(size: 11))
+                .foregroundStyle(.white.opacity(self.isHovered ? 0.9 : 0.6))
             Spacer()
             Picker("", selection: self.$selection) {
                 ForEach(self.options, id: \.self) { option in
@@ -608,5 +638,53 @@ private struct LabeledPicker<T: Hashable>: View {
             .pickerStyle(.menu)
             .controlSize(.small)
         }
+        .padding(.vertical, 2)
+        .padding(.horizontal, 4)
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(.white.opacity(self.isHovered ? 0.06 : 0)),
+        )
+        .onHover { self.isHovered = $0 }
     }
+
+    // MARK: Private
+
+    @State private var isHovered = false
+}
+
+// MARK: - UpdateButton
+
+/// Check for Updates button with hover highlight.
+private struct UpdateButton: View {
+    // MARK: Internal
+
+    let action: () -> Void
+
+    var body: some View {
+        Button {
+            self.action()
+        } label: {
+            HStack {
+                Image(systemName: "arrow.triangle.2.circlepath")
+                    .font(.system(size: 10))
+                Text("Check for Updates")
+                    .font(.system(size: 11))
+            }
+            .foregroundStyle(.white.opacity(self.isHovered ? 0.9 : 0.7))
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(.white.opacity(self.isHovered ? 0.12 : 0.08)),
+            )
+        }
+        .buttonStyle(.plain)
+        .onHover { self.isHovered = $0 }
+        .accessibilityLabel("Check for Updates")
+        .accessibilityHint("Checks for new versions of Open Island")
+    }
+
+    // MARK: Private
+
+    @State private var isHovered = false
 }

@@ -17,13 +17,13 @@ public final class EventMonitors {
     /// - Parameters:
     ///   - onHoverEnter: Called when the mouse enters the notch area.
     ///   - onHoverExit: Called when the mouse leaves the notch area.
-    ///   - onClickOutside: Called when a click occurs outside the panel area.
+    ///   - onClickOutside: Called with the triggering event when a click occurs outside the panel area.
     ///   - onKeyboardShortcut: Called when the keyboard shortcut is triggered.
     ///   - onDrag: Called with mouse position during drag interactions.
     public init(
         onHoverEnter: @escaping () -> Void,
         onHoverExit: @escaping () -> Void,
-        onClickOutside: @escaping () -> Void,
+        onClickOutside: @escaping (NSEvent) -> Void,
         onKeyboardShortcut: @escaping () -> Void,
         onDrag: @escaping (CGPoint) -> Void,
     ) {
@@ -69,6 +69,8 @@ public final class EventMonitors {
             monitor.stop()
         }
         self.monitors.removeAll()
+        self.hoverDelayTask?.cancel()
+        self.hoverDelayTask = nil
         self.isHovering = false
     }
 
@@ -77,13 +79,17 @@ public final class EventMonitors {
     /// Minimum interval between throttled mouse-move handler invocations (~50ms).
     private static let throttleInterval: UInt64 = 50_000_000
 
+    /// Delay before hover triggers an open (~1 second), matching Claude Island behavior.
+    private static let hoverDelay: Duration = .seconds(1)
+
     private var monitors: [EventMonitor] = []
     private var isRunning = false
     private var lastMoveTimestamp: UInt64 = 0
+    private var hoverDelayTask: Task<Void, Never>?
 
     private let onHoverEnter: () -> Void
     private let onHoverExit: () -> Void
-    private let onClickOutside: () -> Void
+    private let onClickOutside: (NSEvent) -> Void
     private let onKeyboardShortcut: () -> Void
     private let onDrag: (CGPoint) -> Void
 
@@ -129,13 +135,23 @@ public final class EventMonitors {
         let inNotch = geometry.isPointInNotch(localPoint)
 
         if inNotch, !self.isHovering {
+            // Mark hovering immediately so exit detection works,
+            // but delay the actual open callback by ~1 second.
             self.isHovering = true
-            self.onHoverEnter()
+            self.hoverDelayTask?.cancel()
+            self.hoverDelayTask = Task { [onHoverEnter] in
+                try? await Task.sleep(for: Self.hoverDelay)
+                guard !Task.isCancelled else { return }
+                onHoverEnter()
+            }
         } else if !inNotch, self.isHovering {
             // Only exit hover if also outside panel (when open).
             if let panelSize, geometry.isPointInsidePanel(localPoint, size: panelSize) {
                 return
             }
+            // Cancel pending open if mouse exits before delay expires.
+            self.hoverDelayTask?.cancel()
+            self.hoverDelayTask = nil
             self.isHovering = false
             self.onHoverExit()
         }
@@ -153,13 +169,13 @@ public final class EventMonitors {
             scope: .both,
         ) { [weak self] event in
             MainActor.assumeIsolated {
-                self?.handleClick()
+                self?.handleClick(event)
             }
             return event
         }
     }
 
-    private func handleClick() {
+    private func handleClick(_ event: NSEvent) {
         guard let geometry, let panelSize else { return }
 
         let globalPoint = NSEvent.mouseLocation
@@ -169,7 +185,7 @@ public final class EventMonitors {
         )
 
         if geometry.isPointOutsidePanel(localPoint, size: panelSize) {
-            self.onClickOutside()
+            self.onClickOutside(event)
         }
     }
 

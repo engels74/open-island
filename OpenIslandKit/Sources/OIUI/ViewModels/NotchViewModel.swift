@@ -55,6 +55,13 @@ public final class NotchViewModel {
     /// from live `SessionStore` data in a later phase.
     public var visibilityContext = ModuleVisibilityContext()
 
+    /// Whether the mouse is hovering over the notch view (driven by SwiftUI `.onHover`).
+    ///
+    /// Separate from `EventMonitors.isHovering` which tracks the global event monitor.
+    /// This property reflects the SwiftUI hit-test boundary and is used for visual
+    /// feedback like hover shadows.
+    public private(set) var isHovered = false
+
     /// Token incremented when a settings-menu selector expands or collapses.
     ///
     /// Observed by SwiftUI to trigger size re-computation of the settings
@@ -157,7 +164,41 @@ public final class NotchViewModel {
         self.selectorUpdateToken &+= 1
     }
 
+    /// Plays a brief "pop" animation by transitioning through the `.popping`
+    /// status. Used on first launch to teach the user where the notch lives.
+    ///
+    /// Sets status to `.popping`, waits briefly, then returns to `.closed`.
+    /// Does nothing if a boot animation has already played this session.
+    public func performBootAnimation() {
+        guard !self.hasPlayedBootAnimation else { return }
+        self.hasPlayedBootAnimation = true
+
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(300))
+            guard let self else { return }
+
+            self.status = .popping
+            self.activeStatusContinuation?.yield(.popping)
+
+            try? await Task.sleep(for: .seconds(1))
+
+            // Only close if still in the popping state — the user or
+            // activity coordinator may have opened the notch during the animation.
+            guard self.status == .popping else { return }
+            self.status = .closed
+            self.activeStatusContinuation?.yield(.closed)
+        }
+    }
+
+    /// Updates the hover state from SwiftUI's `.onHover` modifier.
+    public func setHovered(_ hovered: Bool) {
+        self.isHovered = hovered
+    }
+
     // MARK: Private
+
+    /// Whether the boot animation has already played this session.
+    @ObservationIgnored private var hasPlayedBootAnimation = false
 
     /// The continuation for the current status stream (if any).
     @ObservationIgnored private var activeStatusContinuation: AsyncStream<NotchStatus>.Continuation?
