@@ -123,7 +123,7 @@ package struct TokenRingsOverlay: View {
         if percentage > 90 {
             return .red.opacity(0.9)
         } else if percentage > 70 {
-            return .orange.opacity(0.8)
+            return .yellow.opacity(0.8)
         }
         return .green.opacity(0.7)
     }

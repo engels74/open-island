@@ -23,7 +23,7 @@ package struct ChatView: View {
     // MARK: Package
 
     package var body: some View {
-        let accentColor = Color(hex: self.providerMeta.accentColorHex) ?? .orange
+        let accentColor = Color(hex: self.providerMeta.accentColorHex) ?? AppSettings.brandTeal
 
         VStack(spacing: 0) {
             // Back button header

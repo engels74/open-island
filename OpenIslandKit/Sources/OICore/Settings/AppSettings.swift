@@ -17,6 +17,9 @@ package struct AppSettings: Sendable {
 
     // MARK: Package
 
+    /// Brand teal accent color (`#14B8A6`), used as the default mascot color.
+    package static let brandTeal = Color(hex: "#14B8A6")! // swiftlint:disable:this force_unwrapping
+
     /// The sound played for notifications.
     package static var notificationSound: NotificationSound {
         get {
@@ -39,7 +42,7 @@ package struct AppSettings: Sendable {
     package static var mascotColor: Color {
         get {
             UserDefaults.standard.string(forKey: Key.mascotColor)
-                .flatMap { Color(hex: $0) } ?? .orange
+                .flatMap { Color(hex: $0) } ?? brandTeal
         }
         set { UserDefaults.standard.set(newValue.hexString, forKey: Key.mascotColor) }
     }

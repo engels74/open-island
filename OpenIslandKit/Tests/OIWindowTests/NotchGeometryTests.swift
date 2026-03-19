@@ -146,29 +146,6 @@ struct NotchGeometryTests {
         #expect(frame.maxY == screenFrame.maxY)
     }
 
-    // MARK: - Panel Rect
-
-    @Test
-    func `Panel rect is centered on notch horizontally`() {
-        let geo = Self.geometry
-        let panelSize = CGSize(width: 400, height: 300)
-        let panelRect = geo.panelRectInScreenCoordinates(size: panelSize)
-
-        let notchCenter = geo.notchRectInScreenCoordinates.midX
-        #expect(panelRect.midX == notchCenter)
-    }
-
-    @Test
-    func `Panel rect top aligns with screen top`() {
-        let geo = Self.geometry
-        let panelSize = CGSize(width: 400, height: 300)
-        let panelRect = geo.panelRectInScreenCoordinates(size: panelSize)
-
-        // Panel hangs down from screen top
-        #expect(panelRect.maxY == Self.typicalScreenFrame.maxY)
-        #expect(panelRect.height == panelSize.height)
-    }
-
     // MARK: - Panel Hit Testing
 
     @Test

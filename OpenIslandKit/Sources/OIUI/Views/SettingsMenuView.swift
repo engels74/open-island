@@ -27,7 +27,7 @@ package struct SettingsMenuView: View {
 
     package var body: some View {
         ScrollView(.vertical, showsIndicators: false) {
-            VStack(spacing: 0) {
+            VStack(spacing: 4) {
                 self.soundSection
                 SettingsDivider()
                 self.displaySection
@@ -39,7 +39,7 @@ package struct SettingsMenuView: View {
                 self.aboutSection
             }
             .padding(.horizontal, 12)
-            .padding(.vertical, 10)
+            .padding(.vertical, 12)
         }
         .onAppear { self.loadSettings() }
     }
@@ -55,7 +55,7 @@ package struct SettingsMenuView: View {
 
     // MARK: Display state
 
-    @State private var mascotColor: Color = .orange
+    @State private var mascotColor: Color = AppSettings.brandTeal
     @State private var mascotAlwaysVisible = true
     @State private var notchAutoExpand = true
 
@@ -106,7 +106,7 @@ private extension SettingsMenuView {
     // MARK: - Sound Section
 
     var soundSection: some View {
-        SettingsSection(title: "Sound") {
+        SettingsSection(title: "Sound", icon: "speaker.wave.2") {
             VStack(spacing: 2) {
                 LabeledPicker(
                     label: "Notification Sound",
@@ -151,7 +151,7 @@ private extension SettingsMenuView {
     // MARK: - Display Section
 
     var displaySection: some View {
-        SettingsSection(title: "Display") {
+        SettingsSection(title: "Display", icon: "paintbrush") {
             VStack(spacing: 2) {
                 SettingsColorRow(
                     label: "Mascot Color",
@@ -193,7 +193,7 @@ private extension SettingsMenuView {
     // MARK: - Providers Section
 
     var providersSection: some View {
-        SettingsSection(title: "Providers") {
+        SettingsSection(title: "Providers", icon: "puzzlepiece.extension") {
             VStack(spacing: 4) {
                 ForEach(ProviderID.allKnown, id: \.rawValue) { providerID in
                     self.providerRow(providerID)
@@ -337,7 +337,7 @@ private extension SettingsMenuView {
     // MARK: - Modules Section
 
     var modulesSection: some View {
-        SettingsSection(title: "Modules") {
+        SettingsSection(title: "Modules", icon: "square.grid.2x2") {
             ModuleLayoutSettingsView(registry: self.viewModel.registry)
         }
     }
@@ -345,7 +345,7 @@ private extension SettingsMenuView {
     // MARK: - About Section
 
     var aboutSection: some View {
-        SettingsSection(title: "About") {
+        SettingsSection(title: "About", icon: "info.circle") {
             VStack(spacing: 2) {
                 SettingsInfoRow(label: "Version", value: self.appVersion)
                 SettingsInfoRow(label: "Build", value: self.buildNumber)
@@ -520,14 +520,24 @@ private struct ProviderRowView<Config: View>: View {
 /// Grouped section with a header label and content.
 private struct SettingsSection<Content: View>: View {
     let title: String
+    var icon: String?
     @ViewBuilder let content: Content
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(self.title)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.secondary)
-                .accessibilityAddTraits(.isHeader)
+            HStack(spacing: 6) {
+                if let icon {
+                    Image(systemName: icon)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.tertiary)
+                }
+                Text(self.title)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.tertiary)
+                    .textCase(.uppercase)
+                    .tracking(0.5)
+            }
+            .accessibilityAddTraits(.isHeader)
 
             self.content
         }
@@ -686,9 +696,10 @@ private struct UpdateButton: View {
 /// Subtle divider between sections.
 private struct SettingsDivider: View {
     var body: some View {
-        Divider()
-            .background(Color.white.opacity(0.08))
-            .padding(.vertical, 4)
+        Rectangle()
+            .fill(.white.opacity(0.04))
+            .frame(height: 1)
+            .padding(.vertical, 8)
     }
 }
 

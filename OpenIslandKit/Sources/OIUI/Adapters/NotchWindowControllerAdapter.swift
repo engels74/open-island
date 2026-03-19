@@ -1,3 +1,4 @@
+import OIModules
 public import OIWindow
 public import SwiftUI
 
@@ -20,7 +21,14 @@ public final class NotchWindowControllerAdapter: WindowControllerHandle {
     ///   - content: The SwiftUI root view hosted inside the panel.
     ///   - viewModel: Provides the ``NotchStatus`` stream mapped to ``NotchWindowStatus``.
     public init(geometry: NotchGeometry, content: AnyView, viewModel: NotchViewModel) {
-        self.controller = NotchWindowController(geometry: geometry, content: content)
+        // Build the hit-test rect closure before creating the controller.
+        let hitTestRect = Self.makeHitTestRect(viewModel: viewModel)
+
+        self.controller = NotchWindowController(
+            geometry: geometry,
+            content: content,
+            hitTestRect: hitTestRect,
+        )
 
         // Map NotchStatus → NotchWindowStatus with activation info from openReason.
         let statusStream = viewModel.makeStatusStream()
@@ -68,7 +76,49 @@ public final class NotchWindowControllerAdapter: WindowControllerHandle {
 
     // MARK: Private
 
+    /// Padding applied around the hit-test rect for comfortable interaction.
+    private static let hitTestPadding: CGFloat = 10
+
     private let controller: NotchWindowController
+
+    /// Builds a closure that returns the interactive rect in view-local coordinates.
+    ///
+    /// - Opened: rect sized to `openedSize` + padding, centered horizontally in
+    ///   the full-width window, hanging from the top.
+    /// - Closed/Popping: rect sized to notch width + module expansion + padding,
+    ///   centered on the notch position.
+    private static func makeHitTestRect(viewModel: NotchViewModel) -> @MainActor () -> CGRect {
+        { [weak viewModel] in
+            guard let viewModel else { return .zero }
+
+            let geometry = viewModel.geometry
+            let windowHeight = NotchGeometry.windowHeight
+            let screenWidth = geometry.screenRect.width
+            let notchRect = geometry.deviceNotchRect
+            let padding = Self.hitTestPadding
+
+            switch viewModel.status {
+            case .opened:
+                let size = viewModel.openedSize
+                let rectWidth = size.width + padding * 2
+                let rectHeight = size.height + padding
+                let rectX = (screenWidth - rectWidth) / 2
+                // Top-aligned: in AppKit view coords (bottom-left origin),
+                // the top of the view is at windowHeight.
+                let rectY = windowHeight - rectHeight
+                return CGRect(x: rectX, y: rectY, width: rectWidth, height: rectHeight)
+
+            case .closed,
+                 .popping:
+                let layout = viewModel.moduleLayout
+                let closedWidth = notchRect.width + layout.totalExpansionWidth + padding * 2
+                let closedHeight = notchRect.height + padding
+                let rectX = notchRect.midX - closedWidth / 2
+                let rectY = windowHeight - closedHeight
+                return CGRect(x: rectX, y: rectY, width: closedWidth, height: closedHeight)
+            }
+        }
+    }
 
     /// Whether the given open reason should activate the app and make the panel key.
     ///

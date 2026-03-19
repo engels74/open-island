@@ -71,24 +71,38 @@ public struct MascotModule: NotchModule {
                     color: context.isHighlighted ? context.accentColor.opacity(0.3) : .clear,
                     radius: 2,
                 )
+        } else if context.isHighlighted {
+            TimelineView(.animation(minimumInterval: 1.0 / 30)) { timeline in
+                let angle = Angle.degrees(
+                    timeline.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 3.0) / 3.0 * 360,
+                )
+                ZStack {
+                    Circle()
+                        .strokeBorder(
+                            AngularGradient(
+                                gradient: Gradient(colors: [context.accentColor, context.accentColor.opacity(0)]),
+                                center: .center,
+                            ),
+                            lineWidth: 1.5,
+                        )
+                        .rotationEffect(angle)
+                        .frame(width: 18, height: 18)
+
+                    Image("OILogo", bundle: .module)
+                        .renderingMode(.template)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 12, height: 12)
+                        .foregroundStyle(context.accentColor)
+                }
+            }
         } else {
             Image("OILogo", bundle: .module)
                 .renderingMode(.template)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
-                .font(.system(size: 12, weight: .medium))
+                .frame(width: 12, height: 12)
                 .foregroundStyle(context.accentColor)
-                .opacity(context.isHighlighted ? 0.6 : 1.0)
-                .animation(
-                    context.isHighlighted
-                        ? .easeInOut(duration: 0.8).repeatForever(autoreverses: true)
-                        : .default,
-                    value: context.isHighlighted,
-                )
-                .shadow(
-                    color: context.isHighlighted ? context.accentColor.opacity(0.3) : .clear,
-                    radius: 2,
-                )
         }
     }
 }

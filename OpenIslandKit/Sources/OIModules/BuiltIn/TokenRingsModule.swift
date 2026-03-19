@@ -102,7 +102,7 @@ package struct TokenRingsModule: NotchModule {
         if quota > 0.9 {
             return .red.opacity(0.9)
         } else if quota > 0.7 {
-            return .orange.opacity(0.8)
+            return .yellow.opacity(0.8)
         }
         return accent.opacity(0.7)
     }

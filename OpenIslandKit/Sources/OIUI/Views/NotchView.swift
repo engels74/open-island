@@ -107,6 +107,7 @@ public struct NotchView: View {
         .animation(self.reduceMotion ? .none : .smooth, value: self.viewModel.visibilityContext.hasWaitingForInput)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(isOpened ? "Open Island panel, expanded" : "Open Island panel, collapsed")
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     // MARK: Private
