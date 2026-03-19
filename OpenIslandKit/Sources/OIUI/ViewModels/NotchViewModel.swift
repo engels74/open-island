@@ -129,6 +129,14 @@ public final class NotchViewModel {
         }
 
         self.activeStatusContinuation = continuation
+
+        // Emit the current status immediately so the subscriber sees the
+        // initial state without waiting for the next mutation. This ensures
+        // the window controller sets the correct `ignoresMouseEvents` value
+        // even when no subsequent status change occurs (e.g. boot animation
+        // already played).
+        continuation.yield(self.status)
+
         return stream
     }
 
