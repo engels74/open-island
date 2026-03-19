@@ -18,18 +18,21 @@ public final class EventMonitors {
     ///   - onHoverEnter: Called when the mouse enters the notch area.
     ///   - onHoverExit: Called when the mouse leaves the notch area.
     ///   - onClickOutside: Called with the triggering event when a click occurs outside the panel area.
+    ///   - onClickNotch: Called when the closed notch is clicked to open immediately.
     ///   - onKeyboardShortcut: Called when the keyboard shortcut is triggered.
     ///   - onDrag: Called with mouse position during drag interactions.
     public init(
         onHoverEnter: @escaping () -> Void,
         onHoverExit: @escaping () -> Void,
         onClickOutside: @escaping (NSEvent) -> Void,
+        onClickNotch: @escaping () -> Void,
         onKeyboardShortcut: @escaping () -> Void,
         onDrag: @escaping (CGPoint) -> Void,
     ) {
         self.onHoverEnter = onHoverEnter
         self.onHoverExit = onHoverExit
         self.onClickOutside = onClickOutside
+        self.onClickNotch = onClickNotch
         self.onKeyboardShortcut = onKeyboardShortcut
         self.onDrag = onDrag
     }
@@ -90,6 +93,7 @@ public final class EventMonitors {
     private let onHoverEnter: () -> Void
     private let onHoverExit: () -> Void
     private let onClickOutside: (NSEvent) -> Void
+    private let onClickNotch: () -> Void
     private let onKeyboardShortcut: () -> Void
     private let onDrag: (CGPoint) -> Void
 
@@ -176,7 +180,7 @@ public final class EventMonitors {
     }
 
     private func handleClick(_ event: NSEvent) {
-        guard let geometry, let panelSize else { return }
+        guard let geometry else { return }
 
         let globalPoint = NSEvent.mouseLocation
         let localPoint = CGPoint(
@@ -184,8 +188,18 @@ public final class EventMonitors {
             y: globalPoint.y - geometry.screenRect.origin.y,
         )
 
-        if geometry.isPointOutsidePanel(localPoint, size: panelSize) {
-            self.onClickOutside(event)
+        if let panelSize {
+            // Panel is open — detect click-outside to dismiss.
+            if geometry.isPointOutsidePanel(localPoint, size: panelSize) {
+                self.onClickOutside(event)
+            }
+        } else {
+            // Panel is closed — detect click on notch to open immediately.
+            if geometry.isPointInNotch(localPoint) {
+                self.hoverDelayTask?.cancel()
+                self.hoverDelayTask = nil
+                self.onClickNotch()
+            }
         }
     }
 

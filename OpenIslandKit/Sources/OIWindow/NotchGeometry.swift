@@ -75,16 +75,6 @@ public struct NotchGeometry: Sendable, Equatable {
         )
     }
 
-    /// The opened panel rect in global screen coordinates, given a panel size.
-    ///
-    /// The panel hangs down from the notch, centered on the notch's horizontal center.
-    public func panelRectInScreenCoordinates(size: CGSize) -> CGRect {
-        let panelX = self.notchRectInScreenCoordinates.midX - size.width / 2
-        // Panel top aligns with screen top (maxY), extends downward.
-        let panelY = self.screenRect.maxY - size.height
-        return CGRect(x: panelX, y: panelY, width: size.width, height: size.height)
-    }
-
     // MARK: - Hit Testing
 
     /// Whether the point falls within the padded notch area (screen-local coordinates).

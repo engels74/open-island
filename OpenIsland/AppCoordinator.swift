@@ -67,6 +67,9 @@ final class AppCoordinator {
                 vm.notchClose()
                 Self.repostClick(for: event)
             },
+            onClickNotch: {
+                vm.notchOpen(reason: .click)
+            },
             onKeyboardShortcut: {
                 if vm.status == .opened {
                     vm.notchClose()

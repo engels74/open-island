@@ -68,30 +68,24 @@ package final class NotchWindowController: NSWindowController {
     /// - Parameters:
     ///   - geometry: Screen geometry describing the notch position and panel frame.
     ///   - content: The SwiftUI view to host inside the panel.
-    package init(geometry: NotchGeometry, content: AnyView) {
+    ///   - hitTestRect: Closure returning the current interactive rect in
+    ///     view-local coordinates. Forwarded to the `PassThroughHostingView`.
+    package init(
+        geometry: NotchGeometry,
+        content: AnyView,
+        hitTestRect: @escaping @MainActor () -> CGRect = { .zero },
+    ) {
         self.geometry = geometry
         self.hostingView = PassThroughHostingView(rootView: content)
         self.hasPlayedBootAnimation = false
 
         let panel = NotchPanel()
-        panel.setFrame(geometry.notchRectInScreenCoordinates, display: false)
+        panel.setFrame(geometry.windowFrame, display: false)
         panel.ignoresMouseEvents = true
         super.init(window: panel)
 
+        self.hostingView.hitTestRect = hitTestRect
         panel.contentView = self.hostingView
-
-        // Observe window resize events from NSHostingView auto-sizing so we can
-        // re-center the content-sized window at the notch after each layout pass.
-        self.resizeObserver = NotificationCenter.default.addObserver(
-            forName: NSWindow.didResizeNotification,
-            object: panel,
-            queue: .main,
-        ) { [weak self] _ in
-            guard let self else { return }
-            MainActor.assumeIsolated {
-                self.repositionForContentSize()
-            }
-        }
     }
 
     @available(*, unavailable)
@@ -101,9 +95,6 @@ package final class NotchWindowController: NSWindowController {
 
     deinit {
         self.statusTask?.cancel()
-        if let observer = self.resizeObserver {
-            NotificationCenter.default.removeObserver(observer)
-        }
     }
 
     // MARK: Package
@@ -118,11 +109,8 @@ package final class NotchWindowController: NSWindowController {
     package func show(reason: OpenReason) {
         guard let panel = self.window else { return }
 
-        self.hostingView.activeHitRect = nil
-        self.hostingView.isInteractive = true
         panel.ignoresMouseEvents = false
         panel.orderFrontRegardless()
-        self.repositionForContentSize()
 
         if reason.shouldActivate {
             NSApp.activate()
@@ -138,19 +126,16 @@ package final class NotchWindowController: NSWindowController {
     package func hide() {
         guard let panel = self.window else { return }
 
-        self.hostingView.isInteractive = false
-        self.hostingView.activeHitRect = nil
         panel.ignoresMouseEvents = true
         panel.orderFrontRegardless()
-        self.repositionForContentSize()
     }
 
     /// Subscribes to a status stream that drives panel interactivity and focus.
     ///
     /// The OIUI layer adapts `NotchViewModel.makeStatusStream()` into a
     /// `NotchWindowStatus` stream and passes it here. The controller toggles
-    /// `ignoresMouseEvents` and `isInteractive` on each status change, and
-    /// activates the app when `shouldActivate` is true.
+    /// `ignoresMouseEvents` on each status change and activates the app when
+    /// `shouldActivate` is true.
     ///
     /// Calling this again cancels the previous subscription.
     package func subscribeToStatusStream(_ stream: AsyncStream<NotchWindowStatus>) {
@@ -159,22 +144,16 @@ package final class NotchWindowController: NSWindowController {
             for await status in stream {
                 guard let self, !Task.isCancelled else { break }
                 if status.isOpened {
-                    self.hostingView.activeHitRect = nil
-                    self.hostingView.isInteractive = true
                     self.window?.ignoresMouseEvents = false
                     self.window?.orderFrontRegardless()
-                    self.repositionForContentSize()
 
                     if status.shouldActivate {
                         NSApp.activate()
                         self.window?.makeKey()
                     }
                 } else {
-                    self.hostingView.isInteractive = false
-                    self.hostingView.activeHitRect = nil
                     self.window?.ignoresMouseEvents = true
                     self.window?.orderFrontRegardless()
-                    self.repositionForContentSize()
                 }
             }
         }
@@ -185,7 +164,7 @@ package final class NotchWindowController: NSWindowController {
     /// Called by `ScreenObserver` when display parameters change.
     package func updateGeometry(_ newGeometry: NotchGeometry) {
         self.geometry = newGeometry
-        self.repositionForContentSize()
+        self.window?.setFrame(newGeometry.windowFrame, display: false)
     }
 
     /// Plays the first-launch boot animation: briefly opens the panel, holds,
@@ -219,20 +198,4 @@ package final class NotchWindowController: NSWindowController {
 
     /// Task consuming the status stream from ``subscribeToStatusStream(_:)``.
     private var statusTask: Task<Void, Never>?
-
-    /// Observer for window resize events triggered by NSHostingView auto-sizing.
-    private var resizeObserver: (any NSObjectProtocol)?
-
-    /// Repositions the window origin so the content-sized window is centered
-    /// horizontally on the notch and pinned to the screen top.
-    ///
-    /// Uses `setFrameOrigin` instead of `setFrame` to avoid re-triggering
-    /// the `didResizeNotification` observer.
-    private func repositionForContentSize() {
-        guard let panel = self.window else { return }
-        let currentSize = panel.frame.size
-        guard currentSize.width > 0, currentSize.height > 0 else { return }
-        let targetFrame = self.geometry.panelRectInScreenCoordinates(size: currentSize)
-        panel.setFrameOrigin(targetFrame.origin)
-    }
 }
