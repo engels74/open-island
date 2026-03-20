@@ -197,20 +197,10 @@ public final class CodexProviderAdapter: ProviderAdapter, Sendable {
     private let binaryPath: String
     private let state: Mutex<AdapterState>
 
-    /// Check if a binary exists on PATH using /usr/bin/which.
+    /// Check if a binary exists on PATH using the shared ``UserPATH`` helper
+    /// which augments the GUI app's minimal PATH with well-known user directories.
     private static func binaryExists(_ name: String) -> Bool {
-        let proc = Process()
-        proc.executableURL = URL(fileURLWithPath: "/usr/bin/which")
-        proc.arguments = [name]
-        proc.standardOutput = FileHandle.nullDevice
-        proc.standardError = FileHandle.nullDevice
-        do {
-            try proc.run()
-            proc.waitUntilExit()
-            return proc.terminationStatus == 0
-        } catch {
-            return false
-        }
+        UserPATH.resolveInPATH(name) != nil
     }
 
     /// Process a JSON-RPC notification from the app-server.

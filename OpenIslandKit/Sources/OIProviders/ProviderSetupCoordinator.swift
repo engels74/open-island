@@ -431,30 +431,8 @@ extension ProviderSetupCoordinator {
         }
     }
 
-    /// Resolve a binary name to an absolute path using `which`.
+    /// Resolve a binary name to an absolute path using `which` with augmented PATH.
     private static func resolveInPATH(_ name: String) -> String? {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/which")
-        process.arguments = [name]
-
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = Pipe()
-
-        do {
-            try process.run()
-            process.waitUntilExit()
-        } catch {
-            return nil
-        }
-
-        guard process.terminationStatus == 0 else { return nil }
-
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        let path = String(data: data, encoding: .utf8)?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-
-        guard let path, !path.isEmpty else { return nil }
-        return path
+        UserPATH.resolveInPATH(name)
     }
 }

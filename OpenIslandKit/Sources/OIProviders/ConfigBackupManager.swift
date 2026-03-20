@@ -29,6 +29,25 @@ public enum ConfigBackupError: Error, Sendable {
     case restoreFailed(from: URL, to: String)
 }
 
+// MARK: CustomStringConvertible
+
+extension ConfigBackupError: CustomStringConvertible {
+    public var description: String {
+        switch self {
+        case let .backupDirectoryCreationFailed(path):
+            "Could not create backup directory: \(path)"
+        case let .sourceFileNotFound(path):
+            "Config file not found: \(path)"
+        case let .backupCopyFailed(source, destination):
+            "Failed to copy \(source) to \(destination)"
+        case let .restoreSourceNotFound(backupURL):
+            "Backup file not found: \(backupURL.path)"
+        case let .restoreFailed(from, to):
+            "Failed to restore \(from.path) to \(to)"
+        }
+    }
+}
+
 // MARK: - ConfigBackupManager
 
 /// Creates and manages config file backups before hook installation modifies settings files.
