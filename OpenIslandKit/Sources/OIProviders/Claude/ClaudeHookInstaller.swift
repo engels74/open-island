@@ -128,13 +128,16 @@ package struct ClaudeHookInstaller: Sendable {
             return false
         }
 
-        // Look for at least one event with our hook script
+        // Look for at least one event with our hook script inside nested hooks arrays
         for (_, value) in hooks {
             guard let entries = value as? [[String: Any]] else { continue }
-            for entry in entries {
-                if let cmd = entry["command"] as? String,
-                   cmd.contains(Self.hookScriptName) {
-                    return true
+            for matcherGroup in entries {
+                guard let groupHooks = matcherGroup["hooks"] as? [[String: Any]] else { continue }
+                for hook in groupHooks {
+                    if let cmd = hook["command"] as? String,
+                       cmd.contains(Self.hookScriptName) {
+                        return true
+                    }
                 }
             }
         }
@@ -211,19 +214,38 @@ package struct ClaudeHookInstaller: Sendable {
         // Get or create the "hooks" dictionary
         var hooks = root["hooks"] as? [String: Any] ?? [:]
 
+        let hookEntry: [String: Any] = ["type": "command", "command": command]
+
         for eventType in self.allHookEventTypes {
             var entries = hooks[eventType] as? [[String: Any]] ?? []
 
-            // Deduplication: check if we already have an open-island hook
-            if let existingIndex = entries.firstIndex(where: { entry in
-                guard let cmd = entry["command"] as? String else { return false }
-                return cmd.contains(Self.hookScriptName)
+            // Deduplication: find existing matcher group containing our hook script
+            if let existingIndex = entries.firstIndex(where: { matcherGroup in
+                guard let groupHooks = matcherGroup["hooks"] as? [[String: Any]] else { return false }
+                return groupHooks.contains { hook in
+                    guard let cmd = hook["command"] as? String else { return false }
+                    return cmd.contains(Self.hookScriptName)
+                }
             }) {
-                // Update the command (Python path may have changed)
-                entries[existingIndex] = ["type": "command", "command": command]
+                // Update the matcher group's hooks array with our new command
+                var matcherGroup = entries[existingIndex]
+                var groupHooks = matcherGroup["hooks"] as? [[String: Any]] ?? []
+
+                // Replace our hook entry within the group (preserve other hooks in same group)
+                if let hookIndex = groupHooks.firstIndex(where: { hook in
+                    guard let cmd = hook["command"] as? String else { return false }
+                    return cmd.contains(Self.hookScriptName)
+                }) {
+                    groupHooks[hookIndex] = hookEntry
+                } else {
+                    groupHooks.append(hookEntry)
+                }
+
+                matcherGroup["hooks"] = groupHooks
+                entries[existingIndex] = matcherGroup
             } else {
-                // Append new entry
-                entries.append(["type": "command", "command": command])
+                // Append new matcher group
+                entries.append(["matcher": "", "hooks": [hookEntry]])
             }
 
             hooks[eventType] = entries
@@ -245,10 +267,28 @@ package struct ClaudeHookInstaller: Sendable {
 
         for eventType in self.allHookEventTypes {
             guard var entries = hooks[eventType] as? [[String: Any]] else { continue }
-            entries.removeAll { entry in
-                guard let cmd = entry["command"] as? String else { return false }
-                return cmd.contains(Self.hookScriptName)
+
+            // Process each matcher group: remove our hooks from nested arrays
+            entries = entries.compactMap { matcherGroup in
+                guard var groupHooks = matcherGroup["hooks"] as? [[String: Any]] else {
+                    return matcherGroup // Not a matcher group, preserve as-is
+                }
+
+                groupHooks.removeAll { hook in
+                    guard let cmd = hook["command"] as? String else { return false }
+                    return cmd.contains(Self.hookScriptName)
+                }
+
+                // If no hooks remain in this matcher group, remove the entire group
+                if groupHooks.isEmpty {
+                    return nil
+                }
+
+                var updatedGroup = matcherGroup
+                updatedGroup["hooks"] = groupHooks
+                return updatedGroup
             }
+
             if entries.isEmpty {
                 hooks.removeValue(forKey: eventType)
             } else {

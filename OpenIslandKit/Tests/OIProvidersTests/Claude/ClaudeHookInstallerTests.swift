@@ -65,9 +65,13 @@ struct ClaudeHookInstallerInstallTests {
         for eventType in ClaudeHookInstaller.allHookEventTypes {
             let entries = try #require(hooks[eventType] as? [[String: Any]])
             #expect(entries.count == 1)
-            let entry = entries[0]
-            #expect(entry["type"] as? String == "command")
-            let command = try #require(entry["command"] as? String)
+            let matcherGroup = entries[0]
+            let matcher = try #require(matcherGroup["matcher"] as? String)
+            #expect(matcher.isEmpty)
+            let groupHooks = try #require(matcherGroup["hooks"] as? [[String: Any]])
+            #expect(groupHooks.count == 1)
+            #expect(groupHooks[0]["type"] as? String == "command")
+            let command = try #require(groupHooks[0]["command"] as? String)
             #expect(command.contains("python3"))
             #expect(command.contains(ClaudeHookInstaller.hookScriptName))
         }
@@ -139,7 +143,9 @@ struct ClaudeHookInstallerInstallTests {
 
         for eventType in ClaudeHookInstaller.allHookEventTypes {
             let entries = try #require(hooks[eventType] as? [[String: Any]])
-            #expect(entries.count == 1, "Event \(eventType) should have exactly 1 entry")
+            #expect(entries.count == 1, "Event \(eventType) should have exactly 1 matcher group")
+            let groupHooks = try #require(entries[0]["hooks"] as? [[String: Any]])
+            #expect(groupHooks.count == 1, "Event \(eventType) should have exactly 1 hook")
         }
     }
 
@@ -168,7 +174,8 @@ struct ClaudeHookInstallerInstallTests {
         )
         let hooks = try #require(json["hooks"] as? [String: Any])
         let entries = try #require(hooks["SessionStart"] as? [[String: Any]])
-        let command = try #require(entries[0]["command"] as? String)
+        let groupHooks = try #require(entries[0]["hooks"] as? [[String: Any]])
+        let command = try #require(groupHooks[0]["command"] as? String)
 
         #expect(command.contains("/usr/local/bin/python3"))
         #expect(!command.contains("/usr/bin/python3"))
@@ -213,7 +220,12 @@ struct ClaudeHookInstallerInstallTests {
         let existingJSON: [String: Any] = [
             "hooks": [
                 "PostToolUse": [
-                    ["type": "command", "command": "/usr/local/bin/some-other-tool"],
+                    [
+                        "matcher": "Bash",
+                        "hooks": [
+                            ["type": "command", "command": "/usr/local/bin/some-other-tool"],
+                        ],
+                    ] as [String: Any],
                 ],
             ],
         ]
@@ -234,11 +246,25 @@ struct ClaudeHookInstallerInstallTests {
         let hooks = try #require(json["hooks"] as? [String: Any])
         let postToolEntries = try #require(hooks["PostToolUse"] as? [[String: Any]])
 
+        // Should have 2 matcher groups: third-party + ours
         #expect(postToolEntries.count == 2)
 
-        let commands = postToolEntries.compactMap { $0["command"] as? String }
-        #expect(commands.contains("/usr/local/bin/some-other-tool"))
-        #expect(commands.contains { $0.contains(ClaudeHookInstaller.hookScriptName) })
+        // Verify third-party matcher group preserved
+        let thirdPartyGroup = try #require(
+            postToolEntries.first { $0["matcher"] as? String == "Bash" },
+        )
+        let thirdPartyHooks = try #require(thirdPartyGroup["hooks"] as? [[String: Any]])
+        #expect(thirdPartyHooks[0]["command"] as? String == "/usr/local/bin/some-other-tool")
+
+        // Verify our matcher group exists
+        let ourGroup = try #require(
+            postToolEntries.first { matcherGroup in
+                guard let groupHooks = matcherGroup["hooks"] as? [[String: Any]] else { return false }
+                return groupHooks.contains { ($0["command"] as? String)?.contains(ClaudeHookInstaller.hookScriptName) == true }
+            },
+        )
+        let ourHooks = try #require(ourGroup["hooks"] as? [[String: Any]])
+        #expect(ourHooks.count == 1)
     }
 }
 
@@ -302,7 +328,7 @@ struct ClaudeHookInstallerUninstallTests {
             bundledScriptURL: scriptURL,
         )
 
-        // Manually add a third-party hook
+        // Manually add a third-party hook in nested format
         let settingsURL = tempDir.appendingPathComponent("settings.json")
         var data = try Data(contentsOf: settingsURL)
         var json = try #require(
@@ -310,7 +336,10 @@ struct ClaudeHookInstallerUninstallTests {
         )
         var hooks = json["hooks"] as? [String: Any] ?? [:]
         var preToolEntries = hooks["PreToolUse"] as? [[String: Any]] ?? []
-        preToolEntries.append(["type": "command", "command": "/usr/local/bin/other-tool"])
+        preToolEntries.append([
+            "matcher": "",
+            "hooks": [["type": "command", "command": "/usr/local/bin/other-tool"]],
+        ] as [String: Any])
         hooks["PreToolUse"] = preToolEntries
         json["hooks"] = hooks
         data = try JSONSerialization.data(withJSONObject: json, options: .prettyPrinted)
@@ -326,7 +355,8 @@ struct ClaudeHookInstallerUninstallTests {
         let remaining = try #require(hooks["PreToolUse"] as? [[String: Any]])
 
         #expect(remaining.count == 1)
-        #expect(remaining[0]["command"] as? String == "/usr/local/bin/other-tool")
+        let remainingHooks = try #require(remaining[0]["hooks"] as? [[String: Any]])
+        #expect(remainingHooks[0]["command"] as? String == "/usr/local/bin/other-tool")
     }
 
     @Test
