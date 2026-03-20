@@ -7,7 +7,7 @@ public import SwiftUI
 ///
 /// When a single provider is active, displays that provider's SF Symbol icon.
 /// When multiple providers are active or none are specified, displays the OI logo
-/// as a template image tinted with the accent color.
+/// as a Canvas-drawn icon colored with the accent color.
 public struct MascotModule: NotchModule {
     // MARK: Lifecycle
 
