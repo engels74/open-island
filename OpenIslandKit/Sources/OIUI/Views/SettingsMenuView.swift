@@ -492,15 +492,16 @@ private extension SettingsMenuView {
         }
 
         if enabled {
-            // Enable: update settings and start the provider.
+            // Enable: optimistically update UI, persist only after successful start.
             self.enabledProviders.insert(providerID)
-            AppSettings.enabledProviders = self.enabledProviders
             self.providerStatuses[providerID] = .installing
             Task {
                 do {
                     try await setupActions.enableProvider(providerID)
                     self.providerStatuses[providerID] = .installed
                 } catch {
+                    // Revert: provider failed to start, undo the optimistic UI update.
+                    self.enabledProviders.remove(providerID)
                     self.providerStatuses[providerID] = .failed(error)
                 }
             }

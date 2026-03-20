@@ -1,5 +1,8 @@
 public import Foundation
 public import OICore
+import OSLog
+
+private let logger = Logger(subsystem: "com.openisland", category: "ConfigBackup")
 
 // MARK: - BackupEntry
 
@@ -97,7 +100,14 @@ package struct ConfigBackupManager: Sendable {
 
         // Write a sidecar file recording the original absolute path so listBackups can recover it.
         let originFile = backupURL.appendingPathExtension("origin")
-        try? Data(path.utf8).write(to: originFile)
+        do {
+            try Data(path.utf8).write(to: originFile)
+        } catch {
+            logger
+                .warning(
+                    "Failed to write .origin sidecar for \(backupURL.lastPathComponent, privacy: .public): \(error.localizedDescription, privacy: .public)",
+                )
+        }
 
         return backupURL
     }
