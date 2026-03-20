@@ -51,9 +51,12 @@ public struct NotchView: View {
 
         ZStack(alignment: .top) {
             VStack(spacing: 0) {
-                // Header — always visible
+                // Header — always visible.
+                // Horizontal padding in closed state keeps modules inward from the
+                // clip shape's rounded corners (shapeEdgeMargin breathing room).
                 NotchHeaderView(viewModel: self.viewModel, activityCoordinator: self.activityCoordinator)
                     .frame(height: isOpened ? 44 : self.closedSize.height)
+                    .padding(.horizontal, isOpened ? 0 : ModuleLayoutEngine.shapeEdgeMargin)
 
                 // Content — visible when opened
                 if isOpened {
@@ -123,15 +126,17 @@ public struct NotchView: View {
     private var updateStatusContent: AnyView?
     private var setupActions: ProviderSetupActions?
 
-    /// The notch size when closed, derived from the device notch rect plus module expansion.
+    /// The notch size when closed, derived from the device notch rect plus module expansion
+    /// and shape edge margin.
     ///
-    /// Width includes the device notch plus `totalExpansionWidth` from the layout engine,
+    /// Width includes the device notch plus `totalExpansionWidth` from the layout engine
+    /// plus `2 * shapeEdgeMargin` for clip-shape breathing room,
     /// honoring the hit-test / visual sync contract.
     private var closedSize: CGSize {
         let rect = self.viewModel.geometry.deviceNotchRect
         let layout = self.viewModel.moduleLayout
         return CGSize(
-            width: rect.width + layout.totalExpansionWidth,
+            width: rect.width + layout.totalExpansionWidth + 2 * ModuleLayoutEngine.shapeEdgeMargin,
             height: rect.height,
         )
     }
