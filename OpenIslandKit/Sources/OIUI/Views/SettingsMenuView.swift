@@ -17,10 +17,12 @@ package struct SettingsMenuView: View {
         viewModel: NotchViewModel,
         onCheckForUpdates: (() -> Void)? = nil,
         updateStatusContent: AnyView? = nil,
+        setupActions: ProviderSetupActions? = nil,
     ) {
         self.viewModel = viewModel
         self.onCheckForUpdates = onCheckForUpdates
         self.updateStatusContent = updateStatusContent
+        self.setupActions = setupActions
     }
 
     // MARK: Package
@@ -42,6 +44,39 @@ package struct SettingsMenuView: View {
             .padding(.vertical, 12)
         }
         .onAppear { self.loadSettings() }
+        .task { await self.refreshProviderStatuses() }
+        .sheet(item: self.$setupSheetProvider) { providerID in
+            if let setupActions {
+                ProviderSetupSheetView(
+                    providerID: providerID,
+                    setupActions: setupActions,
+                )
+            }
+        }
+        .alert(
+            "Disable Provider",
+            isPresented: Binding(
+                get: { self.disableConfirmationProvider != nil },
+                set: { if !$0 { self.disableConfirmationProvider = nil } },
+            ),
+        ) {
+            Button("Disable Only", role: .destructive) {
+                if let provider = self.disableConfirmationProvider {
+                    self.performDisable(provider, removeHooks: false)
+                }
+            }
+            Button("Disable & Remove Hooks", role: .destructive) {
+                if let provider = self.disableConfirmationProvider {
+                    self.performDisable(provider, removeHooks: true)
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            if let provider = self.disableConfirmationProvider {
+                let name = ProviderMetadata.metadata(for: provider).displayName
+                Text("\(name) has installed hooks. Do you also want to remove them?")
+            }
+        }
     }
 
     // MARK: Private
@@ -87,9 +122,23 @@ package struct SettingsMenuView: View {
 
     @State private var verboseMode = false
 
+    // MARK: Setup sheet state
+
+    @State private var setupSheetProvider: ProviderID?
+
+    // MARK: Disable confirmation state
+
+    @State private var disableConfirmationProvider: ProviderID?
+    @State private var removeHooksOnDisable = false
+
+    // MARK: Provider status state
+
+    @State private var providerStatuses: [ProviderID: ProviderInstallationStatus] = [:]
+
     private var viewModel: NotchViewModel
     private var onCheckForUpdates: (() -> Void)?
     private var updateStatusContent: AnyView?
+    private var setupActions: ProviderSetupActions?
 
     private var appVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
@@ -381,9 +430,12 @@ private extension SettingsMenuView {
             expandedProvider: self.$expandedProvider,
             reduceMotion: self.reduceMotion,
             viewModel: self.viewModel,
-        ) {
-            self.providerConfig(for: providerID)
-        }
+            hasSetupActions: self.setupActions != nil,
+            status: self.providerStatuses[providerID],
+            onSetup: { self.setupSheetProvider = providerID },
+            onToggle: { newValue in self.handleProviderToggle(providerID, enabled: newValue) },
+            config: { self.providerConfig(for: providerID) },
+        )
     }
 
     func providerConfig(for providerID: ProviderID) -> some View {
@@ -424,11 +476,78 @@ private extension SettingsMenuView {
         self.openCodePort = AppSettings.OpenCode.serverPort.map(String.init) ?? ""
         self.openCodeUseMDNS = AppSettings.OpenCode.useMDNS
     }
+
+    // MARK: - Provider Toggle
+
+    func handleProviderToggle(_ providerID: ProviderID, enabled: Bool) {
+        guard let setupActions else {
+            // No setup actions — just toggle the setting.
+            if enabled {
+                self.enabledProviders.insert(providerID)
+            } else {
+                self.enabledProviders.remove(providerID)
+            }
+            AppSettings.enabledProviders = self.enabledProviders
+            return
+        }
+
+        if enabled {
+            // Enable: update settings and start the provider.
+            self.enabledProviders.insert(providerID)
+            AppSettings.enabledProviders = self.enabledProviders
+            self.providerStatuses[providerID] = .installing
+            Task {
+                do {
+                    try await setupActions.enableProvider(providerID)
+                    self.providerStatuses[providerID] = .installed
+                } catch {
+                    self.providerStatuses[providerID] = .failed(error)
+                }
+            }
+        } else {
+            // Disable: check if this is a hook-based provider that might need hook removal.
+            let meta = ProviderMetadata.metadata(for: providerID)
+            if meta.transportType == .hookSocket {
+                self.disableConfirmationProvider = providerID
+            } else {
+                self.performDisable(providerID, removeHooks: false)
+            }
+        }
+    }
+
+    func performDisable(_ providerID: ProviderID, removeHooks: Bool) {
+        self.enabledProviders.remove(providerID)
+        AppSettings.enabledProviders = self.enabledProviders
+
+        guard let setupActions else { return }
+        Task {
+            await setupActions.disableProvider(providerID)
+            if removeHooks {
+                try? await setupActions.uninstall(providerID)
+            }
+            self.providerStatuses[providerID] = .notInstalled
+        }
+    }
+
+    func refreshProviderStatuses() async {
+        guard let setupActions else { return }
+        for providerID in ProviderID.allKnown {
+            let running = await setupActions.isProviderRunning(providerID)
+            if running {
+                self.providerStatuses[providerID] = .installed
+            } else if self.enabledProviders.contains(providerID) {
+                // Enabled but not running — may have failed to start.
+                self.providerStatuses[providerID] = .notInstalled
+            } else {
+                self.providerStatuses[providerID] = .notInstalled
+            }
+        }
+    }
 }
 
 // MARK: - ProviderRowView
 
-/// Provider row with hover highlight and expand/collapse config.
+/// Provider row with hover highlight, expand/collapse config, status dot, and optional setup button.
 private struct ProviderRowView<Config: View>: View {
     // MARK: Internal
 
@@ -438,6 +557,10 @@ private struct ProviderRowView<Config: View>: View {
 
     let reduceMotion: Bool
     let viewModel: NotchViewModel
+    var hasSetupActions = false
+    var status: ProviderInstallationStatus?
+    var onSetup: (() -> Void)?
+    var onToggle: ((Bool) -> Void)?
     @ViewBuilder let config: Config
 
     var body: some View {
@@ -452,20 +575,35 @@ private struct ProviderRowView<Config: View>: View {
                     .foregroundStyle(Color(hex: meta.accentColorHex) ?? .white)
                     .frame(width: 16)
                     .accessibilityHidden(true)
+
                 Text(meta.displayName)
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(.white.opacity(self.isHovered ? 1.0 : 0.85))
+
+                ProviderStatusDot(status: self.status)
+
                 Spacer()
+
+                if self.hasSetupActions {
+                    ProviderSetupButton(
+                        providerID: self.providerID,
+                        onSetup: self.onSetup ?? {},
+                    )
+                }
 
                 Toggle("", isOn: Binding(
                     get: { isEnabled },
                     set: { newValue in
-                        if newValue {
-                            self.enabledProviders.insert(self.providerID)
+                        if let onToggle {
+                            onToggle(newValue)
                         } else {
-                            self.enabledProviders.remove(self.providerID)
+                            if newValue {
+                                self.enabledProviders.insert(self.providerID)
+                            } else {
+                                self.enabledProviders.remove(self.providerID)
+                            }
+                            AppSettings.enabledProviders = self.enabledProviders
                         }
-                        AppSettings.enabledProviders = self.enabledProviders
                     },
                 ))
                 .labelsHidden()
@@ -513,6 +651,395 @@ private struct ProviderRowView<Config: View>: View {
     // MARK: Private
 
     @State private var isHovered = false
+}
+
+// MARK: - ProviderStatusDot
+
+/// Colored dot indicating provider installation/running status.
+private struct ProviderStatusDot: View {
+    // MARK: Internal
+
+    let status: ProviderInstallationStatus?
+
+    var body: some View {
+        Circle()
+            .fill(self.dotColor)
+            .frame(width: 6, height: 6)
+            .accessibilityLabel(self.accessibilityText)
+    }
+
+    // MARK: Private
+
+    private var dotColor: Color {
+        switch self.status {
+        case .installed:
+            .green
+        case .installing:
+            .yellow
+        case .failed:
+            .red
+        case .notInstalled,
+             .none:
+            .white.opacity(0.2)
+        }
+    }
+
+    private var accessibilityText: String {
+        switch self.status {
+        case .installed:
+            "Running"
+        case .installing:
+            "Starting"
+        case .failed:
+            "Error"
+        case .notInstalled,
+             .none:
+            "Not running"
+        }
+    }
+}
+
+// MARK: - ProviderSetupButton
+
+/// Compact "Setup" button shown in the provider row when setup actions are available.
+private struct ProviderSetupButton: View {
+    // MARK: Internal
+
+    let providerID: ProviderID
+    let onSetup: () -> Void
+
+    var body: some View {
+        Button {
+            self.onSetup()
+        } label: {
+            Text("Setup")
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(.white.opacity(self.isHovered ? 0.9 : 0.65))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(
+                    RoundedRectangle(cornerRadius: 5)
+                        .fill(.white.opacity(self.isHovered ? 0.15 : 0.08)),
+                )
+        }
+        .buttonStyle(.plain)
+        .onHover { self.isHovered = $0 }
+        .accessibilityLabel("Setup \(ProviderMetadata.metadata(for: self.providerID).displayName)")
+        .accessibilityHint("Opens the setup wizard for this provider")
+    }
+
+    // MARK: Private
+
+    @State private var isHovered = false
+}
+
+// MARK: - ProviderID + Identifiable
+
+extension ProviderID: Identifiable {
+    package var id: String {
+        self.rawValue
+    }
+}
+
+// MARK: - ProviderSetupSheetView
+
+/// Modal sheet for provider onboarding — shows prerequisites, setup steps, and installation progress.
+private struct ProviderSetupSheetView: View {
+    // MARK: Internal
+
+    let providerID: ProviderID
+    let setupActions: ProviderSetupActions
+
+    var body: some View {
+        let meta = ProviderMetadata.metadata(for: self.providerID)
+        let accentColor = Color(hex: meta.accentColorHex) ?? .white
+
+        VStack(spacing: 0) {
+            // Header
+            self.sheetHeader(meta: meta, accentColor: accentColor)
+
+            Divider()
+                .background(Color.white.opacity(0.08))
+
+            // Content
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 16) {
+                    if let requirements {
+                        self.prerequisitesSection(requirements: requirements)
+                        self.stepsSection(requirements: requirements)
+                    }
+
+                    if let errorMessage {
+                        self.errorBanner(message: errorMessage)
+                    }
+                }
+                .padding(20)
+            }
+
+            Divider()
+                .background(Color.white.opacity(0.08))
+
+            // Footer
+            self.sheetFooter(accentColor: accentColor)
+        }
+        .frame(width: 380, height: 420)
+        .background(.black.opacity(0.95))
+        .task { await self.loadRequirements() }
+    }
+
+    // MARK: Private
+
+    @Environment(\.dismiss) private var dismiss // swiftlint:disable:this attributes
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion // swiftlint:disable:this attributes
+
+    @State private var requirements: ProviderSetupRequirements?
+    @State private var phase: SetupPhase = .idle
+    @State private var progressMessage = ""
+    @State private var errorMessage: String?
+
+    // MARK: - Header
+
+    private func sheetHeader(meta: ProviderMetadata, accentColor: Color) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: meta.iconName)
+                .font(.system(size: 18))
+                .foregroundStyle(accentColor)
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Setup \(meta.displayName)")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+
+                if let duration = self.requirements?.estimatedDuration {
+                    Text("Estimated: \(duration)")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Spacer()
+
+            Button {
+                self.dismiss()
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 16))
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Close setup sheet")
+        }
+        .padding(16)
+    }
+
+    // MARK: - Prerequisites Section
+
+    private func prerequisitesSection(requirements: ProviderSetupRequirements) -> some View {
+        Group {
+            if !requirements.prerequisites.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("PREREQUISITES")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.tertiary)
+                        .tracking(0.5)
+                        .accessibilityAddTraits(.isHeader)
+
+                    ForEach(requirements.prerequisites, id: \.id) { prereq in
+                        HStack(spacing: 8) {
+                            Image(systemName: "checkmark.circle")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                                .accessibilityHidden(true)
+
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(prereq.description)
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundStyle(.white.opacity(0.85))
+                                Text(prereq.checkDescription)
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .accessibilityElement(children: .combine)
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Steps Section
+
+    private func stepsSection(requirements: ProviderSetupRequirements) -> some View {
+        Group {
+            if !requirements.steps.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("SETUP STEPS")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.tertiary)
+                        .tracking(0.5)
+                        .accessibilityAddTraits(.isHeader)
+
+                    ForEach(Array(requirements.steps.enumerated()), id: \.element.id) { index, step in
+                        HStack(alignment: .top, spacing: 8) {
+                            Text("\(index + 1)")
+                                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                                .frame(width: 16)
+                                .accessibilityHidden(true)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                HStack(spacing: 4) {
+                                    Text(step.title)
+                                        .font(.system(size: 12, weight: .medium))
+                                        .foregroundStyle(.white.opacity(0.85))
+
+                                    if step.isDestructive {
+                                        Image(systemName: "exclamationmark.triangle.fill")
+                                            .font(.system(size: 9))
+                                            .foregroundStyle(.yellow)
+                                            .accessibilityLabel("Destructive step")
+                                    }
+                                }
+
+                                Text(step.description)
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(3)
+
+                                if !step.affectedPaths.isEmpty {
+                                    Text(step.affectedPaths.joined(separator: ", "))
+                                        .font(.system(size: 9, design: .monospaced))
+                                        .foregroundStyle(.white.opacity(0.35))
+                                        .lineLimit(1)
+                                }
+                            }
+                        }
+                        .accessibilityElement(children: .combine)
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Error Banner
+
+    private func errorBanner(message: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 12))
+                .foregroundStyle(.red)
+                .accessibilityHidden(true)
+
+            Text(message)
+                .font(.system(size: 11))
+                .foregroundStyle(.red.opacity(0.9))
+                .lineLimit(3)
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(.red.opacity(0.1)),
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Setup error: \(message)")
+    }
+
+    // MARK: - Footer
+
+    private func sheetFooter(accentColor: Color) -> some View {
+        HStack {
+            if self.phase == .installing {
+                HStack(spacing: 6) {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text(self.progressMessage.isEmpty ? "Installing…" : self.progressMessage)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("Installing: \(self.progressMessage)")
+            } else if self.phase == .complete {
+                HStack(spacing: 6) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.green)
+                    Text("Setup complete")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.green)
+                }
+            }
+
+            Spacer()
+
+            if self.phase == .complete {
+                Button("Done") {
+                    self.dismiss()
+                }
+                .buttonStyle(.plain)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 6)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(accentColor.opacity(0.8)),
+                )
+                .accessibilityLabel("Close setup sheet")
+            } else {
+                Button("Install") {
+                    self.runInstall()
+                }
+                .buttonStyle(.plain)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 6)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(accentColor.opacity(self.phase == .idle ? 0.8 : 0.4)),
+                )
+                .disabled(self.phase != .idle)
+                .accessibilityLabel("Install \(ProviderMetadata.metadata(for: self.providerID).displayName)")
+            }
+        }
+        .padding(16)
+    }
+
+    private func loadRequirements() async {
+        self.requirements = await self.setupActions.requirements(self.providerID)
+    }
+
+    private func runInstall() {
+        guard self.phase == .idle else { return }
+        self.phase = .installing
+        self.errorMessage = nil
+
+        Task {
+            do {
+                try await self.setupActions.install(self.providerID) { message in
+                    Task { @MainActor in
+                        self.progressMessage = message
+                    }
+                }
+                self.phase = .complete
+            } catch {
+                self.phase = .idle
+                self.errorMessage = String(describing: error)
+            }
+        }
+    }
+}
+
+// MARK: - SetupPhase
+
+/// Local state for the setup sheet's installation progress.
+private enum SetupPhase {
+    case idle
+    case installing
+    case complete
 }
 
 // MARK: - SettingsSection
