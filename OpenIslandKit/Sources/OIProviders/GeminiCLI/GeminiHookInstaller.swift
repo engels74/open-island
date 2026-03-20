@@ -255,10 +255,17 @@ package struct GeminiHookInstaller: Sendable {
         for eventType in self.allHookEventTypes {
             guard var entries = hooks[eventType] as? [[String: Any]] else { continue }
 
-            // Process each matcher group: remove our hooks from nested arrays
+            // Process each entry: remove our hooks from nested arrays and legacy flat entries
             entries = entries.compactMap { matcherGroup in
+                // Remove legacy flat entries (pre-matcher-group format) that reference our hook
+                if matcherGroup["hooks"] == nil,
+                   let cmd = matcherGroup["command"] as? String,
+                   cmd.contains(Self.hookScriptName) {
+                    return nil
+                }
+
                 guard var groupHooks = matcherGroup["hooks"] as? [[String: Any]] else {
-                    return matcherGroup // Not a matcher group, preserve as-is
+                    return matcherGroup // Not a matcher group and not our legacy entry, preserve as-is
                 }
 
                 groupHooks.removeAll { hook in
