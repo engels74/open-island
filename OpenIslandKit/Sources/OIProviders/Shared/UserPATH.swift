@@ -61,7 +61,12 @@ package enum UserPATH {
     }
 
     /// Build the augmented PATH by combining the current process PATH
-    /// with well-known user binary directories that exist on disk.
+    /// with well-known user binary directories.
+    ///
+    /// All candidate directories are included regardless of whether they
+    /// currently exist on disk. `/usr/bin/which` silently skips non-existent
+    /// PATH entries, so this is safe and ensures the cached result remains
+    /// valid even if directories are created later (e.g. after a tool install).
     private static func buildAugmentedPATH() -> String {
         let currentPATH = ProcessInfo.processInfo.environment["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin"
         let existingDirs = Set(currentPATH.split(separator: ":").map(String.init))
@@ -69,7 +74,9 @@ package enum UserPATH {
         let home = FileManager.default.homeDirectoryForCurrentUser.path
 
         // Well-known directories where user-installed binaries live.
-        // Order matters: earlier entries have higher priority.
+        // Prepended before the process PATH so user-installed tools
+        // (claude, codex, etc.) take priority over any system copies.
+        // Within this list, earlier entries have higher priority.
         let candidates = [
             "\(home)/.local/bin", // claude, pip-installed tools
             "/opt/homebrew/bin", // Homebrew (Apple Silicon)
@@ -80,25 +87,14 @@ package enum UserPATH {
             "\(home)/.bun/bin", // Bun
         ]
 
-        // Only add directories that exist and aren't already in PATH.
-        var components = [currentPATH]
-        for candidate in candidates {
-            guard !existingDirs.contains(candidate),
-                  FileManager.default.isDirectory(atPath: candidate)
-            else { continue }
+        // Include all candidates not already in PATH — even non-existent
+        // directories — so that tools installed after cache creation are found.
+        var components: [String] = []
+        for candidate in candidates where !existingDirs.contains(candidate) {
             components.append(candidate)
         }
+        components.append(currentPATH)
 
         return components.joined(separator: ":")
-    }
-}
-
-// MARK: - FileManager + isDirectory
-
-private extension FileManager {
-    /// Check if a path exists and is a directory.
-    func isDirectory(atPath path: String) -> Bool {
-        var isDir: ObjCBool = false
-        return fileExists(atPath: path, isDirectory: &isDir) && isDir.boolValue
     }
 }
