@@ -28,31 +28,34 @@ package struct SettingsMenuView: View {
     // MARK: Package
 
     package var body: some View {
-        ScrollView(.vertical, showsIndicators: false) {
-            VStack(spacing: 4) {
-                self.soundSection
-                SettingsDivider()
-                self.displaySection
-                SettingsDivider()
-                self.providersSection
-                SettingsDivider()
-                self.modulesSection
-                SettingsDivider()
-                self.aboutSection
+        Group {
+            if let activeSetupProvider = self.setupSheetProvider, let setupActions {
+                ProviderSetupSheetView(
+                    providerID: activeSetupProvider,
+                    setupActions: setupActions,
+                ) {
+                    self.setupSheetProvider = nil
+                }
+            } else {
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(spacing: 4) {
+                        self.soundSection
+                        SettingsDivider()
+                        self.displaySection
+                        SettingsDivider()
+                        self.providersSection
+                        SettingsDivider()
+                        self.modulesSection
+                        SettingsDivider()
+                        self.aboutSection
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 12)
+                }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 12)
         }
         .onAppear { self.loadSettings() }
         .task { await self.refreshProviderStatuses() }
-        .sheet(item: self.$setupSheetProvider) { providerID in
-            if let setupActions {
-                ProviderSetupSheetView(
-                    providerID: providerID,
-                    setupActions: setupActions,
-                )
-            }
-        }
         .alert(
             "Disable Provider",
             isPresented: Binding(
@@ -756,6 +759,7 @@ private struct ProviderSetupSheetView: View {
 
     let providerID: ProviderID
     let setupActions: ProviderSetupActions
+    let onDismiss: () -> Void
 
     var body: some View {
         let meta = ProviderMetadata.metadata(for: self.providerID)
@@ -789,14 +793,12 @@ private struct ProviderSetupSheetView: View {
             // Footer
             self.sheetFooter(accentColor: accentColor)
         }
-        .frame(width: 380, height: 420)
-        .background(.black.opacity(0.95))
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .task { await self.loadRequirements() }
     }
 
     // MARK: Private
 
-    @Environment(\.dismiss) private var dismiss // swiftlint:disable:this attributes
     @Environment(\.accessibilityReduceMotion) private var reduceMotion // swiftlint:disable:this attributes
 
     @State private var requirements: ProviderSetupRequirements?
@@ -828,7 +830,7 @@ private struct ProviderSetupSheetView: View {
             Spacer()
 
             Button {
-                self.dismiss()
+                self.onDismiss()
             } label: {
                 Image(systemName: "xmark.circle.fill")
                     .font(.system(size: 16))
@@ -983,7 +985,7 @@ private struct ProviderSetupSheetView: View {
 
             if self.phase == .complete {
                 Button("Done") {
-                    self.dismiss()
+                    self.onDismiss()
                 }
                 .buttonStyle(.plain)
                 .font(.system(size: 13, weight: .medium))
