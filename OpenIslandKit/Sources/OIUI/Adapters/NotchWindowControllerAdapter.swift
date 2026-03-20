@@ -85,8 +85,8 @@ public final class NotchWindowControllerAdapter: WindowControllerHandle {
     ///
     /// - Opened: rect sized to `openedSize` + padding, centered horizontally in
     ///   the full-width window, hanging from the top.
-    /// - Closed/Popping: rect sized to notch width + module expansion + padding,
-    ///   centered on the notch position.
+    /// - Closed/Popping: rect sized to notch width + module expansion + shape edge margin
+    ///   + hit-test padding, centered on the notch position.
     private static func makeHitTestRect(viewModel: NotchViewModel) -> @MainActor () -> CGRect {
         { [weak viewModel] in
             guard let viewModel else { return .zero }

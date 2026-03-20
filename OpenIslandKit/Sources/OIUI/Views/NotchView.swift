@@ -126,9 +126,11 @@ public struct NotchView: View {
     private var updateStatusContent: AnyView?
     private var setupActions: ProviderSetupActions?
 
-    /// The notch size when closed, derived from the device notch rect plus module expansion.
+    /// The notch size when closed, derived from the device notch rect plus module expansion
+    /// and shape edge margin.
     ///
-    /// Width includes the device notch plus `totalExpansionWidth` from the layout engine,
+    /// Width includes the device notch plus `totalExpansionWidth` from the layout engine
+    /// plus `2 * shapeEdgeMargin` for clip-shape breathing room,
     /// honoring the hit-test / visual sync contract.
     private var closedSize: CGSize {
         let rect = self.viewModel.geometry.deviceNotchRect
