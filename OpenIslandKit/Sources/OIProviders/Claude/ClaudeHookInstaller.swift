@@ -268,10 +268,15 @@ package struct ClaudeHookInstaller: Sendable {
         for eventType in self.allHookEventTypes {
             guard var entries = hooks[eventType] as? [[String: Any]] else { continue }
 
-            // Process each matcher group: remove our hooks from nested arrays
+            // Process each entry: remove legacy flat entries and clean matcher groups
             entries = entries.compactMap { matcherGroup in
+                // Legacy flat entry (no "hooks" key): remove if it references our script
                 guard var groupHooks = matcherGroup["hooks"] as? [[String: Any]] else {
-                    return matcherGroup // Not a matcher group, preserve as-is
+                    if let cmd = matcherGroup["command"] as? String,
+                       cmd.contains(Self.hookScriptName) {
+                        return nil
+                    }
+                    return matcherGroup
                 }
 
                 groupHooks.removeAll { hook in
