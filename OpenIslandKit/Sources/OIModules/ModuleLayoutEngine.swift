@@ -101,6 +101,13 @@ public enum ModuleLayoutEngine {
     /// Inset from the outermost edge of the expansion zone to the first module, in points.
     public static let outerEdgeInset: CGFloat = 6
 
+    /// Horizontal margin between the clip shape edge and the module content, in points.
+    ///
+    /// The closed-state panel width is `deviceNotchWidth + totalExpansionWidth + 2 × shapeEdgeMargin`.
+    /// Content inside the clip shape is inset by this amount on each side so modules
+    /// have breathing room and are not clipped by the rounded corners.
+    public static let shapeEdgeMargin: CGFloat = 8
+
     // MARK: - Layout computation
 
     /// Computes the closed-state module layout.

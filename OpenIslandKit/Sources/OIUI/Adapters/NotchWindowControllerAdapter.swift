@@ -111,7 +111,8 @@ public final class NotchWindowControllerAdapter: WindowControllerHandle {
             case .closed,
                  .popping:
                 let layout = viewModel.moduleLayout
-                let closedWidth = notchRect.width + layout.totalExpansionWidth + padding * 2
+                let margin = ModuleLayoutEngine.shapeEdgeMargin
+                let closedWidth = notchRect.width + layout.totalExpansionWidth + 2 * margin + padding * 2
                 let closedHeight = notchRect.height + padding
                 let rectX = notchRect.midX - closedWidth / 2
                 let rectY = windowHeight - closedHeight

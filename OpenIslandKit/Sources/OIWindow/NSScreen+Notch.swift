@@ -7,20 +7,29 @@ package extension NSScreen {
     ///
     /// Uses the `safeAreaInsets` top inset as a proxy: screens with a notch have a
     /// non-zero top safe area inset. The notch width is derived from `auxiliaryTopLeftArea`
-    /// and `auxiliaryTopRightArea`.
+    /// and `auxiliaryTopRightArea`, with safety padding to ensure closed-state modules
+    /// never overlap the physical camera housing.
     var notchSize: CGSize? {
         guard self.hasPhysicalNotch else { return nil }
 
         let topInset = safeAreaInsets.top
         guard topInset > 0 else { return nil }
 
-        // The notch width = screen width - left aux area width - right aux area width.
+        let paddedWidth = self.reservedNotchExclusionWidth
+        guard paddedWidth > 0 else { return nil }
+        return CGSize(width: paddedWidth, height: topInset)
+    }
+
+    /// Conservatively reserved center width where closed-state content should never render.
+    ///
+    /// Adds `notchSafetyPadding` on each side of the raw exclusion width to guarantee
+    /// visual clearance from the camera housing.
+    var reservedNotchExclusionWidth: CGFloat {
         let leftWidth = auxiliaryTopLeftArea?.width ?? 0
         let rightWidth = auxiliaryTopRightArea?.width ?? 0
-        let notchWidth = frame.width - leftWidth - rightWidth
-
-        guard notchWidth > 0 else { return nil }
-        return CGSize(width: notchWidth, height: topInset)
+        let baseWidth = frame.width - leftWidth - rightWidth
+        guard baseWidth > 0 else { return 0 }
+        return baseWidth + Self.notchSafetyPadding * 2
     }
 
     /// Whether this screen has a physical notch (built-in display with top safe area inset).
@@ -41,4 +50,13 @@ package extension NSScreen {
     static var builtin: NSScreen? {
         screens.first { $0.isBuiltinDisplay }
     }
+
+    // MARK: Private
+
+    /// Per-side safety padding added to the raw notch exclusion width.
+    ///
+    /// The raw width from `auxiliaryTopLeftArea`/`auxiliaryTopRightArea` defines the exact
+    /// camera exclusion zone. Adding 12pt per side provides a visual safety margin so
+    /// closed-state modules never crowd the physical camera housing.
+    private static let notchSafetyPadding: CGFloat = 12
 }
