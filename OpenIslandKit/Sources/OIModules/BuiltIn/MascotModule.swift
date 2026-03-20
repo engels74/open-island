@@ -71,28 +71,38 @@ public struct MascotModule: NotchModule {
                     color: context.isHighlighted ? context.accentColor.opacity(0.3) : .clear,
                     radius: 2,
                 )
-        } else if context.isHighlighted {
-            TimelineView(.animation(minimumInterval: 1.0 / 30)) { timeline in
-                let angle = Angle.degrees(
-                    timeline.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 3.0) / 3.0 * 360,
-                )
-                ZStack {
-                    Circle()
-                        .strokeBorder(
-                            AngularGradient(
-                                gradient: Gradient(colors: [context.accentColor, context.accentColor.opacity(0)]),
-                                center: .center,
-                            ),
-                            lineWidth: 1.5,
-                        )
-                        .rotationEffect(angle)
-                        .frame(width: 20, height: 20)
+        } else {
+            ZStack {
+                OILogoIcon(size: 18, color: context.accentColor)
+                    .shadow(
+                        color: context.isHighlighted ? context.accentColor.opacity(0.3) : .clear,
+                        radius: context.isHighlighted ? 2 : 0,
+                    )
 
-                    OILogoIcon(size: 14, color: context.accentColor)
+                if context.isHighlighted {
+                    TimelineView(.animation(minimumInterval: 1.0 / 30)) { timeline in
+                        let angle = Angle.degrees(
+                            timeline.date.timeIntervalSinceReferenceDate
+                                .truncatingRemainder(dividingBy: 3.0) / 3.0 * 360,
+                        )
+                        Circle()
+                            .strokeBorder(
+                                AngularGradient(
+                                    gradient: Gradient(colors: [
+                                        context.accentColor,
+                                        context.accentColor.opacity(0),
+                                    ]),
+                                    center: .center,
+                                ),
+                                lineWidth: 1.5,
+                            )
+                            .rotationEffect(angle)
+                            .frame(width: 20, height: 20)
+                    }
+                    .transition(.opacity)
                 }
             }
-        } else {
-            OILogoIcon(size: 18, color: context.accentColor)
+            .animation(.easeInOut(duration: 0.3), value: context.isHighlighted)
         }
     }
 }
