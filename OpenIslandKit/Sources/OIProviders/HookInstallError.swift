@@ -1,6 +1,6 @@
 // MARK: - HookInstallError
 
-package enum HookInstallError: Error, Sendable {
+public enum HookInstallError: Error, Sendable {
     case pythonNotFound
     case pythonVersionTooOld(found: String, required: String)
     case settingsFileCorrupted(path: String)
@@ -12,7 +12,7 @@ package enum HookInstallError: Error, Sendable {
 // MARK: CustomStringConvertible
 
 extension HookInstallError: CustomStringConvertible {
-    package var description: String {
+    public var description: String {
         switch self {
         case .pythonNotFound:
             "No Python 3.14+ runtime found. Install uv (https://docs.astral.sh/uv/) for automatic Python management, or install Python 3.14+ directly."

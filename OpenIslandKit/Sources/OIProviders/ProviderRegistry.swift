@@ -36,6 +36,7 @@ public actor ProviderRegistry {
             }
             try await group.waitForAll()
         }
+        self.runningProviders = Set(self.adapters.keys)
     }
 
     /// Stop all registered adapters concurrently.
@@ -47,6 +48,63 @@ public actor ProviderRegistry {
                 }
             }
         }
+        self.runningProviders.removeAll()
+    }
+
+    /// Start a single registered provider by ID.
+    public func startProvider(_ id: ProviderID) async throws {
+        guard let adapter = self.adapters[id] else {
+            throw ProviderStartupError.notRegistered(id)
+        }
+        try await adapter.start()
+        self.runningProviders.insert(id)
+    }
+
+    /// Stop a single registered provider by ID.
+    public func stopProvider(_ id: ProviderID) async {
+        guard let adapter = self.adapters[id] else { return }
+        await adapter.stop()
+        self.runningProviders.remove(id)
+    }
+
+    /// Whether a provider is currently running.
+    public func isRunning(_ id: ProviderID) -> Bool {
+        self.runningProviders.contains(id)
+    }
+
+    /// Start only the providers that are enabled in `AppSettings.enabledProviders`.
+    ///
+    /// Returns the IDs of providers that failed to start so callers can log/report.
+    public func startEnabledProviders() async -> [ProviderID: any Error] {
+        let enabled = AppSettings.enabledProviders
+        var failures: [ProviderID: any Error] = [:]
+
+        for (id, adapter) in self.adapters where enabled.contains(id) {
+            do {
+                try await adapter.start()
+                self.runningProviders.insert(id)
+            } catch {
+                failures[id] = error
+            }
+        }
+
+        return failures
+    }
+
+    /// Enable a provider at runtime: starts it, then persists to settings on success.
+    public func enableProvider(_ id: ProviderID) async throws {
+        try await self.startProvider(id)
+        var enabled = AppSettings.enabledProviders
+        enabled.insert(id)
+        AppSettings.enabledProviders = enabled
+    }
+
+    /// Disable a provider at runtime: updates settings and stops it.
+    public func disableProvider(_ id: ProviderID) async {
+        var enabled = AppSettings.enabledProviders
+        enabled.remove(id)
+        AppSettings.enabledProviders = enabled
+        await self.stopProvider(id)
     }
 
     /// Merge all provider event streams into a single stream.
@@ -79,4 +137,5 @@ public actor ProviderRegistry {
     // MARK: Private
 
     private var adapters: [ProviderID: any ProviderAdapter] = [:]
+    private var runningProviders: Set<ProviderID> = []
 }

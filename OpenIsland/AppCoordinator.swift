@@ -25,6 +25,7 @@ final class AppCoordinator {
         self.screenObserver = ScreenObserver()
         self.sessionStore = SessionStore()
         self.providerRegistry = ProviderRegistry()
+        self.setupCoordinator = ProviderSetupCoordinator()
         self.soundManager = SoundManager()
         self.moduleRegistry = ModuleRegistry()
 
@@ -83,6 +84,8 @@ final class AppCoordinator {
 
     // MARK: Internal
 
+    let setupCoordinator: ProviderSetupCoordinator
+
     /// Boots the full system: providers, event bridge, window, monitors.
     ///
     /// Call once from the app entry point. Safe to call from a synchronous
@@ -90,7 +93,7 @@ final class AppCoordinator {
     func start(updateManager: UpdateManager) {
         self.updateManager = updateManager
 
-        // 1. Register provider adapters.
+        // 1. Register all provider adapters (so they're available for later enable/disable).
         let adapters: [any ProviderAdapter] = [
             ClaudeProviderAdapter(),
             CodexProviderAdapter(),
@@ -103,13 +106,10 @@ final class AppCoordinator {
                 await self.providerRegistry.register(adapter)
             }
 
-            // 2. Start each provider individually — best effort.
-            for adapter in adapters {
-                do {
-                    try await adapter.start()
-                } catch {
-                    self.logger.warning("Provider \(adapter.providerID.rawValue) failed to start: \(error)")
-                }
+            // 2. Only start providers that are enabled in settings.
+            let failures = await self.providerRegistry.startEnabledProviders()
+            for (id, error) in failures {
+                self.logger.warning("Provider \(id.rawValue) failed to start: \(error)")
             }
 
             // 3. Start the event bridge: provider events → session store.
@@ -125,6 +125,7 @@ final class AppCoordinator {
         self.sessionMonitor.start()
 
         // 5. Create WindowManager with factory closure.
+        let setupActions = self.makeSetupActions()
         self.windowManager = WindowManager(
             screenObserver: self.screenObserver,
         ) { [weak self] geometry in
@@ -136,9 +137,11 @@ final class AppCoordinator {
                 viewModel: self.viewModel,
                 sessionMonitor: self.sessionMonitor,
                 activityCoordinator: self.activityCoordinator,
-            ) { [weak self] in
-                self?.updateManager?.checkForUpdates()
-            }
+                onCheckForUpdates: { [weak self] in
+                    self?.updateManager?.checkForUpdates()
+                },
+                setupActions: setupActions,
+            )
             return NotchWindowControllerAdapter(
                 geometry: geometry,
                 content: AnyView(notchView),
@@ -158,6 +161,22 @@ final class AppCoordinator {
 
         // 9. Start NotchActivityCoordinator.
         self.activityCoordinator.start()
+    }
+
+    /// Enables a provider at runtime: updates settings and starts the adapter.
+    func enableProvider(_ id: ProviderID) async {
+        do {
+            try await self.providerRegistry.enableProvider(id)
+            self.logger.info("Provider \(id.rawValue) enabled and started")
+        } catch {
+            self.logger.warning("Provider \(id.rawValue) failed to start: \(error)")
+        }
+    }
+
+    /// Disables a provider at runtime: updates settings and stops the adapter.
+    func disableProvider(_ id: ProviderID) async {
+        await self.providerRegistry.disableProvider(id)
+        self.logger.info("Provider \(id.rawValue) disabled and stopped")
     }
 
     // MARK: Private
@@ -182,6 +201,42 @@ final class AppCoordinator {
     private var eventBridgeTask: Task<Void, Never>?
     private var geometryObservationTask: Task<Void, Never>?
     private var panelSizeObservationTask: Task<Void, Never>?
+
+    /// Creates the closure-based bridge connecting OIUI setup views to OIProviders.
+    private func makeSetupActions() -> ProviderSetupActions {
+        let coordinator = self.setupCoordinator
+        let registry = self.providerRegistry
+        return ProviderSetupActions(
+            requirements: { providerID in
+                await coordinator.setupRequirements(for: providerID)
+            },
+            install: { providerID, progressHandler in
+                try await coordinator.install(provider: providerID) { progress in
+                    let message = switch progress {
+                    case .checkingPrerequisites: "Checking prerequisites…"
+                    case let .creatingBackup(path): "Backing up \(path)…"
+                    case .installingHooks: "Installing hooks…"
+                    case .verifying: "Verifying setup…"
+                    case .complete: "Complete"
+                    case let .failed(error): "Failed: \(error)"
+                    }
+                    progressHandler(message)
+                }
+            },
+            uninstall: { providerID in
+                try await coordinator.uninstall(provider: providerID)
+            },
+            enableProvider: { providerID in
+                try await registry.enableProvider(providerID)
+            },
+            disableProvider: { providerID in
+                await registry.disableProvider(providerID)
+            },
+            isProviderRunning: { providerID in
+                await registry.isRunning(providerID)
+            },
+        )
+    }
 
     /// Spawns a task that keeps ``EventMonitors/geometry`` in sync with
     /// ``ScreenObserver/geometry`` via `withObservationTracking`.

@@ -32,12 +32,14 @@ public struct NotchView: View {
         activityCoordinator: NotchActivityCoordinator? = nil,
         onCheckForUpdates: (() -> Void)? = nil,
         updateStatusContent: AnyView? = nil,
+        setupActions: ProviderSetupActions? = nil,
     ) {
         self.viewModel = viewModel
         self.sessionMonitor = sessionMonitor
         self.activityCoordinator = activityCoordinator
         self.onCheckForUpdates = onCheckForUpdates
         self.updateStatusContent = updateStatusContent
+        self.setupActions = setupActions
     }
 
     // MARK: Public
@@ -119,6 +121,7 @@ public struct NotchView: View {
     private var activityCoordinator: NotchActivityCoordinator?
     private var onCheckForUpdates: (() -> Void)?
     private var updateStatusContent: AnyView?
+    private var setupActions: ProviderSetupActions?
 
     /// The notch size when closed, derived from the device notch rect plus module expansion.
     ///
@@ -159,6 +162,7 @@ public struct NotchView: View {
                 viewModel: self.viewModel,
                 onCheckForUpdates: self.onCheckForUpdates,
                 updateStatusContent: self.updateStatusContent,
+                setupActions: self.setupActions,
             )
         }
     }
