@@ -53,7 +53,9 @@ public actor ProviderRegistry {
 
     /// Start a single registered provider by ID.
     public func startProvider(_ id: ProviderID) async throws {
-        guard let adapter = self.adapters[id] else { return }
+        guard let adapter = self.adapters[id] else {
+            throw ProviderStartupError.notRegistered(id)
+        }
         try await adapter.start()
         self.runningProviders.insert(id)
     }
@@ -89,12 +91,12 @@ public actor ProviderRegistry {
         return failures
     }
 
-    /// Enable a provider at runtime: updates settings and starts it.
+    /// Enable a provider at runtime: starts it, then persists to settings on success.
     public func enableProvider(_ id: ProviderID) async throws {
+        try await self.startProvider(id)
         var enabled = AppSettings.enabledProviders
         enabled.insert(id)
         AppSettings.enabledProviders = enabled
-        try await self.startProvider(id)
     }
 
     /// Disable a provider at runtime: updates settings and stops it.

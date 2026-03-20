@@ -1,3 +1,5 @@
+public import OICore
+
 public enum ProviderStartupError: Error, Sendable {
     case binaryNotFound(String)
     case configNotFound(path: String)
@@ -6,4 +8,5 @@ public enum ProviderStartupError: Error, Sendable {
     case alreadyRunning
     case jsonRPCHandshakeFailed(underlying: any Error)
     case httpServerUnreachable(host: String, port: Int)
+    case notRegistered(ProviderID)
 }

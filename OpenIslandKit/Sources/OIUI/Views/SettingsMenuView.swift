@@ -96,7 +96,7 @@ package struct SettingsMenuView: View {
 
     // MARK: Providers state
 
-    @State private var enabledProviders: Set<ProviderID> = Set(ProviderID.allKnown)
+    @State private var enabledProviders: Set<ProviderID> = AppSettings.enabledProviders
     @State private var expandedProvider: ProviderID?
 
     // MARK: Claude provider state
@@ -523,9 +523,15 @@ private extension SettingsMenuView {
         Task {
             await setupActions.disableProvider(providerID)
             if removeHooks {
-                try? await setupActions.uninstall(providerID)
+                do {
+                    try await setupActions.uninstall(providerID)
+                    self.providerStatuses[providerID] = .notInstalled
+                } catch {
+                    self.providerStatuses[providerID] = .failed(error)
+                }
+            } else {
+                self.providerStatuses[providerID] = .notInstalled
             }
-            self.providerStatuses[providerID] = .notInstalled
         }
     }
 

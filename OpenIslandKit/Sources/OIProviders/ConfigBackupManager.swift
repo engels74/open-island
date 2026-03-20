@@ -74,13 +74,30 @@ package struct ConfigBackupManager: Sendable {
             throw .backupDirectoryCreationFailed(path: backupDir.path)
         }
 
-        let backupURL = backupDir.appendingPathComponent(sourceURL.lastPathComponent)
+        var backupURL = backupDir.appendingPathComponent(sourceURL.lastPathComponent)
+
+        // Avoid basename collision: if destination exists (e.g., two source paths with
+        // the same filename backed up in the same second), append a counter.
+        if FileManager.default.fileExists(atPath: backupURL.path) {
+            let stem = backupURL.deletingPathExtension().lastPathComponent
+            let ext = sourceURL.pathExtension
+            var counter = 2
+            repeat {
+                let uniqueName = ext.isEmpty ? "\(stem)-\(counter)" : "\(stem)-\(counter).\(ext)"
+                backupURL = backupDir.appendingPathComponent(uniqueName)
+                counter += 1
+            } while FileManager.default.fileExists(atPath: backupURL.path)
+        }
 
         do {
             try FileManager.default.copyItem(at: sourceURL, to: backupURL)
         } catch {
             throw .backupCopyFailed(source: path, destination: backupURL.path)
         }
+
+        // Write a sidecar file recording the original absolute path so listBackups can recover it.
+        let originFile = backupURL.appendingPathExtension("origin")
+        try? Data(path.utf8).write(to: originFile)
 
         return backupURL
     }
@@ -139,12 +156,12 @@ package struct ConfigBackupManager: Sendable {
             // Parse date from directory name (timestamp format)
             let date = Self.timestampFormatter.date(from: dir.lastPathComponent) ?? Date.distantPast
 
-            for file in files {
-                // Reconstruct the original path relative to the provider's backup directory
-                // e.g., "claude/settings.json" rather than just "settings.json"
-                let relativePath = provider.rawValue + "/" + file.lastPathComponent
+            for file in files where file.pathExtension != "origin" {
+                // Read the original path from the sidecar .origin file written by createBackup.
+                let originFile = file.appendingPathExtension("origin")
+                let originalPath = (try? String(contentsOf: originFile, encoding: .utf8)) ?? file.lastPathComponent
                 entries.append(BackupEntry(
-                    originalPath: relativePath,
+                    originalPath: originalPath,
                     backupURL: file,
                     date: date,
                 ))

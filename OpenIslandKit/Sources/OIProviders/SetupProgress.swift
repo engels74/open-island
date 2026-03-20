@@ -9,7 +9,7 @@ public enum SetupProgress: Sendable {
     case installingHooks
     case verifying
     case complete
-    case failed(any Error)
+    case failed(any Error & Sendable)
 }
 
 // MARK: - PrerequisiteCheckResult

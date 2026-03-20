@@ -3,5 +3,5 @@ public enum ProviderInstallationStatus: Sendable {
     case notInstalled
     case installing
     case installed
-    case failed(any Error)
+    case failed(any Error & Sendable)
 }

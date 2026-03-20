@@ -55,14 +55,14 @@ public actor ProviderSetupCoordinator {
 
         case .codex:
             return ProviderSetupRequirements(
-                prerequisites: Self.binaryOnlyPrerequisites(metadata: metadata),
+                prerequisites: Self.binaryOnlyPrerequisites(provider: provider, metadata: metadata),
                 steps: [],
                 estimatedDuration: "~5 seconds",
             )
 
         case .openCode:
             return ProviderSetupRequirements(
-                prerequisites: Self.binaryOnlyPrerequisites(metadata: metadata),
+                prerequisites: Self.binaryOnlyPrerequisites(provider: provider, metadata: metadata),
                 steps: [],
                 estimatedDuration: "~5 seconds",
             )
@@ -240,11 +240,12 @@ extension ProviderSetupCoordinator {
     ]
 
     private static func binaryOnlyPrerequisites(
+        provider: ProviderID,
         metadata: ProviderMetadata,
     ) -> [ProviderPrerequisite] {
         [
             ProviderPrerequisite(
-                id: "\(metadata.cliBinaryNames.first ?? "cli")-binary",
+                id: "\(provider.rawValue)-binary",
                 description: "\(metadata.displayName) CLI must be installed",
                 checkDescription: "\(metadata.displayName) binary on PATH",
             ),
@@ -274,7 +275,7 @@ extension ProviderSetupCoordinator {
                 prerequisite: prereq,
             )
 
-        case "opencode-binary":
+        case "openCode-binary":
             self.checkBinaryOnPath(
                 names: ProviderMetadata.metadata(for: .openCode).cliBinaryNames,
                 prerequisite: prereq,

@@ -79,7 +79,7 @@ struct ProviderSetupCoordinatorTests {
         let requirements = await coordinator.setupRequirements(for: .openCode)
 
         #expect(requirements.prerequisites.count == 1)
-        #expect(requirements.prerequisites[0].id == "opencode-binary")
+        #expect(requirements.prerequisites[0].id == "openCode-binary")
         #expect(requirements.steps.isEmpty)
         #expect(requirements.estimatedDuration == "~5 seconds")
     }
@@ -132,7 +132,7 @@ struct ProviderSetupCoordinatorTests {
         #expect(results.count == 1)
         // Whether it passes or fails, there should be a detail string
         #expect(results[0].detail != nil)
-        #expect(try !(#require(results[0].detail?.isEmpty)))
+        #expect(try !#require(results[0].detail?.isEmpty))
     }
 
     // MARK: - verify tests

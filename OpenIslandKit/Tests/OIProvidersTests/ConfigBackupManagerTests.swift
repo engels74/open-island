@@ -98,6 +98,11 @@ struct ConfigBackupManagerTests {
 
             // Should be sorted newest first
             #expect(backups[0].date >= backups[1].date)
+
+            // originalPath should be the true source path, not a relative backup path
+            for backup in backups {
+                #expect(backup.originalPath == sourceFile.path)
+            }
         }
     }
 
