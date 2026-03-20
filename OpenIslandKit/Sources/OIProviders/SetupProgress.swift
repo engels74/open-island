@@ -70,3 +70,37 @@ public enum ProviderSetupError: Error, Sendable {
     case unsupportedProvider(ProviderID)
     case verificationFailed(String)
 }
+
+// MARK: CustomStringConvertible
+
+extension ProviderSetupError: CustomStringConvertible {
+    public var description: String {
+        switch self {
+        case let .prerequisitesNotMet(results):
+            let failed = results.filter { !$0.passed }
+            if failed.isEmpty {
+                return "Prerequisites not met."
+            }
+            let lines = failed.map { result in
+                if let detail = result.detail {
+                    return "• \(result.prerequisite.description) (\(detail))"
+                }
+                return "• \(result.prerequisite.description)"
+            }
+            return "Prerequisites not met:\n" + lines.joined(separator: "\n")
+
+        case let .backupFailed(error):
+            return "Backup failed: \(error)"
+
+        case let .hookInstallFailed(error):
+            return "Hook installation failed: \(error)"
+
+        case let .unsupportedProvider(providerID):
+            let name = ProviderMetadata.metadata(for: providerID).displayName
+            return "\(name) setup is not supported."
+
+        case let .verificationFailed(message):
+            return "Verification failed: \(message)"
+        }
+    }
+}

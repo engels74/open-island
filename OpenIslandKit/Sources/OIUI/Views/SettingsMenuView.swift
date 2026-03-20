@@ -943,7 +943,6 @@ private struct ProviderSetupSheetView: View {
             Text(message)
                 .font(.system(size: 11))
                 .foregroundStyle(.red.opacity(0.9))
-                .lineLimit(3)
         }
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -1036,7 +1035,8 @@ private struct ProviderSetupSheetView: View {
                 self.phase = .complete
             } catch {
                 self.phase = .idle
-                self.errorMessage = String(describing: error)
+                self.errorMessage = (error as? CustomStringConvertible)?.description
+                    ?? error.localizedDescription
             }
         }
     }
