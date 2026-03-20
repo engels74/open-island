@@ -86,23 +86,13 @@ public struct MascotModule: NotchModule {
                             lineWidth: 1.5,
                         )
                         .rotationEffect(angle)
-                        .frame(width: 18, height: 18)
+                        .frame(width: 20, height: 20)
 
-                    Image("OILogo", bundle: .module)
-                        .renderingMode(.template)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 12, height: 12)
-                        .foregroundStyle(context.accentColor)
+                    OILogoIcon(size: 14, color: context.accentColor)
                 }
             }
         } else {
-            Image("OILogo", bundle: .module)
-                .renderingMode(.template)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 12, height: 12)
-                .foregroundStyle(context.accentColor)
+            OILogoIcon(size: 18, color: context.accentColor)
         }
     }
 }
