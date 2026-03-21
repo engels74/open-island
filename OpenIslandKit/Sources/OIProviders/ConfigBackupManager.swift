@@ -2,7 +2,7 @@ public import Foundation
 public import OICore
 import OSLog
 
-private let logger = Logger(subsystem: "com.openisland", category: "ConfigBackup")
+private let logger = Logger(subsystem: "com.engels74.openisland", category: "ConfigBackup")
 
 // MARK: - BackupEntry
 

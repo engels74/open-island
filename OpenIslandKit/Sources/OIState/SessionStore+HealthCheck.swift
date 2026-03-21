@@ -3,7 +3,7 @@ import OICore
 package import OIProviders
 import OSLog
 
-private let logger = Logger(subsystem: "com.openisland", category: "SessionHealthCheck")
+private let logger = Logger(subsystem: "com.engels74.openisland", category: "SessionHealthCheck")
 
 extension SessionStore {
     /// Detects zombie sessions where the provider process has exited

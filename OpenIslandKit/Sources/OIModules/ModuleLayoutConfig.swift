@@ -94,5 +94,5 @@ public struct ModuleLayoutConfig: Codable, Sendable, Equatable {
 
     // MARK: Private
 
-    private static let defaultsKey = "com.openisland.moduleLayout"
+    private static let defaultsKey = "com.engels74.openisland.moduleLayout"
 }
