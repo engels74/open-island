@@ -2,7 +2,7 @@ package import Foundation
 package import OICore
 import OSLog
 
-private let logger = Logger(subsystem: "com.openisland", category: "SessionTransitions")
+private let logger = Logger(subsystem: "com.engels74.openisland", category: "SessionTransitions")
 
 // MARK: - Provider Event Handling
 
