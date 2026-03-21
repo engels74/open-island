@@ -33,35 +33,41 @@ public struct ModuleLayout: Sendable {
 /// ## Layout geometry
 ///
 /// ```
-/// ◄── symmetricSideWidth ──►◄── device notch ──►◄── symmetricSideWidth ──►
-/// ┌─────────────────────────┬──────────────────────┬─────────────────────────┐
-/// │  outerInset │ mod │ sp │ mod │                  │ mod │ sp │ mod │ outerInset │
-/// └─────────────────────────┴──────────────────────┴─────────────────────────┘
+/// ◄── leftSideWidth ──►◄── device notch ──►◄── rightSideWidth ──►
+/// ┌────────────────────┬──────────────────────┬───────────────────────────────┐
+/// │  outerInset │ mod │                        │ mod │ sp │ mod │ outerInset │
+/// └────────────────────┴──────────────────────┴───────────────────────────────┘
 /// ◄──────────────────── totalExpansionWidth ──────────────────────────────────►
 /// ```
 ///
-/// - `symmetricSideWidth`: `max(leftNaturalWidth, rightNaturalWidth)`.
-///   Both sides are padded to this width so the notch remains visually centered.
-/// - `totalExpansionWidth`: `symmetricSideWidth × 2`. This is the amount the
-///   closed-state notch extends *beyond* the device notch rect.
+/// - `leftSideWidth` / `rightSideWidth`: each side takes only the width its
+///   visible modules need. The physical notch acts as the center divider, so
+///   asymmetric widths look natural.
+/// - `totalExpansionWidth`: `leftSideWidth + rightSideWidth`. This is the amount
+///   the closed-state notch extends *beyond* the device notch rect.
 public struct ModuleLayoutResult: Sendable {
     /// Per-module positions, sorted by side then by display order.
     public let modules: [ModuleLayout]
 
-    /// The width of each side after symmetry enforcement, in points.
+    /// The width of the left side, in points.
     ///
-    /// Equal to `max(leftNaturalWidth, rightNaturalWidth)`.
-    public let symmetricSideWidth: CGFloat
+    /// Equal to `leftNaturalWidth` — each side takes only the space it needs.
+    public let leftSideWidth: CGFloat
+
+    /// The width of the right side, in points.
+    ///
+    /// Equal to `rightNaturalWidth` — each side takes only the space it needs.
+    public let rightSideWidth: CGFloat
 
     /// Total horizontal expansion beyond the device notch rect, in points.
     ///
-    /// Equal to `symmetricSideWidth × 2`.
+    /// Equal to `leftSideWidth + rightSideWidth`.
     public let totalExpansionWidth: CGFloat
 
-    /// Natural (pre-symmetry) width of the left side, in points.
+    /// Natural width of the left side, in points.
     public let leftNaturalWidth: CGFloat
 
-    /// Natural (pre-symmetry) width of the right side, in points.
+    /// Natural width of the right side, in points.
     public let rightNaturalWidth: CGFloat
 }
 
@@ -87,8 +93,8 @@ public struct ModuleLayoutResult: Sendable {
 /// 3. Sort each side by effective order (ascending).
 /// 4. Compute natural width per side: outer-edge inset (6pt) + sum of module
 ///    widths + inter-module spacing (8pt between adjacent modules).
-/// 5. Enforce symmetry: `symmetricSideWidth = max(left, right)`.
-/// 6. `totalExpansionWidth = symmetricSideWidth × 2`.
+/// 5. Each side uses its own natural width (asymmetric layout).
+/// 6. `totalExpansionWidth = leftNaturalWidth + rightNaturalWidth`.
 /// 7. Compute per-module offsets from the outer edge inward.
 public enum ModuleLayoutEngine {
     // MARK: Public
@@ -165,12 +171,11 @@ public enum ModuleLayoutEngine {
             side: .right,
         )
 
-        let symmetric = max(leftNatural, rightNatural)
-
         return ModuleLayoutResult(
             modules: leftLayouts + rightLayouts,
-            symmetricSideWidth: symmetric,
-            totalExpansionWidth: symmetric * 2,
+            leftSideWidth: leftNatural,
+            rightSideWidth: rightNatural,
+            totalExpansionWidth: leftNatural + rightNatural,
             leftNaturalWidth: leftNatural,
             rightNaturalWidth: rightNatural,
         )

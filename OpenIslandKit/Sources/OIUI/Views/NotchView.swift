@@ -9,11 +9,12 @@ public import SwiftUI
 //
 // The closed-state notch width is computed by `ModuleLayoutEngine` in OIModules.
 // `ModuleLayoutEngine.layout(modules:context:config:)` returns a `ModuleLayoutResult`
-// whose `totalExpansionWidth` determines how far the notch extends beyond the
-// device notch rect. The `closedSize` used in this view must be derived from that
-// same result so that the SwiftUI visual boundary matches the AppKit hit-test
-// boundary set on `PassThroughHostingView` (OIWindow). Never compute closed-state
-// width independently.
+// whose `totalExpansionWidth` (= leftSideWidth + rightSideWidth) determines how far
+// the notch extends beyond the device notch rect. Each side uses only the width its
+// visible modules need (asymmetric layout). The `closedSize` used in this view must
+// be derived from that same result so that the SwiftUI visual boundary matches the
+// AppKit hit-test boundary set on `PassThroughHostingView` (OIWindow). Never compute
+// closed-state width independently.
 //
 // Counterpart: see the matching contract comment in `PassThroughHostingView.swift` (OIWindow).
 

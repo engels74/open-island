@@ -161,12 +161,14 @@ public final class NotchActivityCoordinator {
         }
         let hasWaitingForInput = instances.contains { $0.phase == .waitingForInput }
         let activeProviders = Set(instances.map(\.providerID))
+        let earliestSessionStart = instances.map(\.createdAt).min()
 
         let context = ModuleVisibilityContext(
             isProcessing: isProcessing,
             hasPendingPermission: hasPendingPermission,
             hasWaitingForInput: hasWaitingForInput,
             activeProviders: activeProviders,
+            earliestSessionStart: earliestSessionStart,
         )
         self.notchViewModel.visibilityContext = context
     }

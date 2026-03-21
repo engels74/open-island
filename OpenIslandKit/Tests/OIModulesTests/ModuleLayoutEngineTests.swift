@@ -61,7 +61,8 @@ struct ModuleLayoutEngineTests {
         )
 
         #expect(result.modules.isEmpty)
-        #expect(result.symmetricSideWidth == 0)
+        #expect(result.leftSideWidth == 0)
+        #expect(result.rightSideWidth == 0)
         #expect(result.totalExpansionWidth == 0)
         #expect(result.leftNaturalWidth == 0)
         #expect(result.rightNaturalWidth == 0)
@@ -82,7 +83,8 @@ struct ModuleLayoutEngineTests {
         )
 
         #expect(result.modules.isEmpty)
-        #expect(result.symmetricSideWidth == 0)
+        #expect(result.leftSideWidth == 0)
+        #expect(result.rightSideWidth == 0)
         #expect(result.totalExpansionWidth == 0)
     }
 
@@ -110,8 +112,9 @@ struct ModuleLayoutEngineTests {
         // Natural width = outerEdgeInset(6) + width(20) = 26
         #expect(result.leftNaturalWidth == 26)
         #expect(result.rightNaturalWidth == 0)
-        #expect(result.symmetricSideWidth == 26)
-        #expect(result.totalExpansionWidth == 52)
+        #expect(result.leftSideWidth == 26)
+        #expect(result.rightSideWidth == 0)
+        #expect(result.totalExpansionWidth == 26)
     }
 
     @Test
@@ -135,7 +138,8 @@ struct ModuleLayoutEngineTests {
         // Natural width = outerEdgeInset(6) + width(30) = 36
         #expect(result.rightNaturalWidth == 36)
         #expect(result.leftNaturalWidth == 0)
-        #expect(result.symmetricSideWidth == 36)
+        #expect(result.leftSideWidth == 0)
+        #expect(result.rightSideWidth == 36)
     }
 
     // MARK: - Multiple modules with spacing
@@ -187,10 +191,10 @@ struct ModuleLayoutEngineTests {
         #expect(result.rightNaturalWidth == 67)
     }
 
-    // MARK: - Symmetric width calculation
+    // MARK: - Asymmetric width calculation
 
     @Test
-    func `Left wider than right enforces symmetry`() {
+    func `Left wider than right uses independent widths`() {
         let modules: [any NotchModule] = [
             MockModule(id: "l1", side: .left, order: 0, width: 50),
             MockModule(id: "r1", side: .right, order: 0, width: 20),
@@ -205,12 +209,13 @@ struct ModuleLayoutEngineTests {
         // Right natural = 6 + 20 = 26
         #expect(result.leftNaturalWidth == 56)
         #expect(result.rightNaturalWidth == 26)
-        #expect(result.symmetricSideWidth == 56)
-        #expect(result.totalExpansionWidth == 112)
+        #expect(result.leftSideWidth == 56)
+        #expect(result.rightSideWidth == 26)
+        #expect(result.totalExpansionWidth == 82) // 56 + 26
     }
 
     @Test
-    func `Right wider than left enforces symmetry`() {
+    func `Right wider than left uses independent widths`() {
         let modules: [any NotchModule] = [
             MockModule(id: "l1", side: .left, order: 0, width: 10),
             MockModule(id: "r1", side: .right, order: 0, width: 40),
@@ -225,12 +230,13 @@ struct ModuleLayoutEngineTests {
         // Right natural = 6 + 40 = 46
         #expect(result.leftNaturalWidth == 16)
         #expect(result.rightNaturalWidth == 46)
-        #expect(result.symmetricSideWidth == 46)
-        #expect(result.totalExpansionWidth == 92)
+        #expect(result.leftSideWidth == 16)
+        #expect(result.rightSideWidth == 46)
+        #expect(result.totalExpansionWidth == 62) // 16 + 46
     }
 
     @Test
-    func `Equal sides produce equal symmetric width`() {
+    func `Equal sides produce equal side widths`() {
         let modules: [any NotchModule] = [
             MockModule(id: "l1", side: .left, order: 0, width: 20),
             MockModule(id: "r1", side: .right, order: 0, width: 20),
@@ -242,8 +248,9 @@ struct ModuleLayoutEngineTests {
         )
 
         #expect(result.leftNaturalWidth == result.rightNaturalWidth)
-        #expect(result.symmetricSideWidth == 26) // 6 + 20
-        #expect(result.totalExpansionWidth == 52)
+        #expect(result.leftSideWidth == 26) // 6 + 20
+        #expect(result.rightSideWidth == 26) // 6 + 20
+        #expect(result.totalExpansionWidth == 52) // 26 + 26
     }
 
     // MARK: - Mixed visibility
