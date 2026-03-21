@@ -182,8 +182,6 @@ public enum ModuleLayoutEngine {
 
     // MARK: Private
 
-    // MARK: - Private helpers
-
     /// Computes layouts and natural width for one side.
     ///
     /// Natural width is `0` when there are no modules on this side.

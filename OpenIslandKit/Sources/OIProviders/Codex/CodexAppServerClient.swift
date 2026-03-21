@@ -4,7 +4,6 @@ import Synchronization
 
 // MARK: - CodexAppServerError
 
-/// Errors specific to the Codex app-server client.
 package enum CodexAppServerError: Error, Sendable {
     case processNotRunning
     case handshakeFailed(String)
@@ -17,14 +16,12 @@ package enum CodexAppServerError: Error, Sendable {
 
 // MARK: - PendingRequest
 
-/// A pending JSON-RPC request awaiting a response.
 private struct PendingRequest: Sendable {
     let continuation: CheckedContinuation<JSONRPCResponse, any Error>
 }
 
 // MARK: - ServerInitiatedRequest
 
-/// A server-initiated request (approval interception) awaiting a client response.
 package struct ServerInitiatedRequest: Sendable {
     package let id: JSONRPCRequestID
     package let method: String
@@ -33,16 +30,7 @@ package struct ServerInitiatedRequest: Sendable {
 
 // MARK: - CodexAppServerClient
 
-/// Actor managing the `codex app-server` child process lifecycle and JSON-RPC communication.
-///
-/// Responsibilities:
-/// - Spawning `codex app-server` as a child process
-/// - Writing JSON-RPC requests to the process's stdin (JSONL format)
-/// - Reading JSON-RPC messages from stdout (JSONL format)
-/// - Correlating request/response pairs via JSON-RPC IDs
-/// - Performing the initialize/initialized handshake
-/// - Forwarding server-initiated requests (approval interception) to the adapter
-/// - Forwarding notifications to the event stream
+/// Manages the `codex app-server` child process and JSON-RPC communication.
 package actor CodexAppServerClient {
     // MARK: Lifecycle
 
@@ -52,14 +40,11 @@ package actor CodexAppServerClient {
 
     // MARK: Package
 
-    /// Start the app-server process and perform the JSON-RPC handshake.
-    ///
-    /// - Throws: `CodexAppServerError` if the process fails to launch or handshake fails.
     package func start() async throws(CodexAppServerError) {
         guard self.process == nil else { return }
 
-        // Recreate streams so callers get fresh AsyncStreams after a restart.
-        // Previous streams may have been finished by handleProcessTermination() or stop().
+        // Recreate streams — previous ones may have been finished by
+        // handleProcessTermination() or stop().
         (self.notificationStream, self.notificationContinuation) =
             AsyncStream<JSONRPCNotification>.makeStream(bufferingPolicy: .bufferingOldest(256))
         (self.serverRequestStream, self.serverRequestContinuation) =
@@ -86,14 +71,12 @@ package actor CodexAppServerClient {
         self.stdinPipe = stdinPipe
         self.stdoutPipe = stdoutPipe
 
-        // Start the read loop for stdout JSONL
         self.generation += 1
         let currentGeneration = self.generation
         self.readLoopTask = Task { [weak self] in
             await self?.readLoop(from: stdoutPipe, generation: currentGeneration)
         }
 
-        // Perform initialize handshake
         do {
             try await self.performHandshake()
         } catch {
@@ -102,19 +85,16 @@ package actor CodexAppServerClient {
         }
     }
 
-    /// Stop the app-server process.
     package func stop() async {
-        // Cancel the read loop so a stale loop cannot call handleProcessTermination()
+        // Cancel first so a stale loop cannot call handleProcessTermination()
         self.readLoopTask?.cancel()
         self.readLoopTask = nil
 
-        // Cancel all pending requests
         for (_, pending) in self.pendingRequests {
             pending.continuation.resume(throwing: CodexAppServerError.processNotRunning)
         }
         self.pendingRequests.removeAll()
 
-        // Finish current streams so consumers see termination
         self.notificationContinuation.finish()
         self.serverRequestContinuation.finish()
 
@@ -128,12 +108,6 @@ package actor CodexAppServerClient {
         self.isInitialized = false
     }
 
-    /// Send a JSON-RPC request and await the response.
-    ///
-    /// - Parameters:
-    ///   - method: The Codex method to call.
-    ///   - params: Optional parameters.
-    /// - Returns: The server's JSON-RPC response.
     package func sendRequest(
         method: CodexClientMethod,
         params: JSONValue? = nil,
@@ -157,32 +131,23 @@ package actor CodexAppServerClient {
         }
     }
 
-    /// Send a JSON-RPC response to a server-initiated request (approval interception).
-    ///
-    /// - Parameters:
-    ///   - id: The request ID from the server-initiated request.
-    ///   - result: The result payload (e.g., approval decision).
     package func sendResponse(id: JSONRPCRequestID, result: JSONValue) throws {
         let response = JSONRPCResponse(id: id, result: result)
         try writeMessage(response)
     }
 
-    /// Stream of JSON-RPC notifications from the server.
     package func notifications() -> AsyncStream<JSONRPCNotification> {
         self.notificationStream
     }
 
-    /// Stream of server-initiated requests (approval interception).
     package func serverRequests() -> AsyncStream<ServerInitiatedRequest> {
         self.serverRequestStream
     }
 
-    /// Whether the handshake has completed and the client is ready.
     package func isReady() -> Bool {
         self.isInitialized && (self.process?.isRunning == true)
     }
 
-    /// Check if the underlying process is still running.
     package func isProcessAlive() -> Bool {
         self.process?.isRunning == true
     }
@@ -200,18 +165,14 @@ package actor CodexAppServerClient {
     private var readLoopTask: Task<Void, Never>?
     private var generation = 0
 
-    /// Pending requests awaiting responses, keyed by request ID.
     private var pendingRequests: [JSONRPCRequestID: PendingRequest] = [:]
 
-    /// Notification stream for server→client notifications.
-    /// Re-created on each `start()` so that `finish()` during process termination
-    /// does not permanently kill the stream for subsequent restarts.
+    /// Re-created on each start() — finish() during process termination
+    /// would permanently kill the stream for subsequent restarts.
     private var (notificationStream, notificationContinuation) =
         AsyncStream<JSONRPCNotification>.makeStream(bufferingPolicy: .bufferingOldest(256))
 
-    /// Stream for server-initiated requests (approval interception).
-    /// Re-created on each `start()` so that `finish()` during process termination
-    /// does not permanently kill the stream for subsequent restarts.
+    /// Re-created on each start() — same rationale as above.
     private var (serverRequestStream, serverRequestContinuation) =
         AsyncStream<ServerInitiatedRequest>.makeStream(bufferingPolicy: .bufferingOldest(32))
 
@@ -232,7 +193,6 @@ package actor CodexAppServerClient {
 
     // MARK: - Handshake
 
-    /// Perform the initialize/initialized handshake.
     private func performHandshake() async throws {
         let response = try await sendRequest(method: .initialize)
         if let error = response.error {
@@ -243,7 +203,6 @@ package actor CodexAppServerClient {
 
     // MARK: - Message Writing
 
-    /// Encode and write a JSON-RPC message to stdin as a single JSONL line.
     private func writeMessage(_ message: some Encodable) throws {
         guard let pipe = stdinPipe else {
             throw CodexAppServerError.stdinUnavailable
@@ -256,7 +215,6 @@ package actor CodexAppServerClient {
             throw CodexAppServerError.encodingFailed
         }
 
-        // Write as JSONL: JSON object followed by newline
         var lineData = data
         lineData.append(contentsOf: [UInt8(ascii: "\n")])
         pipe.fileHandleForWriting.write(lineData)
@@ -264,11 +222,8 @@ package actor CodexAppServerClient {
 
     // MARK: - Message Reading
 
-    /// Continuously read JSONL lines from stdout and dispatch them.
-    ///
-    /// This method is `nonisolated` so that the blocking `FileHandle.availableData` call
-    /// does not occupy the actor's serial executor — allowing `sendRequest`, `stop`, etc.
-    /// to run concurrently while waiting for stdout data.
+    /// `nonisolated` so blocking `FileHandle.availableData` doesn't occupy the
+    /// actor's serial executor — allows sendRequest/stop to run concurrently.
     nonisolated private func readLoop(from pipe: Pipe, generation: Int) async {
         let handle = pipe.fileHandleForReading
         let jsonDecoder = JSONDecoder()
@@ -276,14 +231,10 @@ package actor CodexAppServerClient {
 
         while !Task.isCancelled {
             let chunk = handle.availableData
-            if chunk.isEmpty {
-                // EOF — process terminated
-                break
-            }
+            if chunk.isEmpty { break }
 
             buffer.append(chunk)
 
-            // Process complete lines
             while let newlineIndex = buffer.firstIndex(of: UInt8(ascii: "\n")) {
                 let lineData = buffer[buffer.startIndex ..< newlineIndex]
                 buffer = Data(buffer[buffer.index(after: newlineIndex)...])
@@ -294,7 +245,6 @@ package actor CodexAppServerClient {
                     let message = try jsonDecoder.decode(JSONRPCMessage.self, from: Data(lineData))
                     await self.dispatch(message)
                 } catch {
-                    // Malformed JSONL line — skip
                     NSLog("[CodexAppServerClient] Failed to decode JSONL line: \(error)")
                 }
             }
@@ -307,7 +257,6 @@ package actor CodexAppServerClient {
         await self.handleProcessTermination(generation: generation)
     }
 
-    /// Dispatch a decoded JSON-RPC message to the appropriate handler.
     private func dispatch(_ message: JSONRPCMessage) {
         switch message {
         case let .response(response):
@@ -315,7 +264,6 @@ package actor CodexAppServerClient {
         case let .notification(notification):
             self.notificationContinuation.yield(notification)
         case let .request(request):
-            // Server-initiated request (approval interception)
             let yieldResult = self.serverRequestContinuation.yield(
                 ServerInitiatedRequest(
                     id: request.id,
@@ -341,7 +289,6 @@ package actor CodexAppServerClient {
         }
     }
 
-    /// Match a response to its pending request and resume the continuation.
     private func handleResponse(_ response: JSONRPCResponse) {
         guard let pending = pendingRequests.removeValue(forKey: response.id) else {
             NSLog("[CodexAppServerClient] Received response for unknown request ID: \(response.id)")
@@ -355,12 +302,7 @@ package actor CodexAppServerClient {
         }
     }
 
-    /// Handle process termination: clear process state, fail pending requests, finish streams.
-    ///
-    /// Clears `process` and pipes so that `start()` can relaunch the child process
-    /// without requiring an explicit `stop()` call first.
-    ///
-    /// The `generation` parameter ensures that a stale read loop (from a previous
+    /// The `generation` parameter ensures a stale read loop (from a previous
     /// start/stop cycle) does not corrupt the current client state.
     private func handleProcessTermination(generation: Int) {
         guard generation == self.generation else { return }

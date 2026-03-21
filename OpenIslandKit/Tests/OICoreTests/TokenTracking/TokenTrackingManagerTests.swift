@@ -101,10 +101,8 @@ struct TokenTrackingManagerTests {
         let manager = TokenTrackingManager()
         let now = Date.now
 
-        // Initial state
         manager.updateSession("old", usage: TokenUsageSnapshot(totalTokens: 100, timestamp: now))
 
-        // Bulk update with new sessions
         let sessions = [
             SessionTokenInfo(id: "new1", tokenUsage: TokenUsageSnapshot(totalTokens: 500, timestamp: now)),
             SessionTokenInfo(id: "new2", tokenUsage: TokenUsageSnapshot(totalTokens: 300, timestamp: now)),

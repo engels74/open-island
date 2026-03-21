@@ -23,7 +23,6 @@ struct TagUsageExampleTests {
 
     @Test(.tags(.claude, .socket))
     func `multiple tags on single test`() {
-        // Tests can carry multiple tags for cross-cutting filtering
         #expect(Bool(true))
     }
 }

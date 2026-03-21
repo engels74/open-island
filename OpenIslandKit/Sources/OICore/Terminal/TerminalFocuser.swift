@@ -1,3 +1,4 @@
+// @preconcurrency: NSRunningApplication predates Sendable annotations
 @preconcurrency import AppKit
 package import Darwin
 import Foundation
@@ -41,10 +42,8 @@ package enum TerminalFocuser {
             return false
         }
 
-        // Activate the terminal application.
         let activated = await activateApp(pid: ancestor.terminalPID)
 
-        // If tmux is in the ancestry, focus the correct pane.
         if ancestor.isTmuxSession {
             await self.focusTmuxPane(for: sessionPID)
         }
@@ -74,7 +73,6 @@ package enum TerminalFocuser {
 
         let target = "\(paneInfo.sessionName):\(paneInfo.windowIndex)"
 
-        // Select the window, then the pane.
         await self.runTmuxCommand(["select-window", "-t", target])
         await self.runTmuxCommand(["select-pane", "-t", "\(target).\(paneInfo.paneIndex)"])
     }
@@ -96,7 +94,6 @@ package enum TerminalFocuser {
             return nil
         }
 
-        // Build a lookup of pane PID → pane info.
         var paneMap = [pid_t: TmuxPaneInfo]()
         for line in output.split(separator: "\n") {
             let parts = line.split(separator: " ", maxSplits: 3)
@@ -114,13 +111,11 @@ package enum TerminalFocuser {
             )
         }
 
-        // Direct match first.
         if let info = paneMap[sessionPID] {
             return info
         }
 
-        // Walk up from sessionPID to find a pane PID in the map.
-        // The session PID may be a child process of the pane's shell.
+        // The session PID may be a child of the pane's shell, not the pane itself.
         var current = sessionPID
         var visited = Set<pid_t>()
         for _ in 0 ..< 20 {

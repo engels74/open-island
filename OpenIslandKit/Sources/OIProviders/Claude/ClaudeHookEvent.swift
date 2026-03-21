@@ -9,87 +9,36 @@ package import OICore
 package struct ClaudeHookEvent: Codable, Sendable {
     // MARK: Package
 
-    // MARK: - Common fields (present on all events)
-
-    /// The unique identifier for the Claude Code session.
     package let sessionID: String
-
-    /// Filesystem path to the session transcript, if available.
     package let transcriptPath: String?
-
-    /// Working directory of the Claude Code session.
     package let cwd: String?
-
-    /// The active permission mode (e.g. "default", "plan", "bypassPermissions").
     package let permissionMode: String?
-
-    /// The event type name (e.g. "PreToolUse", "SessionStart", "Stop").
     package let hookEventName: String
 
-    // MARK: - Tool-related fields (PreToolUse, PermissionRequest, PostToolUse)
-
-    /// Name of the tool being invoked.
     package let toolName: String?
-
-    /// Tool invocation input parameters.
     package let toolInput: JSONValue?
-
-    /// Unique identifier for this tool use.
     package let toolUseID: String?
 
-    // MARK: - PostToolUse / PostToolUseFailure fields
-
-    /// The result returned by the tool.
     package let toolResult: JSONValue?
-
-    /// Error information from a failed tool invocation.
     package let error: JSONValue?
 
-    // MARK: - SessionStart fields
-
-    /// Type of session start: "startup", "resume", "clear", "compact".
     package let sessionType: String?
 
-    // MARK: - Subagent fields
-
-    /// Task identifier for subagent events.
     package let taskID: String?
-
-    /// Context from the parent agent.
     package let parentContext: JSONValue?
 
-    // MARK: - Team event fields (TeammateIdle, TaskCompleted)
-
-    /// Session ID of the teammate/subagent that emitted the event.
     package let teammateSessionID: String?
-
-    /// Result or status from a completed task.
     package let taskResult: JSONValue?
 
-    // MARK: - PreCompact fields
-
-    /// Reason the context is being compacted.
     package let compactionReason: String?
-
-    /// Number of messages in the conversation before compaction.
     package let messageCount: Int?
 
-    // MARK: - Stop fields
-
-    /// The reason the session stopped (e.g. "interrupted", "end_turn").
     package let stopReason: String?
 
-    // MARK: - Notification fields
-
-    /// The type of notification (e.g. "info", "warning").
     package let notificationType: String?
-
-    /// Human-readable notification message.
     package let message: String?
 
     // MARK: Private
-
-    // MARK: - CodingKeys
 
     private enum CodingKeys: String, CodingKey {
         case sessionID = "session_id"

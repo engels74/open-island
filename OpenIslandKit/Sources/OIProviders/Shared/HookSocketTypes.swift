@@ -5,10 +5,8 @@ import Synchronization
 
 // MARK: - PermissionsState
 
-/// Mutable state for tracking pending permission connections.
 struct PermissionsState: Sendable {
-    /// Pending permission connections keyed by request ID.
-    /// Values are boxed to allow `~Copyable` PermissionConnection in a dictionary.
+    /// Boxed because `~Copyable` PermissionConnection can't be stored directly in a dictionary.
     var pending: [String: PermissionConnectionBox] = [:]
 
     mutating func insert(_ connection: consuming PermissionConnection, forID id: String) {
@@ -19,7 +17,6 @@ struct PermissionsState: Sendable {
         self.pending.removeValue(forKey: id)?.take()
     }
 
-    /// Remove all expired connections.
     mutating func removeExpired() {
         let expiredKeys = self.pending.keys.filter { self.pending[$0]?.isExpired == true }
         for key in expiredKeys {
@@ -30,7 +27,7 @@ struct PermissionsState: Sendable {
 
 // MARK: - PermissionConnectionBox
 
-/// Sendable box for `~Copyable` `PermissionConnection` to allow storage in a dictionary.
+/// Sendable box for `~Copyable` PermissionConnection to allow dictionary storage.
 final class PermissionConnectionBox: Sendable {
     // MARK: Lifecycle
 
@@ -49,7 +46,6 @@ final class PermissionConnectionBox: Sendable {
         self._connection.withLock { $0?.isExpired ?? true }
     }
 
-    /// Take ownership of the connection, leaving nil behind.
     func take() -> PermissionConnection? {
         self._connection.withLock { connection in
             guard let conn = connection.take() else { return nil }
@@ -64,7 +60,6 @@ final class PermissionConnectionBox: Sendable {
 
 // MARK: - SocketServerError
 
-/// Errors that can occur when starting the socket server.
 package enum SocketServerError: Error, Sendable {
     case socketCreationFailed(errno: Int32)
     case bindFailed(errno: Int32)

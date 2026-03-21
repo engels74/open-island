@@ -70,10 +70,8 @@ public struct ModuleLayoutConfig: Codable, Sendable, Equatable {
     public mutating func reconcile(with registeredModules: [any NotchModule]) {
         let registeredIDs = Set(registeredModules.map(\.id))
 
-        // Prune stale entries
         self.entries.removeAll { !registeredIDs.contains($0.moduleID) }
 
-        // Add new modules at their defaults
         let existingIDs = Set(entries.map(\.moduleID))
         for module in registeredModules where !existingIDs.contains(module.id) {
             entries.append(ModuleLayoutEntry(

@@ -10,10 +10,7 @@ import Synchronization
 /// layer provides a factory that returns a handle conforming to this protocol.
 @MainActor
 public protocol WindowControllerHandle: AnyObject {
-    /// Updates the window controller with new notch geometry.
     func updateGeometry(_ geometry: NotchGeometry)
-
-    /// Tears down the window and releases resources.
     func tearDown()
 }
 
@@ -32,12 +29,6 @@ public protocol WindowControllerHandle: AnyObject {
 public final class WindowManager {
     // MARK: Lifecycle
 
-    /// Creates a `WindowManager` with the given screen observer and window controller factory.
-    ///
-    /// - Parameters:
-    ///   - screenObserver: The observer that publishes screen geometry changes.
-    ///   - controllerFactory: A closure that creates a `WindowControllerHandle` for a given geometry.
-    ///     The OIUI layer provides this, typically wrapping `NotchWindowController`.
     public init(
         screenObserver: ScreenObserver,
         controllerFactory: @escaping @MainActor (NotchGeometry) -> any WindowControllerHandle,
@@ -55,21 +46,16 @@ public final class WindowManager {
 
     // MARK: Public
 
-    /// Whether the window is currently active (a notch screen is available and the controller is live).
     public var isActive: Bool {
         self.activeController != nil
     }
 
-    /// Sets up the initial window and begins observing screen changes.
-    ///
-    /// Call this once from the app delegate or SwiftUI `App.init`.
+    /// Call once from the app delegate or SwiftUI `App.init`.
     public func start() {
-        // Create window for the initial geometry, if available.
         if let geometry = self.screenObserver.geometry {
             self.createController(for: geometry)
         }
 
-        // Observe geometry changes from the screen observer.
         self.observationTask = Task { [weak self] in
             guard let self else { return }
             // withObservationTracking re-invokes the closure on each change.
@@ -123,7 +109,6 @@ public final class WindowManager {
         }
     }
 
-    /// Tears down the current window and stops observing.
     public func stop() {
         self.observationTask?.cancel()
         self.observationTask = nil

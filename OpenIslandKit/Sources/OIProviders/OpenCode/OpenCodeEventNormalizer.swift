@@ -4,16 +4,9 @@ package import OICore
 // MARK: - OpenCodeEventNormalizer
 
 /// Maps OpenCode SSE events to normalized ``ProviderEvent`` values.
-///
-/// This is a namespace enum with static methods — it holds no state.
-/// OpenCode emits 30+ event types; we map the subset relevant to Open Island
-/// and silently ignore the rest.
 package enum OpenCodeEventNormalizer {
     // MARK: Package
 
-    /// Normalize an SSE event into zero or more ``ProviderEvent`` values.
-    ///
-    /// Returns an empty array for unknown or unmapped event types.
     package static func normalize(_ sseEvent: SSEEvent) -> [ProviderEvent] {
         guard let eventType = sseEvent.event,
               let json = parseJSON(sseEvent.data)
@@ -28,7 +21,6 @@ package enum OpenCodeEventNormalizer {
 
     // MARK: - Event Dispatch
 
-    /// Route an event type string to the appropriate normalizer.
     private static func dispatch(eventType: String, json: [String: Any]) -> [ProviderEvent] {
         if let events = dispatchSessionEvent(eventType: eventType, json: json) {
             return events
@@ -113,7 +105,6 @@ package enum OpenCodeEventNormalizer {
             ?? json["message"] as? String
             ?? "Unknown error"
 
-        // Detect abort/interrupt patterns in error messages
         let lowered = message.lowercased()
         if lowered.contains("abort") || lowered.contains("interrupt") || lowered.contains("cancelled") {
             return [.interruptDetected(sessionID), .waitingForInput(sessionID), .notification(sessionID, message: message)]
@@ -298,7 +289,6 @@ package enum OpenCodeEventNormalizer {
         }
     }
 
-    /// Convert an arbitrary `Any?` value from `JSONSerialization` into a ``JSONValue``.
     private static func convertToJSONValue(_ value: Any?) -> JSONValue? {
         guard let value else { return nil }
 

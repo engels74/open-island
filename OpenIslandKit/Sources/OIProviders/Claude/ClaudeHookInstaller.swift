@@ -3,12 +3,6 @@ package import Foundation
 // MARK: - ClaudeHookInstaller
 
 /// Installs and manages the Open Island hook script for Claude Code.
-///
-/// The installer:
-/// 1. Detects (or accepts) a hook runtime via ``HookRuntimeDetector``
-/// 2. Copies the bundled `open-island-claude-hook.py` to `~/.claude/hooks/`
-/// 3. Registers hook commands in `~/.claude/settings.json` for all 17 event types
-/// 4. Supports deduplication, uninstallation, and status checking
 package struct ClaudeHookInstaller: Sendable {
     // MARK: Package
 
@@ -27,16 +21,8 @@ package struct ClaudeHookInstaller: Sendable {
         "Setup",
     ]
 
-    /// The hook script filename.
     package static let hookScriptName = "open-island-claude-hook.py"
 
-    /// Install hooks for Claude Code.
-    ///
-    /// - Parameter hookCommand: Explicit hook command override.
-    ///   If `nil`, ``HookRuntimeDetector/detect()`` is used.
-    /// - Parameter claudeConfigDir: Override for the Claude config directory.
-    ///   Defaults to `~/.claude`.
-    /// - Parameter bundledScriptURL: Override for the bundled script location (for testing).
     package static func install(
         hookCommand: HookCommand? = nil,
         claudeConfigDir: URL? = nil,
@@ -44,7 +30,6 @@ package struct ClaudeHookInstaller: Sendable {
     ) async throws(HookInstallError) {
         try Task.checkCancellation()
 
-        // 1. Resolve hook command
         let resolvedCommand = if let hookCommand {
             hookCommand
         } else {
@@ -53,35 +38,27 @@ package struct ClaudeHookInstaller: Sendable {
 
         let configDir = claudeConfigDir ?? self.defaultClaudeConfigDir()
 
-        // 2. Create hooks directory
         let hooksDir = configDir.appendingPathComponent("hooks", isDirectory: true)
         try self.createDirectoryIfNeeded(at: hooksDir)
 
         try Task.checkCancellation()
 
-        // 3. Copy bundled script
         let scriptSource = try resolveBundledScript(override: bundledScriptURL)
         let scriptDest = hooksDir.appendingPathComponent(Self.hookScriptName)
         try self.copyScript(from: scriptSource, to: scriptDest)
 
         try Task.checkCancellation()
 
-        // 4. Update settings.json
         let settingsURL = configDir.appendingPathComponent("settings.json")
         let command = resolvedCommand.commandString(scriptPath: scriptDest.path)
         try self.updateSettings(at: settingsURL, command: command)
     }
 
-    /// Remove all Open Island hooks from Claude Code.
-    ///
-    /// - Parameter claudeConfigDir: Override for the Claude config directory.
-    ///   Defaults to `~/.claude`.
     package static func uninstall(
         claudeConfigDir: URL? = nil,
     ) async throws(HookInstallError) {
         let configDir = claudeConfigDir ?? self.defaultClaudeConfigDir()
 
-        // 1. Remove hook script
         let scriptPath = configDir
             .appendingPathComponent("hooks", isDirectory: true)
             .appendingPathComponent(Self.hookScriptName)
@@ -94,23 +71,15 @@ package struct ClaudeHookInstaller: Sendable {
             }
         }
 
-        // 2. Remove entries from settings.json
         let settingsURL = configDir.appendingPathComponent("settings.json")
         try self.removeHooksFromSettings(at: settingsURL)
     }
 
-    /// Check whether Open Island hooks are currently installed.
-    ///
-    /// - Parameter claudeConfigDir: Override for the Claude config directory.
-    ///   Defaults to `~/.claude`.
-    /// - Returns: `true` if the hook script exists and settings.json contains
-    ///   at least one Open Island hook entry.
     package static func isInstalled(
         claudeConfigDir: URL? = nil,
     ) -> Bool {
         let configDir = claudeConfigDir ?? self.defaultClaudeConfigDir()
 
-        // Check script exists
         let scriptPath = configDir
             .appendingPathComponent("hooks", isDirectory: true)
             .appendingPathComponent(Self.hookScriptName)
@@ -119,7 +88,6 @@ package struct ClaudeHookInstaller: Sendable {
             return false
         }
 
-        // Check settings.json has our hooks
         let settingsURL = configDir.appendingPathComponent("settings.json")
         guard let data = try? Data(contentsOf: settingsURL),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -128,7 +96,6 @@ package struct ClaudeHookInstaller: Sendable {
             return false
         }
 
-        // Look for at least one event with our hook script inside nested hooks arrays
         for (_, value) in hooks {
             guard let entries = value as? [[String: Any]] else { continue }
             for matcherGroup in entries {
@@ -146,8 +113,6 @@ package struct ClaudeHookInstaller: Sendable {
     }
 
     // MARK: Private
-
-    // MARK: - Private helpers
 
     private static func defaultClaudeConfigDir() -> URL {
         FileManager.default.homeDirectoryForCurrentUser
@@ -173,14 +138,12 @@ package struct ClaudeHookInstaller: Sendable {
             return override
         }
 
-        // Look in Bundle.module (SwiftPM resource bundle)
         guard let url = Bundle.module.url(
             forResource: "open-island-claude-hook",
             withExtension: "py",
             subdirectory: "Hooks/Claude",
         )
         else {
-            // Fallback: look in the bundle root
             guard let url = Bundle.module.url(
                 forResource: "open-island-claude-hook",
                 withExtension: "py",
@@ -204,14 +167,12 @@ package struct ClaudeHookInstaller: Sendable {
         }
     }
 
-    /// Read, modify, and write back `settings.json` with our hook commands.
     private static func updateSettings(
         at settingsURL: URL,
         command: String,
     ) throws(HookInstallError) {
         var root = try readSettingsJSON(at: settingsURL)
 
-        // Get or create the "hooks" dictionary
         var hooks = root["hooks"] as? [String: Any] ?? [:]
 
         let hookEntry: [String: Any] = ["type": "command", "command": command]
@@ -219,7 +180,6 @@ package struct ClaudeHookInstaller: Sendable {
         for eventType in self.allHookEventTypes {
             var entries = hooks[eventType] as? [[String: Any]] ?? []
 
-            // Deduplication: find existing matcher group containing our hook script
             if let existingIndex = entries.firstIndex(where: { matcherGroup in
                 guard let groupHooks = matcherGroup["hooks"] as? [[String: Any]] else { return false }
                 return groupHooks.contains { hook in
@@ -227,11 +187,9 @@ package struct ClaudeHookInstaller: Sendable {
                     return cmd.contains(Self.hookScriptName)
                 }
             }) {
-                // Update the matcher group's hooks array with our new command
                 var matcherGroup = entries[existingIndex]
                 var groupHooks = matcherGroup["hooks"] as? [[String: Any]] ?? []
 
-                // Replace our hook entry within the group (preserve other hooks in same group)
                 if let hookIndex = groupHooks.firstIndex(where: { hook in
                     guard let cmd = hook["command"] as? String else { return false }
                     return cmd.contains(Self.hookScriptName)
@@ -244,7 +202,6 @@ package struct ClaudeHookInstaller: Sendable {
                 matcherGroup["hooks"] = groupHooks
                 entries[existingIndex] = matcherGroup
             } else {
-                // Append new matcher group
                 entries.append(["matcher": "", "hooks": [hookEntry]])
             }
 
@@ -255,7 +212,6 @@ package struct ClaudeHookInstaller: Sendable {
         try self.writeSettingsJSON(root, to: settingsURL)
     }
 
-    /// Remove all Open Island hook entries from settings.json.
     private static func removeHooksFromSettings(
         at settingsURL: URL,
     ) throws(HookInstallError) {
@@ -268,9 +224,7 @@ package struct ClaudeHookInstaller: Sendable {
         for eventType in self.allHookEventTypes {
             guard var entries = hooks[eventType] as? [[String: Any]] else { continue }
 
-            // Process each entry: remove legacy flat entries and clean matcher groups
             entries = entries.compactMap { matcherGroup in
-                // Legacy flat entry (no "hooks" key): remove if it references our script
                 guard var groupHooks = matcherGroup["hooks"] as? [[String: Any]] else {
                     if let cmd = matcherGroup["command"] as? String,
                        cmd.contains(Self.hookScriptName) {
@@ -284,7 +238,6 @@ package struct ClaudeHookInstaller: Sendable {
                     return cmd.contains(Self.hookScriptName)
                 }
 
-                // If no hooks remain in this matcher group, remove the entire group
                 if groupHooks.isEmpty {
                     return nil
                 }
@@ -310,7 +263,6 @@ package struct ClaudeHookInstaller: Sendable {
         try self.writeSettingsJSON(root, to: settingsURL)
     }
 
-    /// Read and parse settings.json, returning an empty dictionary if the file doesn't exist.
     private static func readSettingsJSON(
         at url: URL,
     ) throws(HookInstallError) -> [String: Any] {
@@ -325,7 +277,6 @@ package struct ClaudeHookInstaller: Sendable {
             throw .writePermissionDenied(path: url.path)
         }
 
-        // Empty file is treated as empty object
         if data.isEmpty {
             return [:]
         }
@@ -342,7 +293,6 @@ package struct ClaudeHookInstaller: Sendable {
         }
     }
 
-    /// Write a JSON dictionary back to settings.json with pretty-printing.
     private static func writeSettingsJSON(
         _ json: [String: Any],
         to url: URL,

@@ -4,22 +4,9 @@ package import OICore
 // MARK: - CodexEventNormalizer
 
 /// Maps Codex JSON-RPC notifications and server-initiated requests to normalized ``ProviderEvent`` values.
-///
-/// This is a namespace enum with static methods — it holds no state.
-/// The normalizer handles two input types:
-/// - ``JSONRPCNotification``: server→client notifications (turn lifecycle, item events, streaming deltas)
-/// - ``ServerInitiatedRequest``: server→client requests requiring a response (approval interception)
 package enum CodexEventNormalizer {
     // MARK: Package
 
-    /// Normalize a JSON-RPC notification into a ``ProviderEvent``.
-    ///
-    /// Returns `nil` for notifications that have no meaningful ``ProviderEvent`` equivalent.
-    ///
-    /// - Parameters:
-    ///   - notification: The JSON-RPC notification from the app-server.
-    ///   - sessionID: The current session identifier.
-    /// - Throws: ``EventNormalizationError`` for unknown methods or malformed payloads.
     package static func normalize(
         _ notification: JSONRPCNotification,
         sessionID: SessionID,
@@ -60,12 +47,6 @@ package enum CodexEventNormalizer {
         }
     }
 
-    /// Normalize a server-initiated request (approval interception) into a ``ProviderEvent``.
-    ///
-    /// - Parameters:
-    ///   - request: The server-initiated request from the app-server.
-    ///   - sessionID: The current session identifier.
-    /// - Throws: ``EventNormalizationError`` for unknown methods or malformed payloads.
     package static func normalizeServerRequest(
         _ request: ServerInitiatedRequest,
         sessionID: SessionID,
@@ -101,7 +82,6 @@ package enum CodexEventNormalizer {
     ) -> [ProviderEvent] {
         var events: [ProviderEvent] = []
 
-        // Extract token usage if available
         if let params {
             let promptTokens = self.extractInt(params, key: "prompt_tokens")
             let completionTokens = self.extractInt(params, key: "completion_tokens")
@@ -117,7 +97,6 @@ package enum CodexEventNormalizer {
             }
         }
 
-        // Check if the turn was interrupted
         let status = self.extractString(params, key: "status")
         if status == CodexTurnStatus.interrupted.rawValue {
             events.append(.interruptDetected(sessionID))
@@ -255,7 +234,6 @@ package enum CodexEventNormalizer {
         let path = self.extractString(params, key: "path")
         let kind = self.extractString(params, key: "kind")
 
-        // Encode path and kind as tool input
         var inputDict: [String: JSONValue] = [:]
         if let path { inputDict["path"] = .string(path) }
         if let kind { inputDict["kind"] = .string(kind) }
@@ -320,7 +298,6 @@ package enum CodexEventNormalizer {
         return dict[key]
     }
 
-    /// Overload for extracting from a non-optional JSONValue.
     private static func extractInt(_ value: JSONValue, key: String) -> Int? {
         switch value {
         case let .object(dict):

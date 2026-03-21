@@ -12,10 +12,6 @@ import Synchronization
 package enum UserPATH {
     // MARK: Package
 
-    /// Resolve a binary name to an absolute path using `/usr/bin/which`
-    /// with an augmented PATH that includes well-known user directories.
-    ///
-    /// The augmented PATH is computed once and cached for the process lifetime.
     package static func resolveInPATH(_ name: String) -> String? {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/which")
@@ -45,10 +41,8 @@ package enum UserPATH {
 
     // MARK: Private
 
-    /// Cached augmented PATH string, computed once.
     private static let cachedPATH = Mutex<String?>(nil)
 
-    /// Returns the cached augmented PATH, building it on first access.
     private static func augmentedPATH() -> String {
         self.cachedPATH.withLock { cached in
             if let existing = cached {
@@ -60,23 +54,15 @@ package enum UserPATH {
         }
     }
 
-    /// Build the augmented PATH by combining the current process PATH
-    /// with well-known user binary directories.
-    ///
-    /// All candidate directories are included regardless of whether they
-    /// currently exist on disk. `/usr/bin/which` silently skips non-existent
-    /// PATH entries, so this is safe and ensures the cached result remains
-    /// valid even if directories are created later (e.g. after a tool install).
+    /// Includes non-existent directories: `which` silently skips them, and
+    /// this ensures tools installed after cache creation are still found.
     private static func buildAugmentedPATH() -> String {
         let currentPATH = ProcessInfo.processInfo.environment["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin"
         let existingDirs = Set(currentPATH.split(separator: ":").map(String.init))
 
         let home = FileManager.default.homeDirectoryForCurrentUser.path
 
-        // Well-known directories where user-installed binaries live.
-        // Prepended before the process PATH so user-installed tools
-        // (claude, codex, etc.) take priority over any system copies.
-        // Within this list, earlier entries have higher priority.
+        // Prepended so user-installed tools take priority over system copies.
         let candidates = [
             "\(home)/.local/bin", // claude, pip-installed tools
             "/opt/homebrew/bin", // Homebrew (Apple Silicon)
@@ -87,8 +73,6 @@ package enum UserPATH {
             "\(home)/.bun/bin", // Bun
         ]
 
-        // Include all candidates not already in PATH — even non-existent
-        // directories — so that tools installed after cache creation are found.
         var components: [String] = []
         for candidate in candidates where !existingDirs.contains(candidate) {
             components.append(candidate)

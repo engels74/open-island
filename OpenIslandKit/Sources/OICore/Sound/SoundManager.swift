@@ -1,3 +1,4 @@
+// @preconcurrency: NSSound predates Sendable annotations
 @preconcurrency import AppKit
 public import Foundation
 
@@ -40,13 +41,11 @@ public final class SoundManager {
 
         let now = ContinuousClock.now
 
-        // Global rate limit
         if let lastGlobal = lastPlayedAt,
            now - lastGlobal < .seconds(globalCooldown) {
             return
         }
 
-        // Per-session cooldown
         if let lastSession = sessionLastPlayed[sessionID],
            now - lastSession < .seconds(sessionCooldown) {
             return

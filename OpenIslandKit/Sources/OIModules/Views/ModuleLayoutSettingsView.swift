@@ -96,7 +96,6 @@ package struct ModuleLayoutSettingsView: View {
         let isTargeted = self.dropTargetPlacement == placement
 
         VStack(spacing: 0) {
-            // Column header
             Label(placement.title, systemImage: placement.systemImage)
                 .font(.system(size: 10, weight: .medium))
                 .foregroundStyle(.white.opacity(0.5))
@@ -106,7 +105,6 @@ package struct ModuleLayoutSettingsView: View {
             Divider()
                 .background(Color.white.opacity(0.08))
 
-            // Module list or empty state
             VStack(spacing: 3) {
                 if modules.isEmpty {
                     self.emptyState(for: placement)
@@ -243,7 +241,6 @@ package struct ModuleLayoutSettingsView: View {
     ModuleLayoutSettingsView(registry: {
         let registry = ModuleRegistry()
 
-        // Create simple preview modules
         struct PreviewModule: NotchModule {
             let id: String
             let defaultSide: ModuleSide

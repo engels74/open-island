@@ -24,7 +24,6 @@ package struct TokenRingsOverlay: View {
 
     package var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Header
             HStack {
                 Image(systemName: "chart.bar.fill")
                     .font(.system(size: 12))
@@ -34,7 +33,6 @@ package struct TokenRingsOverlay: View {
             }
             .foregroundStyle(.white.opacity(0.9))
 
-            // Weekly aggregate
             HStack {
                 Text("Total")
                     .font(.system(size: 11, weight: .medium))
@@ -45,7 +43,6 @@ package struct TokenRingsOverlay: View {
                     .foregroundStyle(.white.opacity(0.9))
             }
 
-            // Quota bar (if available)
             if let quota = self.quotaPercentage {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {
@@ -71,7 +68,6 @@ package struct TokenRingsOverlay: View {
                 }
             }
 
-            // Per-session breakdown
             if !self.sessionTokens.isEmpty {
                 Divider()
                     .overlay(.white.opacity(0.1))

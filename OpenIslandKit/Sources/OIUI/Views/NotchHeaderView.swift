@@ -114,11 +114,9 @@ package struct NotchHeaderView: View {
                     alignment: .leading,
                 )
 
-            // Notch spacer — fills the device notch width in the center
             Spacer(minLength: 0)
                 .frame(width: self.viewModel.geometry.deviceNotchRect.width)
 
-            // Right-side modules — mirrored symmetric width.
             // Bounce: offset outward when the activity coordinator signals a bounce.
             self.closedModuleRow(modules: self.closedRightModules, side: .right)
                 .frame(
@@ -161,7 +159,6 @@ package struct NotchHeaderView: View {
     @ViewBuilder private var leadingControls: some View {
         switch self.viewModel.contentType {
         case .instances:
-            // Close button — chevron down to dismiss
             Button {
                 self.viewModel.notchClose()
             } label: {
@@ -176,7 +173,6 @@ package struct NotchHeaderView: View {
             .accessibilityHint("Collapses the Open Island panel")
         case .chat,
              .menu:
-            // Back button — returns to instances
             Button {
                 self.viewModel.switchContent(.instances)
             } label: {
@@ -201,14 +197,12 @@ package struct NotchHeaderView: View {
 
     private var trailingControls: some View {
         HStack(spacing: 8) {
-            // Expanded-header modules (if any)
             ForEach(self.expandedHeaderModules, id: \.id) { module in
                 module.makeBody(context: self.renderContext)
             }
 
             self.activityIndicator
 
-            // Settings button
             Button {
                 self.viewModel.switchContent(.menu)
             } label: {

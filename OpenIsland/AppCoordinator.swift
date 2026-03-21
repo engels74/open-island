@@ -29,7 +29,6 @@ final class AppCoordinator {
         self.soundManager = SoundManager()
         self.moduleRegistry = ModuleRegistry()
 
-        // Register built-in modules.
         self.moduleRegistry.register(MascotModule())
         self.moduleRegistry.register(ActivitySpinnerModule())
         self.moduleRegistry.register(SessionDotsModule())
@@ -37,7 +36,6 @@ final class AppCoordinator {
         self.moduleRegistry.register(ReadyCheckmarkModule())
         self.moduleRegistry.register(TimerModule())
 
-        // SessionMonitor bridges the actor-based store to @Observable.
         self.sessionMonitor = SessionMonitor(store: self.sessionStore)
 
         // NotchViewModel requires geometry — use current or a zero-rect fallback

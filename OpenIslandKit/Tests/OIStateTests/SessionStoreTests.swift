@@ -201,11 +201,9 @@ struct SessionStoreTests {
         let registry = ProviderRegistry()
         await registry.register(mock)
 
-        // Directly call checkZombieSessions by starting health check and giving it time
-        // Instead, call the internal method path via startHealthCheck
         await store.startHealthCheck(registry: registry)
 
-        // Wait for the health check to fire (it runs every 3s, with a sleep first)
+        // Health check fires every 3s; wait long enough for it to run
         try await Task.sleep(for: .seconds(4))
 
         await store.stopHealthCheck()
@@ -246,7 +244,6 @@ struct SessionStoreTests {
         #expect(session != nil)
         #expect(session?.phase == .idle)
 
-        // The store should still process events correctly after wrap
         await store.process(.providerEvent(.processingStarted("s1")))
         let updated = await store.session(for: "s1")
         #expect(updated?.phase == .processing)
@@ -258,7 +255,6 @@ struct SessionStoreTests {
     func `concurrent events do not cause data corruption`() async {
         let store = SessionStore()
 
-        // Fire multiple sessionStarted events concurrently
         await withTaskGroup(of: Void.self) { group in
             for i in 0 ..< 20 {
                 group.addTask {
@@ -272,7 +268,6 @@ struct SessionStoreTests {
         let sessions = await store.currentSessions
         #expect(sessions.count == 20)
 
-        // All sessions should be in .idle
         for session in sessions {
             #expect(session.phase == .idle)
         }
@@ -282,7 +277,6 @@ struct SessionStoreTests {
     func `concurrent transitions on the same session are serialized`() async {
         let store = await storeWithSession()
 
-        // Fire processingStarted concurrently from multiple tasks
         await withTaskGroup(of: Void.self) { group in
             for _ in 0 ..< 10 {
                 group.addTask {
@@ -291,7 +285,6 @@ struct SessionStoreTests {
             }
         }
 
-        // After all, the session should be in .processing (no crashes)
         let session = await store.session(for: "s1")
         #expect(session?.phase == .processing)
     }

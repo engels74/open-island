@@ -4,10 +4,7 @@ import Synchronization
 
 /// Metadata for a known terminal application.
 package struct TerminalAppInfo: Sendable, Hashable {
-    /// The application's bundle identifier.
     package let bundleID: String
-
-    /// Human-readable display name.
     package let displayName: String
 }
 

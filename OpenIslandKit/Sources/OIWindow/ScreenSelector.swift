@@ -12,7 +12,6 @@ public struct ScreenIdentifier: Sendable, Equatable, Hashable, Codable {
         self.displayID = displayID
     }
 
-    /// Creates a `ScreenIdentifier` from an `NSScreen`, if the screen has a valid display ID.
     public init?(screen: NSScreen) {
         guard let id = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID else {
             return nil
@@ -22,10 +21,8 @@ public struct ScreenIdentifier: Sendable, Equatable, Hashable, Codable {
 
     // MARK: Public
 
-    /// The underlying Core Graphics display ID.
     public let displayID: UInt32
 
-    /// Resolves this identifier to a currently connected `NSScreen`, or `nil` if disconnected.
     @MainActor
     public func resolve() -> NSScreen? {
         NSScreen.screens.first { screen in
@@ -44,33 +41,24 @@ public struct ScreenIdentifier: Sendable, Equatable, Hashable, Codable {
 /// - `specific`: Uses a user-chosen screen identified by `ScreenIdentifier`.
 ///   Falls back to automatic if the selected screen is no longer connected.
 public enum ScreenSelector: Sendable, Equatable {
-    /// Automatically select the built-in display.
     case automatic
-
-    /// A user-selected screen, persisted as a `ScreenIdentifier`.
     case specific(ScreenIdentifier)
 
     // MARK: Public
 
-    /// Resolves the selector to a currently connected `NSScreen` with a notch.
-    ///
-    /// Returns `nil` when no suitable screen is available.
     @MainActor
     public func resolveScreen() -> NSScreen? {
         switch self {
         case .automatic:
-            // Prefer the built-in display if it has a notch.
             guard let builtin = NSScreen.builtin, builtin.hasPhysicalNotch else {
                 return nil
             }
             return builtin
 
         case let .specific(identifier):
-            // Try the user-selected screen first.
             if let screen = identifier.resolve(), screen.notchSize != nil {
                 return screen
             }
-            // Fall back to automatic if the selected screen is gone or has no notch.
             return Self.automatic.resolveScreen()
         }
     }

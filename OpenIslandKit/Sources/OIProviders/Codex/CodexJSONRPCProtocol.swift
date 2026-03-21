@@ -3,7 +3,6 @@ package import OICore
 
 // MARK: - JSONRPCRequestID
 
-/// A JSON-RPC 2.0 request identifier. Can be a string or integer per the spec.
 package enum JSONRPCRequestID: Sendable, Hashable, Codable {
     case string(String)
     case int(Int)
@@ -44,7 +43,6 @@ package enum JSONRPCRequestID: Sendable, Hashable, Codable {
 
 // MARK: - JSONRPCError
 
-/// A JSON-RPC 2.0 error object.
 package struct JSONRPCError: Sendable, Codable {
     // MARK: Lifecycle
 
@@ -73,7 +71,6 @@ package enum JSONRPCErrorCode {
 
 // MARK: - JSONRPCRequest
 
-/// A JSON-RPC 2.0 request message (client → server or server → client).
 package struct JSONRPCRequest: Sendable, Codable {
     // MARK: Lifecycle
 
@@ -94,7 +91,6 @@ package struct JSONRPCRequest: Sendable, Codable {
 
 // MARK: - JSONRPCResponse
 
-/// A JSON-RPC 2.0 response message.
 package struct JSONRPCResponse: Sendable, Codable {
     // MARK: Lifecycle
 
@@ -122,7 +118,6 @@ package struct JSONRPCResponse: Sendable, Codable {
 
 // MARK: - JSONRPCNotification
 
-/// A JSON-RPC 2.0 notification message (no `id` field, no response expected).
 package struct JSONRPCNotification: Sendable, Codable {
     // MARK: Lifecycle
 
@@ -197,7 +192,6 @@ extension JSONRPCMessage: Codable {
 
 // MARK: - CodexClientMethod
 
-/// Methods the client can call on the Codex app-server.
 package enum CodexClientMethod: String, Sendable {
     case initialize
     case threadStart = "thread/start"
@@ -211,7 +205,6 @@ package enum CodexClientMethod: String, Sendable {
 
 // MARK: - CodexServerNotification
 
-/// Notification methods sent by the Codex app-server to the client.
 package enum CodexServerNotification: String, Sendable {
     // Turn lifecycle
     case turnStarted = "turn/started"
@@ -231,7 +224,6 @@ package enum CodexServerNotification: String, Sendable {
 
 // MARK: - CodexServerRequest
 
-/// Request methods sent by the Codex app-server to the client (approval interception).
 package enum CodexServerRequest: String, Sendable {
     case commandExecutionRequestApproval = "item/commandExecution/requestApproval"
     case fileChangeRequestApproval = "item/fileChange/requestApproval"
@@ -239,10 +231,6 @@ package enum CodexServerRequest: String, Sendable {
 
 // MARK: - CodexThreadItemType
 
-/// The type tag for items within a Codex conversation thread.
-///
-/// Each item in the thread has a `type` field that identifies the content kind.
-/// The app-server sends `item/started` and `item/completed` events for each.
 package enum CodexThreadItemType: String, Sendable, Codable {
     case userMessage
     case agentMessage
@@ -259,80 +247,33 @@ package enum CodexThreadItemType: String, Sendable, Codable {
 
 // MARK: - CodexThreadItem
 
-/// A single item in a Codex conversation thread.
-///
-/// This is the tagged union — the `type` field determines which optional
-/// fields are populated.
+/// Tagged union — the `type` field determines which optional fields are populated.
 package struct CodexThreadItem: Sendable, Codable {
     // MARK: Package
 
-    /// The item type tag.
     package let type: CodexThreadItemType
-
-    /// Server-assigned unique identifier for this item.
     package let itemID: String?
 
-    // MARK: - userMessage / agentMessage fields
-
-    /// Text content for userMessage or agentMessage items.
     package let text: String?
-
-    // MARK: - reasoning fields
-
-    /// Summary text for reasoning items.
     package let summaryText: String?
 
-    // MARK: - commandExecution fields
-
-    /// The shell command string.
     package let command: String?
-
-    /// Working directory for the command.
     package let cwd: String?
-
-    /// Execution status (e.g., "running", "completed", "failed").
     package let status: String?
-
-    /// Process exit code.
     package let exitCode: Int?
-
-    /// Execution duration in milliseconds.
     package let durationMs: Int?
-
-    /// Stdout/stderr output from command execution.
     package let output: String?
 
-    // MARK: - fileChange fields
-
-    /// File path for fileChange items.
     package let path: String?
-
-    /// Kind of change (e.g., "create", "modify", "delete").
     package let kind: String?
-
-    /// Unified diff content for the file change.
     package let diff: String?
 
-    // MARK: - mcpToolCall fields
-
-    /// MCP server name.
     package let server: String?
-
-    /// MCP tool name.
     package let tool: String?
-
-    /// MCP tool arguments.
     package let arguments: JSONValue?
-
-    /// MCP tool result.
     package let result: JSONValue?
 
-    // MARK: - collabToolCall fields
-
-    /// Task identifier for subagent/collab items.
     package let taskID: String?
-
-    /// Parent tool use ID that spawned this collab call.
     package let parentToolID: String?
 
     // MARK: Private
@@ -362,7 +303,6 @@ package struct CodexThreadItem: Sendable, Codable {
 
 // MARK: - CodexTurnStatus
 
-/// Status of a completed turn.
 package enum CodexTurnStatus: String, Sendable, Codable {
     case completed
     case interrupted
@@ -371,7 +311,6 @@ package enum CodexTurnStatus: String, Sendable, Codable {
 
 // MARK: - CodexTurnCompletedParams
 
-/// Parameters for the `turn/completed` notification.
 package struct CodexTurnCompletedParams: Sendable, Codable {
     // MARK: Package
 
@@ -392,7 +331,6 @@ package struct CodexTurnCompletedParams: Sendable, Codable {
 
 // MARK: - CodexCommandApprovalParams
 
-/// Parameters for `item/commandExecution/requestApproval`.
 package struct CodexCommandApprovalParams: Sendable, Codable {
     // MARK: Package
 
@@ -413,7 +351,6 @@ package struct CodexCommandApprovalParams: Sendable, Codable {
 
 // MARK: - CodexFileChangeApprovalParams
 
-/// Parameters for `item/fileChange/requestApproval`.
 package struct CodexFileChangeApprovalParams: Sendable, Codable {
     // MARK: Package
 
@@ -434,7 +371,6 @@ package struct CodexFileChangeApprovalParams: Sendable, Codable {
 
 // MARK: - CodexApprovalDecision
 
-/// Decision sent back to the server for an approval request.
 package enum CodexApprovalDecision: String, Sendable, Codable {
     case accept
     case decline
@@ -442,7 +378,6 @@ package enum CodexApprovalDecision: String, Sendable, Codable {
 
 // MARK: - CodexApprovalResponse
 
-/// Response payload for approval requests.
 package struct CodexApprovalResponse: Sendable, Codable {
     // MARK: Lifecycle
 
@@ -457,19 +392,14 @@ package struct CodexApprovalResponse: Sendable, Codable {
 
 // MARK: - CodexApprovalPolicy
 
-/// The approval policy controlling when the server requests approval.
 package enum CodexApprovalPolicy: String, Sendable, Codable {
-    /// Ask for approval on every action.
     case untrusted
-    /// Ask only for risky actions.
     case onRequest = "on-request"
-    /// Never ask — auto-approve everything.
     case never
 }
 
 // MARK: - CodexSandboxMode
 
-/// macOS Seatbelt sandbox configuration for Codex.
 package enum CodexSandboxMode: String, Sendable, Codable {
     case readOnly = "read-only"
     case workspaceWrite = "workspace-write"
@@ -478,7 +408,6 @@ package enum CodexSandboxMode: String, Sendable, Codable {
 
 // MARK: - CodexExecEventType
 
-/// Event types emitted by `codex exec --json` on stdout.
 package enum CodexExecEventType: String, Sendable, Codable {
     case threadStarted = "thread.started"
     case turnStarted = "turn.started"
@@ -489,7 +418,6 @@ package enum CodexExecEventType: String, Sendable, Codable {
 
 // MARK: - CodexExecEvent
 
-/// A single event from `codex exec --json` JSONL output.
 package struct CodexExecEvent: Sendable, Codable {
     package let type: CodexExecEventType
     package let data: JSONValue?

@@ -4,7 +4,6 @@ import Synchronization
 
 // MARK: - AdapterState
 
-/// Mutable state for the adapter, protected by `Mutex`.
 private struct AdapterState: Sendable {
     var isRunning = false
     var eventStream: AsyncStream<ProviderEvent>?
@@ -38,11 +37,9 @@ public final class ClaudeProviderAdapter: ProviderAdapter, Sendable {
             throw .alreadyRunning
         }
 
-        // 1. Install hooks (best-effort — don't fail if already installed or installer unavailable)
         // TODO: Call ClaudeHookInstaller.install() once Task 3.4 lands
         // try? await ClaudeHookInstaller.install()
 
-        // 2. Start socket server
         let rawStream: AsyncStream<Data>
         do {
             rawStream = try self.socketServer.start()
@@ -50,12 +47,9 @@ public final class ClaudeProviderAdapter: ProviderAdapter, Sendable {
             throw self.mapSocketError(error)
         }
 
-        // 3. Create the merged event stream.
-        //    The event processing task runs detached so it doesn't inherit
-        //    the caller's isolation domain — prevents deadlock when stop()
-        //    is called from the same context.
+        // Detached so it doesn't inherit the caller's isolation domain —
+        // prevents deadlock when stop() is called from the same context.
         let (stream, continuation) = AsyncStream<ProviderEvent>.makeStream(
-            // Event stream — preserve ordering, don't drop events.
             bufferingPolicy: .bufferingOldest(128),
         )
 
@@ -65,7 +59,6 @@ public final class ClaudeProviderAdapter: ProviderAdapter, Sendable {
                 guard !Task.isCancelled else { break }
                 adapter?.processRawEvent(rawData, continuation: continuation)
             }
-            // Raw stream ended — finish the provider event stream
             continuation.finish()
         }
 
@@ -78,8 +71,8 @@ public final class ClaudeProviderAdapter: ProviderAdapter, Sendable {
     }
 
     public func stop() async {
-        // Extract continuation and task before finishing to avoid re-entrant
-        // Mutex access (finish() triggers onTermination synchronously).
+        // Extract before finishing — finish() triggers onTermination synchronously,
+        // which would cause re-entrant Mutex access.
         let (continuation, processingTask) = self.state.withLock { state -> (AsyncStream<ProviderEvent>.Continuation?, Task<Void, Never>?) in
             guard state.isRunning else { return (nil, nil) }
 
@@ -92,14 +85,8 @@ public final class ClaudeProviderAdapter: ProviderAdapter, Sendable {
             return (cont, task)
         }
 
-        // Cancel the detached processing task.
         processingTask?.cancel()
-
-        // Stop the socket server — this finishes the raw data stream,
-        // allowing the detached processing task to terminate cleanly.
         self.socketServer.stop()
-
-        // Finish the provider event stream for consumers.
         continuation?.finish()
     }
 
@@ -107,8 +94,6 @@ public final class ClaudeProviderAdapter: ProviderAdapter, Sendable {
         if let stream = self.state.withLock({ $0.eventStream }) {
             return stream
         }
-        // Return an immediately-finished empty stream if not started.
-        // No buffering policy needed — finished before any yield.
         let (stream, continuation) = AsyncStream<ProviderEvent>.makeStream()
         continuation.finish()
         return stream
@@ -137,7 +122,6 @@ public final class ClaudeProviderAdapter: ProviderAdapter, Sendable {
     private let socketServer: ClaudeHookSocketServer
     private let state: Mutex<AdapterState>
 
-    /// Encode a permission decision to JSON data for the socket response.
     private static func encodePermissionResponse(_ decision: PermissionDecision) throws -> Data {
         struct Response: Encodable {
             let decision: DecisionPayload
@@ -157,31 +141,25 @@ public final class ClaudeProviderAdapter: ProviderAdapter, Sendable {
         return try JSONEncoder().encode(Response(decision: payload))
     }
 
-    /// Decode raw socket data into a ClaudeHookEvent, normalize it, and yield to the stream.
     private func processRawEvent(_ data: Data, continuation: AsyncStream<ProviderEvent>.Continuation) {
-        // Decode raw JSON → ClaudeHookEvent
         let hookEvent: ClaudeHookEvent
         do {
             hookEvent = try JSONDecoder().decode(ClaudeHookEvent.self, from: data)
         } catch {
-            // Malformed JSON — log and skip
             NSLog("[ClaudeProviderAdapter] Failed to decode hook event: \(error)")
             return
         }
 
-        // Normalize → ProviderEvent(s)
         do {
             let providerEvents = try ClaudeEventNormalizer.normalize(hookEvent)
             for providerEvent in providerEvents {
                 continuation.yield(providerEvent)
             }
-            // Empty array means the event has no ProviderEvent equivalent (e.g., Setup) — skip
         } catch {
             NSLog("[ClaudeProviderAdapter] Failed to normalize event '\(hookEvent.hookEventName)': \(error)")
         }
     }
 
-    /// Map socket server errors to provider startup errors.
     private func mapSocketError(_ error: SocketServerError) -> ProviderStartupError {
         switch error {
         case .socketCreationFailed,
@@ -197,8 +175,6 @@ public final class ClaudeProviderAdapter: ProviderAdapter, Sendable {
 
 // MARK: - PermissionResponseError
 
-/// Errors from responding to a permission request.
 package enum PermissionResponseError: Error, Sendable {
-    /// No held-open connection found for the given request ID.
     case noConnectionFound(requestID: String)
 }

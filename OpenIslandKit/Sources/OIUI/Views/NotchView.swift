@@ -51,14 +51,12 @@ public struct NotchView: View {
 
         ZStack(alignment: .top) {
             VStack(spacing: 0) {
-                // Header — always visible.
                 // Horizontal padding in closed state keeps modules inward from the
                 // clip shape's rounded corners (shapeEdgeMargin breathing room).
                 NotchHeaderView(viewModel: self.viewModel, activityCoordinator: self.activityCoordinator)
                     .frame(height: isOpened ? 44 : self.closedSize.height)
                     .padding(.horizontal, isOpened ? 0 : ModuleLayoutEngine.shapeEdgeMargin)
 
-                // Content — visible when opened
                 if isOpened {
                     self.notchContent
                         .transition(self.contentTransition)

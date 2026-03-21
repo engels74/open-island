@@ -3,10 +3,7 @@ package import OICore
 
 // MARK: - ToolTracker
 
-/// Tracks in-progress tool invocations and subagent context during a session.
-///
-/// `ToolTracker` is a value-type processing helper that manages tool lifecycle
-/// state. It does not replace `SessionState.activeTools` — instead,
+/// Value-type helper — does not replace `SessionState.activeTools`.
 /// `ToolEventProcessor` uses it to produce updated `[ToolCallItem]` arrays.
 package struct ToolTracker: Sendable {
     // MARK: Lifecycle
@@ -15,7 +12,6 @@ package struct ToolTracker: Sendable {
 
     // MARK: Package
 
-    /// Tools currently executing, keyed by tool ID.
     package var inProgress: [String: ToolInProgress] = [:]
 
     /// All tool IDs seen during this session (for deduplication).
@@ -27,7 +23,6 @@ package struct ToolTracker: Sendable {
 
 // MARK: - ToolInProgress
 
-/// Snapshot of a tool invocation that has started but not yet completed.
 package struct ToolInProgress: Sendable {
     // MARK: Lifecycle
 
@@ -56,7 +51,6 @@ package struct ToolInProgress: Sendable {
 
 // MARK: - SubagentContext
 
-/// Tracks a subagent (e.g. `Task` tool) and its nested tool invocations.
 package struct SubagentContext: Sendable {
     // MARK: Lifecycle
 

@@ -7,11 +7,6 @@ private let logger = Logger(subsystem: "com.openisland", category: "SessionTrans
 // MARK: - Provider Event Handling
 
 extension SessionStore {
-    /// Process a provider event through the phase transition logic.
-    ///
-    /// Each ``ProviderEvent`` is mapped to an optional ``SessionPhase`` transition.
-    /// Transitions are validated via ``SessionPhase/canTransition(to:)`` before
-    /// applying — invalid transitions are logged and skipped.
     func handleProviderEvent(_ event: ProviderEvent) {
         switch event {
         case let .sessionStarted(sessionID, cwd: cwd, pid: pid):
@@ -118,7 +113,6 @@ extension SessionStore {
             let subagent = ToolEventProcessor.processSubagentStopped(taskID: taskID, tracker: &tracker)
             toolTrackers[sessionID] = tracker
 
-            // Nest the subagent's tools under the parent tool in the UI
             if let subagent, var session = sessions[sessionID] {
                 ToolEventProcessor.applyNestedTools(subagent: subagent, activeTools: &session.activeTools)
                 session.lastActivityAt = Date()
@@ -209,7 +203,6 @@ extension SessionStore {
 // MARK: - Private Helpers
 
 extension SessionStore {
-    /// Create a new session from a `.sessionStarted` event.
     private func handleSessionStarted(_ sessionID: String, cwd: String, pid: Int32?) {
         let projectName = (cwd as NSString).lastPathComponent
         let now = Date()
@@ -227,11 +220,6 @@ extension SessionStore {
         publishState()
     }
 
-    /// Validate and apply a phase transition for the given session.
-    ///
-    /// If the transition is invalid, the event is logged and the phase remains
-    /// unchanged. If the target phase equals the current phase, only
-    /// `lastActivityAt` is updated.
     private func transitionSession(_ sessionID: String, to target: SessionPhase) {
         guard var session = sessions[sessionID] else {
             logger.warning("Transition to \(String(describing: target)) for unknown session \(sessionID)")
@@ -240,7 +228,6 @@ extension SessionStore {
 
         let current = session.phase
 
-        // Same phase — just touch the timestamp.
         if current == target {
             session.lastActivityAt = Date()
             sessions[sessionID] = session
@@ -261,9 +248,7 @@ extension SessionStore {
         publishState()
     }
 
-    /// Record an interrupt: append an `.interrupted` chat history item and touch the session.
-    ///
-    /// Phase transition to `.waitingForInput` is handled separately by the
+    /// Phase transition to `.waitingForInput` is handled by the separate
     /// `.waitingForInput` event that providers emit alongside `.interruptDetected`.
     private func handleInterruptDetected(_ sessionID: String) {
         guard var session = sessions[sessionID] else { return }
@@ -280,7 +265,6 @@ extension SessionStore {
         publishState()
     }
 
-    /// Update `lastActivityAt` without changing phase.
     private func touchSession(_ sessionID: String) {
         guard var session = sessions[sessionID] else { return }
         session.lastActivityAt = Date()

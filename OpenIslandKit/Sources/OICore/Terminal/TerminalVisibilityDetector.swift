@@ -84,8 +84,6 @@ package enum TerminalVisibilityDetector {
 
     // MARK: Private
 
-    // MARK: - Private Helpers
-
     /// Returns all on-screen window info dictionaries.
     private static func onScreenWindows() -> [[String: Any]] {
         guard let list = CGWindowListCopyWindowInfo(.optionOnScreenOnly, kCGNullWindowID)

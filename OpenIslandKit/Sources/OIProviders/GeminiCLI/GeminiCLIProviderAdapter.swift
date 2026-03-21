@@ -4,7 +4,6 @@ import Synchronization
 
 // MARK: - AdapterState
 
-/// Mutable state for the adapter, protected by `Mutex`.
 private struct AdapterState: Sendable {
     var isRunning = false
     var eventStream: AsyncStream<ProviderEvent>?
@@ -15,14 +14,10 @@ private struct AdapterState: Sendable {
 
 // MARK: - GeminiCLIProviderAdapter
 
-/// Top-level adapter that composes all Gemini CLI components and conforms to ``ProviderAdapter``.
+/// Top-level adapter composing all Gemini CLI components, conforming to ``ProviderAdapter``.
 ///
-/// Owns the socket server, event normalizer pipeline, and hook installer.
-/// Merges socket events into a single ``AsyncStream<ProviderEvent>``.
-///
-/// Gemini CLI uses a hook-based transport identical to Claude Code's architecture:
-/// hook scripts send JSON events over a Unix domain socket, with `BeforeTool`
-/// connections held open for permission interception.
+/// Uses the same hook-socket transport as Claude Code: hook scripts send JSON events
+/// over a Unix domain socket, with `BeforeTool` connections held open for permissions.
 public final class GeminiCLIProviderAdapter: ProviderAdapter, Sendable {
     // MARK: Lifecycle
 
@@ -43,10 +38,8 @@ public final class GeminiCLIProviderAdapter: ProviderAdapter, Sendable {
             throw .alreadyRunning
         }
 
-        // 1. Install hooks (best-effort — don't fail if already installed)
         try? await GeminiHookInstaller.install()
 
-        // 2. Start socket server
         let rawStream: AsyncStream<Data>
         do {
             rawStream = try self.socketServer.start()
@@ -54,12 +47,9 @@ public final class GeminiCLIProviderAdapter: ProviderAdapter, Sendable {
             throw self.mapSocketError(error)
         }
 
-        // 3. Create the merged event stream.
-        //    The event processing task runs detached so it doesn't inherit
-        //    the caller's isolation domain — prevents deadlock when stop()
-        //    is called from the same context.
+        // Detached so it doesn't inherit the caller's isolation domain —
+        // prevents deadlock when stop() is called from the same context.
         let (stream, continuation) = AsyncStream<ProviderEvent>.makeStream(
-            // Event stream — preserve ordering, don't drop events.
             bufferingPolicy: .bufferingOldest(128),
         )
 
@@ -69,7 +59,6 @@ public final class GeminiCLIProviderAdapter: ProviderAdapter, Sendable {
                 guard !Task.isCancelled else { break }
                 adapter?.processRawEvent(rawData, continuation: continuation)
             }
-            // Raw stream ended — finish the provider event stream
             continuation.finish()
         }
 
@@ -82,8 +71,8 @@ public final class GeminiCLIProviderAdapter: ProviderAdapter, Sendable {
     }
 
     public func stop() async {
-        // Extract continuation and task before finishing to avoid re-entrant
-        // Mutex access (finish() triggers onTermination synchronously).
+        // Extract before finishing — finish() triggers onTermination synchronously,
+        // which would cause re-entrant Mutex access.
         let (continuation, processingTask) = self.state.withLock { state -> (AsyncStream<ProviderEvent>.Continuation?, Task<Void, Never>?) in
             guard state.isRunning else { return (nil, nil) }
 
@@ -97,14 +86,8 @@ public final class GeminiCLIProviderAdapter: ProviderAdapter, Sendable {
             return (cont, task)
         }
 
-        // Cancel the detached processing task.
         processingTask?.cancel()
-
-        // Stop the socket server — this finishes the raw data stream,
-        // allowing the detached processing task to terminate cleanly.
         self.socketServer.stop()
-
-        // Finish the provider event stream for consumers.
         continuation?.finish()
     }
 
@@ -112,8 +95,6 @@ public final class GeminiCLIProviderAdapter: ProviderAdapter, Sendable {
         if let stream = self.state.withLock({ $0.eventStream }) {
             return stream
         }
-        // Return an immediately-finished empty stream if not started.
-        // No buffering policy needed — finished before any yield.
         let (stream, continuation) = AsyncStream<ProviderEvent>.makeStream()
         continuation.finish()
         return stream
@@ -142,7 +123,6 @@ public final class GeminiCLIProviderAdapter: ProviderAdapter, Sendable {
     private let socketServer: GeminiHookSocketServer
     private let state: Mutex<AdapterState>
 
-    /// Encode a permission decision to JSON data for the socket response.
     private static func encodePermissionResponse(_ decision: PermissionDecision) throws -> Data {
         struct Response: Encodable {
             let decision: DecisionPayload
@@ -162,7 +142,6 @@ public final class GeminiCLIProviderAdapter: ProviderAdapter, Sendable {
         return try JSONEncoder().encode(Response(decision: payload))
     }
 
-    /// Decode raw socket data, normalize via ``GeminiEventNormalizer``, and yield to the stream.
     private func processRawEvent(_ data: Data, continuation: AsyncStream<ProviderEvent>.Continuation) {
         let lastTime = self.state.withLock { $0.lastAfterModelTime }
 
@@ -172,7 +151,6 @@ public final class GeminiCLIProviderAdapter: ProviderAdapter, Sendable {
                 lastAfterModelTime: lastTime,
             )
 
-            // Update the throttle time if it changed
             if updatedTime != lastTime {
                 self.state.withLock { $0.lastAfterModelTime = updatedTime }
             }
@@ -185,7 +163,6 @@ public final class GeminiCLIProviderAdapter: ProviderAdapter, Sendable {
         }
     }
 
-    /// Map socket server errors to provider startup errors.
     private func mapSocketError(_ error: SocketServerError) -> ProviderStartupError {
         switch error {
         case .socketCreationFailed,

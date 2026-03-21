@@ -27,7 +27,6 @@ final class NotchUserDriver: NSObject, SPUUserDriver {
         _ request: SPUUpdatePermissionRequest,
         reply: @escaping @Sendable (SUUpdatePermissionResponse) -> Void,
     ) {
-        // Auto-allow update checks.
         reply(SUUpdatePermissionResponse(automaticUpdateChecks: true, sendSystemProfile: false))
     }
 

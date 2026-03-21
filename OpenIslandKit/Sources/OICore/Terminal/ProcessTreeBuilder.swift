@@ -1,3 +1,4 @@
+// @preconcurrency: NSRunningApplication, NSWorkspace predate Sendable annotations
 @preconcurrency import AppKit
 package import Darwin
 
@@ -5,13 +6,9 @@ package import Darwin
 
 /// Lightweight snapshot of a single process entry.
 package struct ProcessInfo: Sendable, Hashable {
-    /// The process identifier.
     package let pid: pid_t
-
-    /// The parent process identifier.
     package let parentPID: pid_t
-
-    /// The process name (from `pbi_name`).
+    /// Source: Darwin `pbi_name` field.
     package let name: String
 }
 
@@ -19,16 +16,9 @@ package struct ProcessInfo: Sendable, Hashable {
 
 /// Result of walking a process tree from a child PID up to a terminal ancestor.
 package struct TerminalAncestorResult: Sendable {
-    /// The PID of the terminal application that owns the session.
     package let terminalPID: pid_t
-
-    /// The bundle identifier of the terminal application.
     package let terminalBundleID: String
-
-    /// Whether a `tmux` server process was found in the ancestry chain.
     package let isTmuxSession: Bool
-
-    /// The PID of the tmux server process, if found.
     package let tmuxServerPID: pid_t?
 }
 
@@ -48,7 +38,6 @@ package struct ProcessTree: Sendable {
 
     // MARK: Package
 
-    /// Look up a process by PID.
     package func process(for pid: pid_t) -> ProcessInfo? {
         self.entries[pid]
     }
@@ -77,8 +66,7 @@ package struct ProcessTree: Sendable {
             visited.insert(current)
 
             guard let entry = entries[current] else {
-                // Process not in snapshot — try parent via direct lookup.
-                // This handles cases where the snapshot missed the entry.
+                // Process not in snapshot — fall back to direct syscall lookup.
                 let directParent = Self.parentPID(of: current)
                 if directParent <= 1 || directParent == current {
                     return nil
@@ -87,13 +75,11 @@ package struct ProcessTree: Sendable {
                 continue
             }
 
-            // Detect tmux server in ancestry.
             if !foundTmux, self.isTmuxProcess(entry.name) {
                 foundTmux = true
                 tmuxPID = current
             }
 
-            // Check if this process is a known terminal via its bundle ID.
             if let bundleID = bundleIdentifier(for: current),
                registry.isTerminalBundleID(bundleID) {
                 return TerminalAncestorResult(
@@ -103,9 +89,6 @@ package struct ProcessTree: Sendable {
                     tmuxServerPID: tmuxPID,
                 )
             }
-
-            // sandbox-exec wraps the real process — continue traversal through it.
-            // No special handling needed; we just follow parentPID like any other process.
 
             let parent = entry.parentPID
             // Reached init/launchd or self-referencing — stop.
@@ -121,7 +104,6 @@ package struct ProcessTree: Sendable {
 
     // MARK: Private
 
-    /// PID-keyed lookup of process entries.
     private let entries: [pid_t: ProcessInfo]
 
     /// Returns the parent PID of the given process using `sysctl`.
