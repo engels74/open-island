@@ -137,6 +137,46 @@ struct ClaudeProviderAdapterLifecycleTests {
     }
 }
 
+// MARK: - ClaudePermissionResponseFormatTests
+
+@Suite(.tags(.claude))
+struct ClaudePermissionResponseFormatTests {
+    @Test
+    func `PermissionRequest response uses decision behavior format`() throws {
+        let data = try ClaudeProviderAdapter.encodePermissionRequestResponse(.allow)
+        let json = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let decision = try #require(json["decision"] as? [String: Any])
+        #expect(decision["behavior"] as? String == "allow")
+        #expect(json["hookSpecificOutput"] == nil)
+    }
+
+    @Test
+    func `PermissionRequest deny includes reason`() throws {
+        let data = try ClaudeProviderAdapter.encodePermissionRequestResponse(.deny(reason: "risky"))
+        let json = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let decision = try #require(json["decision"] as? [String: Any])
+        #expect(decision["behavior"] as? String == "deny")
+        #expect(decision["reason"] as? String == "risky")
+    }
+
+    @Test
+    func `PreToolUse response uses hookSpecificOutput format`() throws {
+        let data = try ClaudeProviderAdapter.encodePreToolUseResponse(.allow)
+        let json = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let hookOutput = try #require(json["hookSpecificOutput"] as? [String: Any])
+        #expect(hookOutput["permissionDecision"] as? String == "allow")
+        #expect(json["decision"] == nil)
+    }
+
+    @Test
+    func `PreToolUse deny response`() throws {
+        let data = try ClaudeProviderAdapter.encodePreToolUseResponse(.deny(reason: "blocked"))
+        let json = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let hookOutput = try #require(json["hookSpecificOutput"] as? [String: Any])
+        #expect(hookOutput["permissionDecision"] as? String == "deny")
+    }
+}
+
 // MARK: - Helpers
 
 /// Generate a unique socket path to avoid test interference.

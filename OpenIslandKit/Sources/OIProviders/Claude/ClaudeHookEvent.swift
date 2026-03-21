@@ -38,6 +38,9 @@ package struct ClaudeHookEvent: Codable, Sendable {
     package let notificationType: String?
     package let message: String?
 
+    package let filePath: String?
+    package let memoryType: String?
+
     // MARK: Private
 
     private enum CodingKeys: String, CodingKey {
@@ -61,5 +64,7 @@ package struct ClaudeHookEvent: Codable, Sendable {
         case stopReason = "stop_reason"
         case notificationType = "notification_type"
         case message
+        case filePath = "file_path"
+        case memoryType = "memory_type"
     }
 }

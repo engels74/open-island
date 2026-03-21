@@ -7,18 +7,32 @@ package struct ClaudeHookInstaller: Sendable {
     // MARK: Package
 
     /// All Claude Code hook event types that Open Island registers for.
+    ///
+    /// PreToolUse: full support implemented in normalizer, adapter, and hook script.
+    /// Registration deferred until upstream bug #15897 is confirmed fixed.
+    /// To enable: add "PreToolUse" here and add it to ``blockingEventTypes``.
     package static let allHookEventTypes: [String] = [
         // Session lifecycle
         "SessionStart", "SessionEnd",
-        // Agentic loop (PreToolUse excluded — upstream bug #15897)
+        // Agentic loop (PreToolUse deferred — upstream bug #15897)
         "UserPromptSubmit", "PostToolUse", "PostToolUseFailure",
-        "PermissionRequest", "Stop", "Notification",
+        "PermissionRequest", "Stop", "StopFailure", "Notification",
         // Team
         "SubagentStart", "SubagentStop", "TeammateIdle", "TaskCompleted",
         // Maintenance
-        "PreCompact", "ConfigChange", "WorktreeCreate", "WorktreeRemove",
-        // Setup
-        "Setup",
+        "PreCompact", "PostCompact", "ConfigChange",
+        "WorktreeCreate", "WorktreeRemove",
+        // Setup / Loading
+        "Setup", "InstructionsLoaded",
+        // MCP
+        "Elicitation", "ElicitationResult",
+    ]
+
+    /// Events that require synchronous (blocking) hook execution.
+    /// All other events use `"async": true` for fire-and-forget delivery.
+    package static let blockingEventTypes: Set = [
+        "PermissionRequest",
+        // "PreToolUse" — add here when upstream bug #15897 is confirmed fixed
     ]
 
     package static let hookScriptName = "open-island-claude-hook.py"
@@ -175,9 +189,13 @@ package struct ClaudeHookInstaller: Sendable {
 
         var hooks = root["hooks"] as? [String: Any] ?? [:]
 
-        let hookEntry: [String: Any] = ["type": "command", "command": command]
+        let syncHookEntry: [String: Any] = ["type": "command", "command": command]
+        let asyncHookEntry: [String: Any] = ["type": "command", "command": command, "async": true]
 
         for eventType in self.allHookEventTypes {
+            let hookEntry = self.blockingEventTypes.contains(eventType)
+                ? syncHookEntry
+                : asyncHookEntry
             var entries = hooks[eventType] as? [[String: Any]] ?? []
 
             if let existingIndex = entries.firstIndex(where: { matcherGroup in

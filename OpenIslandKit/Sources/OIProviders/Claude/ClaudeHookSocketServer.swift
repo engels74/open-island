@@ -77,6 +77,7 @@ private struct ClaudeBridgeDelegate: HookSocketBridgeDelegate {
             return false
         }
         return envelope.hookEventName == "PermissionRequest"
+            || envelope.hookEventName == "PreToolUse"
     }
 
     func extractRequestID(from data: Data) -> String? {
