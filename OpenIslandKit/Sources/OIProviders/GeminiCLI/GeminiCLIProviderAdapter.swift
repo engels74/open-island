@@ -112,9 +112,6 @@ public final class GeminiCLIProviderAdapter: ProviderAdapter, Sendable {
     }
 
     public func isSessionAlive(_ sessionID: String) -> Bool {
-        // TODO: Check kill(pid, 0) once session → PID tracking is implemented.
-        // For now, return true — actual PID checking will be added when we have
-        // session PID mapping from SessionStart events.
         true
     }
 

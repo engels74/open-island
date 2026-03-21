@@ -71,12 +71,10 @@ public final class SoundManager {
     private var lastPlayedAt: ContinuousClock.Instant?
     private var sessionLastPlayed: [String: ContinuousClock.Instant] = [:]
 
-    /// Whether any known terminal window is visible on the current space.
     private var isTerminalVisible: Bool {
         TerminalVisibilityDetector.isTerminalVisibleOnCurrentSpace()
     }
 
-    /// Whether a terminal application is currently the frontmost app.
     private var isTerminalFocused: Bool {
         TerminalVisibilityDetector.isTerminalFrontmost()
     }

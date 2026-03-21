@@ -73,10 +73,8 @@ final class UpdateManager {
 
     // MARK: Internal
 
-    /// The observable update state for the notch UI.
     let state: UpdateState
 
-    /// Whether the "Check for Updates" button should be enabled.
     var canCheckForUpdates: Bool {
         self.updater.canCheckForUpdates
     }
@@ -98,29 +96,24 @@ final class UpdateManager {
         }
     }
 
-    /// Triggers a manual update check (user-initiated).
     func checkForUpdates() {
         self.updater.checkForUpdates()
     }
 
-    /// Accept the available update and begin download/install.
     func acceptUpdate() {
         self.state.userUpdateChoice?(.install)
     }
 
-    /// Skip the available update version.
     func skipUpdate() {
         self.state.userUpdateChoice?(.skip)
         self.state.reset()
     }
 
-    /// Dismiss the update prompt without acting.
     func dismissUpdate() {
         self.state.userUpdateChoice?(.dismiss)
         self.state.reset()
     }
 
-    /// Restart the app to apply a ready-to-install update.
     func installAndRelaunch() {
         self.state.installAndRelaunch?(.install)
     }

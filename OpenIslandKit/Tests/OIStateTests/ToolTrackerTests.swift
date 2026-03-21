@@ -144,16 +144,13 @@ struct ToolEventProcessorTests {
         ToolEventProcessor.processSubagentStarted(taskID: "inner", parentToolID: "outer-tool", tracker: &tracker)
         #expect(tracker.activeSubagents.count == 2)
 
-        // Tool started while inner subagent is active
         let event = self.makeToolEvent(id: "deep-tool")
         _ = ToolEventProcessor.processToolStarted(event, tracker: &tracker)
         #expect(tracker.inProgress["deep-tool"]?.parentSubagentID == "inner")
 
-        // Stop inner subagent
         ToolEventProcessor.processSubagentStopped(taskID: "inner", tracker: &tracker)
         #expect(tracker.activeSubagents.count == 1)
 
-        // Now a new tool should be attributed to outer
         let event2 = self.makeToolEvent(id: "outer-tool-2")
         _ = ToolEventProcessor.processToolStarted(event2, tracker: &tracker)
         #expect(tracker.inProgress["outer-tool-2"]?.parentSubagentID == "outer")
@@ -256,15 +253,12 @@ struct ToolEventProcessorNestedToolTests {
         var tracker = ToolTracker()
         var activeTools: [ToolCallItem] = []
 
-        // Parent tool starts
         let parentEvent = ToolEvent(id: "tu-task", name: "Task", startedAt: Date())
         let parentItem = ToolEventProcessor.processToolStarted(parentEvent, tracker: &tracker)
         activeTools.append(parentItem)
 
-        // Subagent starts with the parent tool
         ToolEventProcessor.processSubagentStarted(taskID: "sub-1", parentToolID: "tu-task", tracker: &tracker)
 
-        // Nested tools execute within the subagent
         let nestedEvent1 = ToolEvent(id: "n1", name: "Read", startedAt: Date())
         let nestedItem1 = ToolEventProcessor.processToolStarted(nestedEvent1, tracker: &tracker)
         activeTools.append(nestedItem1)
@@ -274,7 +268,6 @@ struct ToolEventProcessorNestedToolTests {
         let nestedItem2 = ToolEventProcessor.processToolStarted(nestedEvent2, tracker: &tracker)
         activeTools.append(nestedItem2)
 
-        // Nested tools complete
         let result = ToolResult(isSuccess: true)
         if let completed1 = ToolEventProcessor.processToolCompleted(nestedEvent1, result: result, tracker: &tracker) {
             if let idx = activeTools.firstIndex(where: { $0.id == completed1.id }) {
@@ -287,14 +280,11 @@ struct ToolEventProcessorNestedToolTests {
             }
         }
 
-        // Subagent stops
         let subagent = ToolEventProcessor.processSubagentStopped(taskID: "sub-1", tracker: &tracker)
         #expect(subagent != nil)
 
-        // Apply nesting
         try ToolEventProcessor.applyNestedTools(subagent: #require(subagent), activeTools: &activeTools)
 
-        // Verify nested structure
         #expect(activeTools.count == 1) // only the parent remains at top level
         let parent = try #require(activeTools.first)
         #expect(parent.id == "tu-task")

@@ -20,7 +20,6 @@ public final class ModuleRegistry {
     /// All registered modules in insertion order.
     public private(set) var allModules: [any NotchModule] = []
 
-    /// Persisted layout configuration for module arrangement.
     public private(set) var layoutConfig = ModuleLayoutConfig()
 
     /// Register a module for display in the closed-state notch.

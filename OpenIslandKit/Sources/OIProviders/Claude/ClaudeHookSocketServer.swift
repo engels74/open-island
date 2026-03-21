@@ -26,12 +26,10 @@ package final class ClaudeHookSocketServer: Sendable {
 
     // MARK: Package
 
-    /// The Unix domain socket path this server listens on.
     package var socketPath: String {
         self.bridge.socketPath
     }
 
-    /// Whether the server is currently running.
     package var isRunning: Bool {
         self.bridge.isRunning
     }
@@ -44,7 +42,6 @@ package final class ClaudeHookSocketServer: Sendable {
         try self.bridge.start(delegate: ClaudeBridgeDelegate())
     }
 
-    /// Stop the server and clean up resources.
     package func stop() {
         self.bridge.stop()
     }
@@ -53,17 +50,11 @@ package final class ClaudeHookSocketServer: Sendable {
     ///
     /// Finds the held-open connection for the given request ID, writes the
     /// JSON response data, and closes the connection.
-    ///
-    /// - Parameters:
-    ///   - requestID: The permission request ID to respond to.
-    ///   - data: JSON response data to send back to the hook script.
-    /// - Returns: `true` if the response was sent, `false` if no pending connection was found.
     @discardableResult
     package func respondToPermission(requestID: String, data: Data) -> Bool {
         self.bridge.respondToPermission(requestID: requestID, data: data)
     }
 
-    /// Register a held-open permission connection.
     package func registerPermissionConnection(_ connection: consuming PermissionConnection) {
         self.bridge.registerPermissionConnection(connection)
     }

@@ -68,7 +68,6 @@ struct NotchShapeTests {
         let closedPath = closed.path(in: rect)
         let openedPath = opened.path(in: rect)
 
-        // Both should produce non-empty paths within bounds
         #expect(!closedPath.isEmpty)
         #expect(!openedPath.isEmpty)
         #expect(closedPath.boundingRect.width <= rect.width + 1)
@@ -86,7 +85,6 @@ struct NotchShapeTests {
         let path = shape.path(in: rect)
 
         #expect(!path.isEmpty)
-        // Path should still be contained within the rect
         let bounds = path.boundingRect
         #expect(bounds.maxX <= rect.maxX + 0.5)
         #expect(bounds.maxY <= rect.maxY + 0.5)

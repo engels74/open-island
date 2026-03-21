@@ -37,9 +37,6 @@ public final class ClaudeProviderAdapter: ProviderAdapter, Sendable {
             throw .alreadyRunning
         }
 
-        // TODO: Call ClaudeHookInstaller.install() once Task 3.4 lands
-        // try? await ClaudeHookInstaller.install()
-
         let rawStream: AsyncStream<Data>
         do {
             rawStream = try self.socketServer.start()
@@ -111,9 +108,6 @@ public final class ClaudeProviderAdapter: ProviderAdapter, Sendable {
     }
 
     public func isSessionAlive(_ sessionID: String) -> Bool {
-        // TODO: Check kill(pid, 0) once session → PID tracking is implemented.
-        // For now, return true — actual PID checking will be added when we have
-        // session PID mapping from SessionStart events.
         true
     }
 

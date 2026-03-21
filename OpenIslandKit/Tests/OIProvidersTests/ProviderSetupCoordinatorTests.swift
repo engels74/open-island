@@ -110,7 +110,6 @@ struct ProviderSetupCoordinatorTests {
         let coordinator = ProviderSetupCoordinator()
         let results = await coordinator.checkPrerequisites(for: .claude)
 
-        // Claude has 2 prerequisites, so we should get 2 results
         #expect(results.count == 2)
         let prereqIDs = results.map(\.prerequisite.id)
         #expect(prereqIDs.contains("claude-binary"))

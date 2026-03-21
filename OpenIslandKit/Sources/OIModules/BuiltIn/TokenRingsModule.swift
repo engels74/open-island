@@ -69,14 +69,12 @@ package struct TokenRingsModule: NotchModule {
     @MainActor
     private func body(context: ModuleRenderContext) -> some View {
         ZStack {
-            // Background track
             Circle()
                 .stroke(
                     context.accentColor.opacity(0.15),
                     lineWidth: 2,
                 )
 
-            // Usage arc
             Circle()
                 .trim(from: 0, to: self.arcFraction)
                 .stroke(
@@ -85,7 +83,7 @@ package struct TokenRingsModule: NotchModule {
                 )
                 .rotationEffect(.degrees(-90))
 
-            // Token count label (only when large enough to read)
+            // Only shown when token data exists
             if self.totalTokens > 0 {
                 Text(self.compactLabel)
                     .font(.system(size: 6, weight: .semibold, design: .monospaced))

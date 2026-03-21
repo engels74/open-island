@@ -5,7 +5,6 @@ import Testing
 
 // MARK: - MockModule
 
-/// Lightweight mock conforming to `NotchModule` for testing layout and registry logic.
 private struct MockModule: NotchModule {
     // MARK: Lifecycle
 

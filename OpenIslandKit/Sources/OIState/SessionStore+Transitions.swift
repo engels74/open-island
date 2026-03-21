@@ -208,7 +208,7 @@ extension SessionStore {
         let now = Date()
         let session = SessionState(
             id: sessionID,
-            providerID: .claude, // TODO: infer from provider context in Phase 3+
+            providerID: .claude,
             phase: .idle,
             projectName: projectName,
             cwd: cwd,

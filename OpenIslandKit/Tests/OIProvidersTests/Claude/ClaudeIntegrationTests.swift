@@ -161,7 +161,6 @@ struct ClaudeIntegrationTests {
             try await Task.sleep(for: .milliseconds(20))
         }
 
-        // Collect all 5 events
         var received: [String] = []
         for await event in stream {
             received.append(providerEventCaseName(event))
@@ -297,7 +296,6 @@ struct ClaudeIntegrationTests {
             try await Task.sleep(for: .milliseconds(20))
         }
 
-        // Collect 5 events
         var sessionIDs: [String] = []
         for await event in stream {
             sessionIDs.append(providerEventSessionID(event))
@@ -385,7 +383,6 @@ struct ClaudeIntegrationTests {
         let stream = adapter.events()
         try await Task.sleep(for: .milliseconds(50))
 
-        // PostToolUse with detailed fields
         let postToolJSON =
             #"{"session_id":"fields-1","hook_event_name":"PostToolUse","tool_name":"Edit","tool_use_id":"edit-001","tool_result":{"success":true}}"# +
             "\n"
@@ -397,7 +394,6 @@ struct ClaudeIntegrationTests {
             break
         }
 
-        // Verify PostToolUse fields
         let event = try #require(received)
         guard case let .toolCompleted(sid, toolEvent, result) = event else {
             Issue.record("Expected .toolCompleted")
@@ -424,7 +420,6 @@ struct ClaudeIntegrationTests {
         let json = #"{"session_id":"s1","hook_event_name":"Stop"}"# + "\n"
         sendToSocket(path: path, data: Data(json.utf8))
 
-        // Read the event
         var count = 0
         for await _ in stream {
             count += 1
@@ -432,7 +427,6 @@ struct ClaudeIntegrationTests {
             await adapter.stop()
         }
 
-        // Stream should have ended after stop — we got exactly 1 event
         #expect(count == 1)
     }
 

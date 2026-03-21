@@ -18,7 +18,6 @@ package struct OILogoIcon: View {
             let side = min(canvasSize.width, canvasSize.height)
             let center = CGPoint(x: canvasSize.width / 2, y: canvasSize.height / 2)
 
-            // Outer ring
             let ringInset = side * 0.06
             let outerRect = CGRect(
                 x: center.x - side / 2 + ringInset,
@@ -33,7 +32,6 @@ package struct OILogoIcon: View {
                 lineWidth: max(side * 0.07, 0.75),
             )
 
-            // "O" — small circle on the left
             let letterY = center.y
             let oRadius = side * 0.14
             let oCenter = CGPoint(x: center.x - side * 0.13, y: letterY)
@@ -50,7 +48,6 @@ package struct OILogoIcon: View {
                 lineWidth: max(side * 0.07, 0.75),
             )
 
-            // "I" — vertical bar on the right
             let iX = center.x + side * 0.16
             let iHalfHeight = side * 0.18
             let iWidth = max(side * 0.08, 0.75)

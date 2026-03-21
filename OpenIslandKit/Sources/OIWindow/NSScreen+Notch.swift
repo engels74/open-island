@@ -1,3 +1,4 @@
+// @preconcurrency: NSScreen, CGDirectDisplayID predate Sendable annotations
 @preconcurrency package import AppKit
 
 // MARK: - NSScreen + Notch
@@ -36,7 +37,6 @@ package extension NSScreen {
         self.isBuiltinDisplay && safeAreaInsets.top > 0
     }
 
-    /// `CGDisplayIsBuiltin` checks the display hardware connection type.
     var isBuiltinDisplay: Bool {
         let displayID = deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID
         guard let displayID else { return false }

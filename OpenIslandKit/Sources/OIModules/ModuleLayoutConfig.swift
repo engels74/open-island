@@ -18,13 +18,11 @@ public struct ModuleLayoutEntry: Codable, Sendable, Equatable {
     /// The module's unique identifier (matches `NotchModule.id`).
     public let moduleID: String
 
-    /// Which side of the notch this module is placed on.
     public var side: ModuleSide
 
     /// Sort order within its side (lower values are laid out first from the outer edge inward).
     public var order: Int
 
-    /// Whether the user has hidden this module.
     public var isHidden: Bool
 }
 
@@ -44,7 +42,6 @@ public struct ModuleLayoutConfig: Codable, Sendable, Equatable {
 
     // MARK: Public
 
-    /// Per-module layout entries.
     public var entries: [ModuleLayoutEntry]
 
     /// Loads the config from `UserDefaults`, returning an empty config if none exists.
@@ -57,7 +54,6 @@ public struct ModuleLayoutConfig: Codable, Sendable, Equatable {
         return config
     }
 
-    /// Saves the config to `UserDefaults`.
     public func save(to defaults: UserDefaults = .standard) {
         guard let data = try? JSONEncoder().encode(self) else { return }
         defaults.set(data, forKey: Self.defaultsKey)
@@ -92,7 +88,6 @@ public struct ModuleLayoutConfig: Codable, Sendable, Equatable {
         self.entries.first { $0.moduleID == module.id }?.order ?? module.defaultOrder
     }
 
-    /// Whether a module is hidden by the user.
     public func isHidden(_ moduleID: String) -> Bool {
         self.entries.first { $0.moduleID == moduleID }?.isHidden ?? false
     }

@@ -32,7 +32,6 @@ struct SocketFDTests {
             #expect(rawFD >= 0)
             // fd goes out of scope here, deinit closes it
         }
-        // Verify the fd is closed by trying to use it
         var statBuf = Darwin.stat()
         let result = fstat(rawFD, &statBuf)
         #expect(result == -1, "fd should be closed after deinit")
@@ -172,11 +171,9 @@ struct ClaudeHookSocketServerTests {
 
         let stream = try server.start()
 
-        // Connect as a client and send data
         let testPayload = #"{"event":"test","session_id":"s1"}"# + "\n"
         self.sendToSocket(path: path, data: Data(testPayload.utf8))
 
-        // Read from the async stream
         var received: Data?
         for await data in stream {
             received = data
@@ -211,12 +208,10 @@ struct ClaudeHookSocketServerTests {
         )
         server.registerPermissionConnection(conn)
 
-        // Respond to the permission
         let response = Data(#"{"decision":{"behavior":"allow"}}"#.utf8)
         let sent = server.respondToPermission(requestID: "req-abc", data: response)
         #expect(sent)
 
-        // Read the response from the other end
         var buffer = [UInt8](repeating: 0, count: 512)
         let bytesRead = Darwin.read(fds[0], &buffer, buffer.count)
         #expect(bytesRead > 0)

@@ -79,7 +79,6 @@ package final class ExampleProviderAdapter: ProviderAdapter, Sendable {
         if let stream = self.state.withLock({ $0.eventStream }) {
             return stream
         }
-        // Not started — return an immediately-finished empty stream.
         let (stream, continuation) = AsyncStream<ProviderEvent>.makeStream()
         continuation.finish()
         return stream

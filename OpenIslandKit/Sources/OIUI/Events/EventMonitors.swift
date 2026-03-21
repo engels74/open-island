@@ -1,3 +1,4 @@
+// @preconcurrency: NSEvent.mouseLocation, NSEvent.ModifierFlags predate Sendable annotations
 @preconcurrency public import AppKit
 public import OIWindow
 

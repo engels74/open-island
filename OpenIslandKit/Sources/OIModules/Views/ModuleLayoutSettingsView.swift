@@ -30,7 +30,6 @@ private enum ModulePlacement: String, CaseIterable, Sendable {
 
 // MARK: - DraggedModule
 
-/// Transfer representation for drag-and-drop.
 private struct DraggedModule: Codable, Transferable {
     static var transferRepresentation: some TransferRepresentation {
         CodableRepresentation(contentType: .plainText)

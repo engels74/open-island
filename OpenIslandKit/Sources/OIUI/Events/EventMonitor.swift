@@ -1,3 +1,4 @@
+// @preconcurrency: NSEvent monitor APIs predate Sendable annotations
 @preconcurrency package import AppKit
 import Synchronization
 

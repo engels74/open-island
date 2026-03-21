@@ -83,7 +83,6 @@ package final class TokenTrackingManager {
         }
     }
 
-    /// Remove a session's token data when the session ends.
     package func removeSession(_ sessionID: String) {
         if self.sessionTokens.removeValue(forKey: sessionID) != nil {
             self.recalculateWeeklyTotal()

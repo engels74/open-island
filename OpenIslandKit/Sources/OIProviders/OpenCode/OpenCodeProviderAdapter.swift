@@ -126,7 +126,6 @@ public final class OpenCodeProviderAdapter: ProviderAdapter, Sendable {
         if let stream = state.withLock({ $0.eventStream }) {
             return stream
         }
-        // Not started — return an immediately-finished empty stream.
         let (stream, continuation) = AsyncStream<ProviderEvent>.makeStream()
         continuation.finish()
         return stream

@@ -1,3 +1,4 @@
+// @preconcurrency: NSWindow, NSApp predate Sendable annotations
 @preconcurrency package import AppKit
 package import SwiftUI
 

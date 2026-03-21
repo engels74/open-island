@@ -1,3 +1,4 @@
+// @preconcurrency: NSApplication notifications, NSObjectProtocol predate Sendable annotations
 @preconcurrency public import AppKit
 public import Observation
 
@@ -73,7 +74,7 @@ public final class ScreenObserver {
             do {
                 try await Task.sleep(nanoseconds: Self.debounceNanoseconds)
             } catch {
-                return // cancelled
+                return
             }
             guard let self else { return }
             self.geometry = Self.computeGeometry(selector: self.selector)

@@ -47,11 +47,6 @@ package enum AgentProcessDetector {
             bufferingPolicy: .bufferingNewest(1),
         )
 
-        continuation.onTermination = { _ in
-            // No resources to clean up for the polling stream; the Task
-            // cancellation handles stopping the loop.
-        }
-
         let task = Task {
             while !Task.isCancelled {
                 let processes = await scanForAgentProcesses()
@@ -344,7 +339,7 @@ package enum AgentProcessDetector {
                 }
                 args.append(arg)
             }
-            offset += 1 // skip NUL
+            offset += 1
         }
 
         return args

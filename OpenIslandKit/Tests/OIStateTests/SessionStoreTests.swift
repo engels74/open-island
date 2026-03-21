@@ -168,14 +168,11 @@ struct SessionStoreTests {
     func `multiple subscribers receive the same state snapshot`() async throws {
         let store = await storeWithSession()
 
-        // Set up two subscriber streams
         let stream1 = await store.sessionsStream()
         let stream2 = await store.sessionsStream()
 
-        // Both streams receive an initial snapshot immediately; then a broadcast on processingStarted
         await store.process(.providerEvent(.processingStarted("s1")))
 
-        // Collect the latest value from each stream
         var iterator1 = stream1.makeAsyncIterator()
         var iterator2 = stream2.makeAsyncIterator()
 
@@ -239,7 +236,6 @@ struct SessionStoreTests {
             await store.process(.providerEvent(.notification("s1", message: "event-\(i)")))
         }
 
-        // Verify the session is still intact and functional after buffer wrap
         let session = await store.session(for: "s1")
         #expect(session != nil)
         #expect(session?.phase == .idle)
@@ -328,7 +324,6 @@ struct SessionStoreTests {
 
         let sessions = await store.currentSessions
         #expect(sessions.count == 2)
-        // s2 was created more recently
         #expect(sessions.first?.id == "s2")
     }
 

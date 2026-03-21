@@ -28,8 +28,6 @@ package enum GeminiEventNormalizer {
 
     // MARK: Private
 
-    // MARK: - MCP Context Detection
-
     private enum ToolPhase { case before, after }
 
     private static let afterModelThrottleInterval: TimeInterval = 0.1

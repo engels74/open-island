@@ -1,3 +1,4 @@
+// @preconcurrency: CGDirectDisplayID, NSScreen predate Sendable annotations
 @preconcurrency public import AppKit
 
 // MARK: - ScreenIdentifier

@@ -52,8 +52,8 @@ public final class NotchViewModel {
 
     /// The current module visibility context used for layout decisions.
     ///
-    /// Defaults to sensible values. The integration layer will update this
-    /// from live `SessionStore` data in a later phase.
+    /// Defaults to sensible values. Updated from live `SessionStore` data
+    /// via `SessionMonitor` and `NotchActivityCoordinator`.
     public var visibilityContext = ModuleVisibilityContext()
 
     /// Whether the mouse is hovering over the notch view (driven by SwiftUI `.onHover`).

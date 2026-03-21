@@ -92,11 +92,9 @@ struct ClaudeProviderAdapterLifecycleTests {
         // Allow socket server to be ready for connections
         try await Task.sleep(for: .milliseconds(50))
 
-        // Send a SessionStart event via the socket
         let payload = #"{"session_id":"s1","hook_event_name":"SessionStart","session_type":"startup","cwd":"/tmp"}"# + "\n"
         sendToSocket(path: path, data: Data(payload.utf8))
 
-        // Read one event from the stream
         var receivedEvent: ProviderEvent?
         for await event in stream {
             receivedEvent = event
@@ -105,7 +103,6 @@ struct ClaudeProviderAdapterLifecycleTests {
 
         await adapter.stop()
 
-        // Verify we got a sessionStarted event
         guard let event = receivedEvent else {
             Issue.record("Expected to receive an event")
             return
