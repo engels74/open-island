@@ -93,8 +93,6 @@ public struct ModuleLayoutResult: Sendable {
 public enum ModuleLayoutEngine {
     // MARK: Public
 
-    // MARK: - Constants
-
     /// Spacing between adjacent modules on the same side, in points.
     public static let interModuleSpacing: CGFloat = 8
 
@@ -107,8 +105,6 @@ public enum ModuleLayoutEngine {
     /// Content inside the clip shape is inset by this amount on each side so modules
     /// have breathing room and are not clipped by the rounded corners.
     public static let shapeEdgeMargin: CGFloat = 8
-
-    // MARK: - Layout computation
 
     /// Computes the closed-state module layout.
     ///

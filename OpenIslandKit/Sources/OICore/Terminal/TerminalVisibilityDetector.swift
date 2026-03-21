@@ -1,6 +1,7 @@
-// CGWindowListCopyWindowInfo predates Sendable annotations.
+// @preconcurrency: CGWindowListCopyWindowInfo predates Sendable annotations
 @preconcurrency import CoreGraphics
 
+// @preconcurrency: NSWorkspace, NSScreen, NSRunningApplication predate Sendable annotations
 @preconcurrency import AppKit
 import Foundation
 

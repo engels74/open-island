@@ -35,16 +35,12 @@ public struct ModuleVisibilityContext: Sendable, Equatable {
 
     // MARK: Public
 
-    /// Whether any active session is currently processing.
     public let isProcessing: Bool
 
-    /// Whether any active session has a pending permission request.
     public let hasPendingPermission: Bool
 
-    /// Whether any active session is waiting for user input.
     public let hasWaitingForInput: Bool
 
-    /// Set of providers with active sessions.
     public let activeProviders: Set<ProviderID>
 
     /// Per-provider activity summaries for provider-aware module decisions.
@@ -123,25 +119,20 @@ public struct ModuleRenderContext {
 /// private func myViewBody(context: ModuleRenderContext) -> some View { ... }
 /// ```
 public protocol NotchModule: Identifiable where ID == String {
-    /// Unique identifier for this module.
     var id: String { get }
 
-    /// Preferred side of the notch for this module.
     var defaultSide: ModuleSide { get }
 
     /// Sort order within its side (lower values are laid out first from the outer edge inward).
     var defaultOrder: Int { get }
 
-    /// Whether this module should also appear in the expanded header.
     var showInExpandedHeader: Bool { get }
 
-    /// Whether this module should be visible given the current session state.
     func isVisible(context: ModuleVisibilityContext) -> Bool
 
     /// Preferred width in points for this module's content area.
     func preferredWidth() -> CGFloat
 
-    /// Builds the module's view content.
     @MainActor
     func makeBody(context: ModuleRenderContext) -> AnyView
 }

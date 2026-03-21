@@ -168,14 +168,11 @@ struct SessionStoreTests {
     func `multiple subscribers receive the same state snapshot`() async throws {
         let store = await storeWithSession()
 
-        // Set up two subscriber streams
         let stream1 = await store.sessionsStream()
         let stream2 = await store.sessionsStream()
 
-        // Both streams receive an initial snapshot immediately; then a broadcast on processingStarted
         await store.process(.providerEvent(.processingStarted("s1")))
 
-        // Collect the latest value from each stream
         var iterator1 = stream1.makeAsyncIterator()
         var iterator2 = stream2.makeAsyncIterator()
 
@@ -239,7 +236,6 @@ struct SessionStoreTests {
             await store.process(.providerEvent(.notification("s1", message: "event-\(i)")))
         }
 
-        // Verify the session is still intact and functional after buffer wrap
         let session = await store.session(for: "s1")
         #expect(session != nil)
         #expect(session?.phase == .idle)
@@ -259,7 +255,7 @@ struct SessionStoreTests {
             for i in 0 ..< 20 {
                 group.addTask {
                     await store.process(
-                        .providerEvent(.sessionStarted("s\(i)", cwd: "/tmp/p\(i)", pid: Int32(i))),
+                        .providerEvent(.sessionStarted("s\(i)", providerID: .claude, cwd: "/tmp/p\(i)", pid: Int32(i))),
                     )
                 }
             }
@@ -321,14 +317,13 @@ struct SessionStoreTests {
     func `currentSessions returns sessions sorted by most recent activity`() async throws {
         let store = SessionStore()
 
-        await store.process(.providerEvent(.sessionStarted("s1", cwd: "/tmp/a", pid: 1)))
+        await store.process(.providerEvent(.sessionStarted("s1", providerID: .claude, cwd: "/tmp/a", pid: 1)))
         // Small delay to ensure ordering
         try await Task.sleep(for: .milliseconds(10))
-        await store.process(.providerEvent(.sessionStarted("s2", cwd: "/tmp/b", pid: 2)))
+        await store.process(.providerEvent(.sessionStarted("s2", providerID: .claude, cwd: "/tmp/b", pid: 2)))
 
         let sessions = await store.currentSessions
         #expect(sessions.count == 2)
-        // s2 was created more recently
         #expect(sessions.first?.id == "s2")
     }
 
@@ -343,7 +338,7 @@ struct SessionStoreTests {
         pid: Int32? = 123,
     ) async -> SessionStore {
         let store = SessionStore()
-        await store.process(.providerEvent(.sessionStarted(id, cwd: cwd, pid: pid)))
+        await store.process(.providerEvent(.sessionStarted(id, providerID: .claude, cwd: cwd, pid: pid)))
         return store
     }
 }

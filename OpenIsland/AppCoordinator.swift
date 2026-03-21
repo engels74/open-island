@@ -91,7 +91,6 @@ final class AppCoordinator {
     func start(updateManager: UpdateManager) {
         self.updateManager = updateManager
 
-        // 1. Register all provider adapters (so they're available for later enable/disable).
         let adapters: [any ProviderAdapter] = [
             ClaudeProviderAdapter(),
             CodexProviderAdapter(),
@@ -104,13 +103,11 @@ final class AppCoordinator {
                 await self.providerRegistry.register(adapter)
             }
 
-            // 2. Only start providers that are enabled in settings.
             let failures = await self.providerRegistry.startEnabledProviders()
             for (id, error) in failures {
                 self.logger.warning("Provider \(id.rawValue) failed to start: \(error)")
             }
 
-            // 3. Start the event bridge: provider events → session store.
             let mergedStream = await self.providerRegistry.mergedEvents()
             self.eventBridgeTask = Task {
                 for await event in mergedStream {
@@ -119,10 +116,8 @@ final class AppCoordinator {
             }
         }
 
-        // 4. Start SessionMonitor.
         self.sessionMonitor.start()
 
-        // 5. Create WindowManager with factory closure.
         let setupActions = self.makeSetupActions()
         self.windowManager = WindowManager(
             screenObserver: self.screenObserver,
@@ -148,16 +143,12 @@ final class AppCoordinator {
         }
         self.windowManager?.start()
 
-        // 6. Start EventMonitors.
         self.eventMonitors.startAll()
 
-        // 7. Keep EventMonitors geometry in sync with ScreenObserver.
         self.geometryObservationTask = self.startGeometryObservation()
 
-        // 8. Wire panel size so EventMonitors knows the opened panel bounds.
         self.panelSizeObservationTask = self.startPanelSizeObservation()
 
-        // 9. Start NotchActivityCoordinator.
         self.activityCoordinator.start()
     }
 

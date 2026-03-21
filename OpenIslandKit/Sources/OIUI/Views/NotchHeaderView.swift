@@ -58,7 +58,6 @@ package struct NotchHeaderView: View {
         }
     }
 
-    /// The render context passed to modules when building their views.
     private var renderContext: ModuleRenderContext {
         ModuleRenderContext(
             animationNamespace: self.headerNamespace,
@@ -68,13 +67,11 @@ package struct NotchHeaderView: View {
         )
     }
 
-    /// Visible left-side modules for the closed state, sorted by effective order.
     private var closedLeftModules: [any NotchModule] {
         self.viewModel.registry.effectiveModules(for: .left)
             .filter { $0.isVisible(context: self.viewModel.visibilityContext) }
     }
 
-    /// Visible right-side modules for the closed state, sorted by effective order.
     private var closedRightModules: [any NotchModule] {
         self.viewModel.registry.effectiveModules(for: .right)
             .filter { $0.isVisible(context: self.viewModel.visibilityContext) }

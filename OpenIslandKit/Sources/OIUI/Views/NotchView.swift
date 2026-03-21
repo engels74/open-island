@@ -141,7 +141,6 @@ public struct NotchView: View {
 
     // MARK: - Animations
 
-    /// Content insertion/removal transition.
     private var contentTransition: AnyTransition {
         .asymmetric(
             insertion: .scale(scale: 0.8, anchor: .top)
@@ -153,7 +152,6 @@ public struct NotchView: View {
 
     // MARK: - Content
 
-    /// Switched content area displayed when the notch is opened.
     @ViewBuilder private var notchContent: some View {
         switch self.viewModel.contentType {
         case .instances:
@@ -172,7 +170,6 @@ public struct NotchView: View {
 
     // MARK: - Shadow
 
-    /// Tiered shadow color: subtle glow on hover, full shadow when opened/popping.
     private func shadowColor(isOpened: Bool, isPopping: Bool) -> Color {
         if isOpened || isPopping {
             .black.opacity(0.7)
@@ -183,7 +180,6 @@ public struct NotchView: View {
         }
     }
 
-    /// Tiered shadow radius: small hint on hover, medium when opened, large when popping.
     private func shadowRadius(isOpened: Bool, isPopping: Bool) -> CGFloat {
         if isPopping {
             8
@@ -196,7 +192,6 @@ public struct NotchView: View {
         }
     }
 
-    /// Spring animation for open/close, with distinct parameters per direction.
     private func openCloseAnimation(isOpened: Bool) -> Animation {
         if isOpened {
             .spring(response: 0.42, dampingFraction: 0.8)

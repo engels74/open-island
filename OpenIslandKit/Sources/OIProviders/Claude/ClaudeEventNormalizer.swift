@@ -46,7 +46,7 @@ package enum ClaudeEventNormalizer {
         let sid = event.sessionID
         switch event.hookEventName {
         case "SessionStart":
-            return [.sessionStarted(sid, cwd: event.cwd ?? "", pid: nil)]
+            return [.sessionStarted(sid, providerID: .claude, cwd: event.cwd ?? "", pid: nil)]
         case "SessionEnd":
             return [.sessionEnded(sid)]
         case "UserPromptSubmit":

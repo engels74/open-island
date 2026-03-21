@@ -96,7 +96,6 @@ struct ConfigBackupManagerTests {
             let backups = manager.listBackups(for: .claude)
             #expect(backups.count == 2)
 
-            // Should be sorted newest first
             #expect(backups[0].date >= backups[1].date)
 
             // originalPath should be the true source path, not a relative backup path

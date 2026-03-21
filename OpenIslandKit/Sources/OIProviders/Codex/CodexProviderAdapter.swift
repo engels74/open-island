@@ -88,7 +88,7 @@ public final class CodexProviderAdapter: ProviderAdapter, Sendable {
             adapterState.serverRequestTask = serverRequestTask
         }
 
-        continuation.yield(.sessionStarted(sessionID, cwd: "", pid: nil))
+        continuation.yield(.sessionStarted(sessionID, providerID: .codex, cwd: "", pid: nil))
     }
 
     public func stop() async {

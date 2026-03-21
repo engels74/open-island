@@ -72,7 +72,7 @@ package enum OpenCodeEventNormalizer {
     private static func normalizeSessionCreated(_ json: [String: Any]) -> [ProviderEvent] {
         let sessionID = self.extractSessionID(json)
         let directory = json["directory"] as? String ?? ""
-        return [.sessionStarted(sessionID, cwd: directory, pid: nil)]
+        return [.sessionStarted(sessionID, providerID: .openCode, cwd: directory, pid: nil)]
     }
 
     private static func normalizeSessionDeleted(_ json: [String: Any]) -> [ProviderEvent] {

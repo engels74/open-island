@@ -18,8 +18,6 @@ public enum JSONValue: Sendable, Equatable, Codable {
 
     // MARK: Lifecycle
 
-    // MARK: - Codable
-
     public init(from decoder: any Decoder) throws {
         let container = try decoder.singleValueContainer()
 
@@ -67,8 +65,6 @@ public enum JSONValue: Sendable, Equatable, Codable {
     }
 
     // MARK: Public
-
-    // MARK: - Convenience Properties
 
     public var stringValue: String? {
         if case let .string(v) = self { return v }
@@ -119,15 +115,11 @@ public enum JSONValue: Sendable, Equatable, Codable {
 
     // MARK: - Subscripts
 
-    /// Access a value by key when `self` is `.object`.
-    /// Returns `nil` for type mismatches.
     public subscript(key: String) -> Self? {
         if case let .object(dict) = self { return dict[key] }
         return nil
     }
 
-    /// Access a value by index when `self` is `.array`.
-    /// Returns `nil` for type mismatches or out-of-bounds indices.
     public subscript(index: Int) -> Self? {
         if case let .array(arr) = self, arr.indices.contains(index) { return arr[index] }
         return nil

@@ -184,14 +184,10 @@ package actor CodexAppServerClient {
 
     private let decoder = JSONDecoder()
 
-    // MARK: - Request ID Generation
-
     private func nextRequestID() -> JSONRPCRequestID {
         self.requestCounter += 1
         return .int(self.requestCounter)
     }
-
-    // MARK: - Handshake
 
     private func performHandshake() async throws {
         let response = try await sendRequest(method: .initialize)
@@ -200,8 +196,6 @@ package actor CodexAppServerClient {
         }
         self.isInitialized = true
     }
-
-    // MARK: - Message Writing
 
     private func writeMessage(_ message: some Encodable) throws {
         guard let pipe = stdinPipe else {

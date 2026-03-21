@@ -9,7 +9,6 @@ public struct NotchGeometry: Sendable, Equatable {
     public init(notchSize: CGSize, screenFrame: CGRect) {
         self.screenRect = screenFrame
 
-        // The notch is centered horizontally at the top of the screen.
         // In AppKit coordinates (bottom-left origin), "top" = maxY.
         let notchX = screenFrame.midX - notchSize.width / 2 - screenFrame.origin.x
         let notchY = screenFrame.height - notchSize.height
@@ -74,8 +73,6 @@ public struct NotchGeometry: Sendable, Equatable {
     }
 
     // MARK: Private
-
-    // MARK: Padding Constants
 
     private static let horizontalPadding: CGFloat = 10
     private static let verticalPadding: CGFloat = 5

@@ -12,7 +12,7 @@ struct OpenCodeEventNormalizerSessionTests {
         let event = SSEEvent(event: "session.created", data: #"{"sessionId":"s1","directory":"/proj"}"#, id: nil)
         let events = OpenCodeEventNormalizer.normalize(event)
         #expect(events.count == 1)
-        guard case let .sessionStarted(sid, cwd, pid) = events.first else {
+        guard case let .sessionStarted(sid, _, cwd, pid) = events.first else {
             Issue.record("Expected .sessionStarted, got \(String(describing: events.first))")
             return
         }

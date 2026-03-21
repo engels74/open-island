@@ -6,7 +6,7 @@ public typealias SessionID = String
 /// A normalized event emitted by any provider, representing all observable
 /// state changes during a coding assistant session.
 public enum ProviderEvent: Sendable {
-    case sessionStarted(SessionID, cwd: String, pid: Int32?)
+    case sessionStarted(SessionID, providerID: ProviderID, cwd: String, pid: Int32?)
     case sessionEnded(SessionID)
     case userPromptSubmitted(SessionID)
     case processingStarted(SessionID)

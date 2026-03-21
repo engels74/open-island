@@ -318,11 +318,7 @@ package struct ClaudeHookInstaller: Sendable {
 // MARK: - Task cancellation helper
 
 private extension Task where Success == Never, Failure == Never {
-    /// Check for cancellation, throwing a typed ``HookInstallError`` is not possible
-    /// since `CancellationError` is not in that domain. Instead we use a fatalError-free check.
-    static func checkCancellation() throws(HookInstallError) {
-        // Note: We can't throw CancellationError through typed throws(HookInstallError).
-        // Instead, we silently return if cancelled. The caller should check isCancelled
-        // for long operations. This is acceptable since install/uninstall are short operations.
-    }
+    /// No-op: `CancellationError` cannot be thrown through `throws(HookInstallError)`.
+    /// Install/uninstall operations are short enough that cooperative cancellation is unnecessary.
+    static func checkCancellation() throws(HookInstallError) {}
 }

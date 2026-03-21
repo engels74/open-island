@@ -1,3 +1,4 @@
+// @preconcurrency: NSHostingView, NSView predate Sendable annotations
 @preconcurrency package import AppKit
 package import SwiftUI
 

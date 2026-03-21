@@ -23,7 +23,6 @@ package struct PermissionConnection: ~Copyable {
 
     // MARK: Package
 
-    /// The permission request ID this connection is waiting on.
     package let requestID: String
 
     /// Whether this connection has exceeded the 5-minute timeout.
@@ -35,9 +34,6 @@ package struct PermissionConnection: ~Copyable {
 
     // MARK: Internal
 
-    /// Write a JSON response to the held-open connection and close it.
-    ///
-    /// Consumes ownership — the connection cannot be used after responding.
     /// The underlying `SocketFD` is closed when its `deinit` fires at the
     /// end of this function (no explicit `close()` needed).
     consuming func respond(_ jsonData: Data) {
@@ -49,7 +45,6 @@ package struct PermissionConnection: ~Copyable {
 
     // MARK: Private
 
-    /// Timeout: 5 minutes from creation.
     private let createdAt: DispatchTime
 
     private var clientFD: SocketFD

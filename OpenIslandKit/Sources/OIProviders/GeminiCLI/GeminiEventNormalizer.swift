@@ -28,8 +28,6 @@ package enum GeminiEventNormalizer {
 
     // MARK: Private
 
-    // MARK: - MCP Context Detection
-
     private enum ToolPhase { case before, after }
 
     private static let afterModelThrottleInterval: TimeInterval = 0.1
@@ -45,7 +43,7 @@ package enum GeminiEventNormalizer {
         switch hookEventName {
         case "SessionStart":
             let cwd = json["cwd"] as? String ?? ""
-            return ([.sessionStarted(sessionID, cwd: cwd, pid: nil)], lastAfterModelTime)
+            return ([.sessionStarted(sessionID, providerID: .geminiCLI, cwd: cwd, pid: nil)], lastAfterModelTime)
 
         case "SessionEnd":
             return ([.sessionEnded(sessionID)], lastAfterModelTime)

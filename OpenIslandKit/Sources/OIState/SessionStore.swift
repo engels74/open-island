@@ -47,8 +47,6 @@ public actor SessionStore {
 
     // MARK: Internal
 
-    // MARK: Internal — stored properties for extensions
-
     var sessions: [String: SessionState] = [:]
 
     /// Multi-subscriber broadcast (§2.2).

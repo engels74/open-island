@@ -79,7 +79,6 @@ package final class ExampleProviderAdapter: ProviderAdapter, Sendable {
         if let stream = self.state.withLock({ $0.eventStream }) {
             return stream
         }
-        // Not started — return an immediately-finished empty stream.
         let (stream, continuation) = AsyncStream<ProviderEvent>.makeStream()
         continuation.finish()
         return stream
@@ -113,7 +112,7 @@ package final class ExampleProviderAdapter: ProviderAdapter, Sendable {
         _ = self.state.withLock { $0.activeSessions.insert(sessionID) }
 
         let events: [ProviderEvent] = [
-            .sessionStarted(sessionID, cwd: "/tmp/example-project", pid: nil),
+            .sessionStarted(sessionID, providerID: .example, cwd: "/tmp/example-project", pid: nil),
             .processingStarted(sessionID),
             .modelResponse(sessionID, textDelta: "Let me analyze the project structure..."),
             .toolStarted(

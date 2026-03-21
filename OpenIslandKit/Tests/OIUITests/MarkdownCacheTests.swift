@@ -88,7 +88,6 @@ struct MarkdownCacheTests {
         let result1 = renderer1.visit(doc1)
         let result2 = renderer2.visit(doc2)
 
-        // The plain text content should be identical
         let text1 = String(result1.characters)
         let text2 = String(result2.characters)
         #expect(text1 == text2)
