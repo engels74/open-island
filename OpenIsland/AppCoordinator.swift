@@ -152,6 +152,35 @@ final class AppCoordinator {
         self.activityCoordinator.start()
     }
 
+    /// Tears down all running subsystems for a clean shutdown.
+    ///
+    /// Cancels background tasks, stops event monitors, session monitoring, and
+    /// activity coordination, then synchronously waits for ``ProviderRegistry/stopAll()``
+    /// to complete (which triggers ``HookSocketBridge/stop()`` → `unlink`).
+    ///
+    /// Called from `applicationWillTerminate(_:)` which is synchronous, so the
+    /// async `stopAll()` call is bridged with a semaphore and a short timeout.
+    func stop() {
+        self.eventBridgeTask?.cancel()
+        self.geometryObservationTask?.cancel()
+        self.panelSizeObservationTask?.cancel()
+
+        self.activityCoordinator.stop()
+        self.sessionMonitor.stop()
+        self.eventMonitors.stopAll()
+        self.windowManager?.stop()
+
+        let registry = self.providerRegistry
+        let semaphore = DispatchSemaphore(value: 0)
+        Task.detached {
+            await registry.stopAll()
+            semaphore.signal()
+        }
+        _ = semaphore.wait(timeout: .now() + 2)
+
+        self.logger.info("Graceful shutdown complete")
+    }
+
     /// Enables a provider at runtime: updates settings and starts the adapter.
     func enableProvider(_ id: ProviderID) async {
         do {
