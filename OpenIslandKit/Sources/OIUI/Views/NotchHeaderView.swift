@@ -263,7 +263,7 @@ private func previewRegistry() -> ModuleRegistry {
 }
 
 private let previewGeometry = NotchGeometry(
-    notchSize: CGSize(width: 200, height: 36),
+    notchSize: CGSize(width: 224, height: 38),
     screenFrame: CGRect(x: 0, y: 0, width: 1728, height: 1117),
 )
 

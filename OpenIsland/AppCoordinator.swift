@@ -42,7 +42,7 @@ final class AppCoordinator {
         // so the view model exists immediately. WindowManager will update it
         // when a notch screen appears.
         let geometry = self.screenObserver.geometry ?? NotchGeometry(
-            notchSize: CGSize(width: 200, height: 32),
+            notchSize: CGSize(width: 224, height: 38),
             screenFrame: .zero,
         )
         self.viewModel = NotchViewModel(geometry: geometry, registry: self.moduleRegistry)

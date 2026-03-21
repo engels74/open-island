@@ -7,8 +7,8 @@ import Testing
 
 struct NotchGeometryTests {
     // A typical MacBook Pro 14" screen: 3024×1964 at origin (0, 0)
-    // with a notch roughly 180×32 px.
-    static let typicalNotchSize = CGSize(width: 180, height: 32)
+    // with a notch roughly 180×38 pt.
+    static let typicalNotchSize = CGSize(width: 180, height: 38)
     static let typicalScreenFrame = CGRect(x: 0, y: 0, width: 3024, height: 1964)
 
     static let geometry = NotchGeometry(
@@ -48,9 +48,9 @@ struct NotchGeometryTests {
         let padded = geo.paddedNotchRect
         let device = geo.deviceNotchRect
 
-        // Horizontal padding: ±10px each side → 20px wider
+        // Horizontal padding: ±10pt each side → 20pt wider
         #expect(padded.width == device.width + 20)
-        // Vertical padding: ±5px → 10px taller
+        // Vertical padding: ±5pt → 10pt taller
         #expect(padded.height == device.height + 10)
         // Origin shifts left by 10, down by 5
         #expect(padded.origin.x == device.origin.x - 10)
@@ -181,8 +181,8 @@ struct NotchGeometryTests {
 
     @Test
     func `Different notch sizes produce unequal geometry`() {
-        let a = NotchGeometry(notchSize: CGSize(width: 180, height: 32), screenFrame: Self.typicalScreenFrame)
-        let b = NotchGeometry(notchSize: CGSize(width: 200, height: 32), screenFrame: Self.typicalScreenFrame)
+        let a = NotchGeometry(notchSize: CGSize(width: 180, height: 38), screenFrame: Self.typicalScreenFrame)
+        let b = NotchGeometry(notchSize: CGSize(width: 224, height: 38), screenFrame: Self.typicalScreenFrame)
         #expect(a != b)
     }
 }
