@@ -111,6 +111,9 @@ public struct NotchView: View {
         .animation(self.reduceMotion ? .none : .smooth, value: self.viewModel.visibilityContext.hasWaitingForInput)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(isOpened ? "Open Island panel, expanded" : "Open Island panel, collapsed")
+        // When closed with asymmetric module widths, shift the visual shape so
+        // its internal notch gap stays aligned with the physical notch.
+        .offset(x: isOpened ? 0 : self.closedNotchAlignmentOffset)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
@@ -138,6 +141,19 @@ public struct NotchView: View {
             width: rect.width + layout.totalExpansionWidth + 2 * ModuleLayoutEngine.shapeEdgeMargin,
             height: rect.height,
         )
+    }
+
+    /// Horizontal offset that keeps the closed-state notch gap aligned with the
+    /// physical notch when left and right module widths differ.
+    ///
+    /// Without this offset the visual shape is centered on the screen, but the
+    /// content inside is `[left modules][notch spacer][right modules]`. When the
+    /// sides are asymmetric the notch spacer drifts from the physical notch by
+    /// `(leftSideWidth − rightSideWidth) / 2`, potentially letting modules
+    /// encroach into the hardware notch exclusion area.
+    private var closedNotchAlignmentOffset: CGFloat {
+        let layout = self.viewModel.moduleLayout
+        return (layout.leftSideWidth - layout.rightSideWidth) / 2
     }
 
     // MARK: - Animations

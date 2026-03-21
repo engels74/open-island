@@ -116,12 +116,13 @@ package struct NotchHeaderView: View {
                 .frame(width: self.viewModel.geometry.deviceNotchRect.width)
 
             // Bounce: offset outward when the activity coordinator signals a bounce.
+            // The offset must not exceed shapeEdgeMargin to stay within the clip shape.
             self.closedModuleRow(modules: self.closedRightModules, side: .right)
                 .frame(
                     width: self.viewModel.moduleLayout.rightSideWidth,
                     alignment: .trailing,
                 )
-                .offset(x: self.activityCoordinator?.isBouncing == true ? 16 : 0)
+                .offset(x: self.activityCoordinator?.isBouncing == true ? ModuleLayoutEngine.shapeEdgeMargin : 0)
                 .animation(
                     self.reduceMotion ? .none : .spring(response: 0.3, dampingFraction: 0.5),
                     value: self.activityCoordinator?.isBouncing,
