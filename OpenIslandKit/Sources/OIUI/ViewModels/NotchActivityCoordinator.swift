@@ -1,6 +1,7 @@
 import Foundation
 public import Observation
 public import OICore
+import OIModules
 import Synchronization
 
 // MARK: - NotchActivityCoordinator
@@ -90,6 +91,7 @@ public final class NotchActivityCoordinator {
                 guard !Task.isCancelled, let coordinator = self else { return }
                 let newInstances = coordinator.sessionMonitor.instances
                 coordinator.handlePhaseChanges(previous: currentInstances, current: newInstances)
+                coordinator.updateVisibilityContext(from: newInstances)
             }
         }
     }
@@ -142,6 +144,26 @@ public final class NotchActivityCoordinator {
     /// Whether any known terminal window is visible on the current space.
     private var isTerminalVisible: Bool {
         TerminalVisibilityDetector.isTerminalVisibleOnCurrentSpace()
+    }
+
+    // MARK: - Visibility context
+
+    private func updateVisibilityContext(from instances: [SessionState]) {
+        let isProcessing = instances.contains { $0.phase == .processing }
+        let hasPendingPermission = instances.contains { session in
+            if case .waitingForApproval = session.phase { return true }
+            return false
+        }
+        let hasWaitingForInput = instances.contains { $0.phase == .waitingForInput }
+        let activeProviders = Set(instances.map(\.providerID))
+
+        let context = ModuleVisibilityContext(
+            isProcessing: isProcessing,
+            hasPendingPermission: hasPendingPermission,
+            hasWaitingForInput: hasWaitingForInput,
+            activeProviders: activeProviders,
+        )
+        self.notchViewModel.visibilityContext = context
     }
 
     // MARK: - Phase change handling

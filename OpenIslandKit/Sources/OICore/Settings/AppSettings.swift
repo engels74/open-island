@@ -73,7 +73,7 @@ package struct AppSettings: Sendable {
             guard let data = UserDefaults.standard.data(forKey: Key.enabledProviders),
                   let rawValues = try? JSONDecoder().decode([String].self, from: data)
             else {
-                return Set<ProviderID>()
+                return Set(ProviderID.allKnown)
             }
             return Set(rawValues.compactMap(ProviderID.init(rawValue:)))
         }

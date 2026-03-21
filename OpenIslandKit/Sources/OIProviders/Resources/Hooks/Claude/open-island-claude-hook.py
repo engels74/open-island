@@ -46,7 +46,10 @@ def main() -> None:
         return
 
     try:
-        _send(sock, raw)
+        # Re-serialize to compact JSON to ensure no internal newlines
+        # (the socket protocol uses newline as the message delimiter).
+        compact = json.dumps(event, separators=(",", ":"))
+        _send(sock, compact)
 
         if is_blocking:
             response = _recv(sock)
