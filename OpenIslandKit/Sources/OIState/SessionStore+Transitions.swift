@@ -7,7 +7,9 @@ private let logger = Logger(subsystem: "com.engels74.openisland", category: "Ses
 // MARK: - Provider Event Handling
 
 extension SessionStore {
-    func handleProviderEvent(_ event: ProviderEvent) {
+    func handleProviderEvent(_ taggedEvent: TaggedProviderEvent) {
+        let event = taggedEvent.event
+
         // Auto-recover unknown sessions: if an event arrives for a session ID
         // we don't have, create it on the fly so the event is not silently dropped.
         // This handles the case where Open Island restarts while a provider session
@@ -23,15 +25,18 @@ extension SessionStore {
                 break
             default:
                 logger.warning("Auto-recovering unknown session \(sessionID) from incoming event")
-                // TODO: providerID defaults to .claude because non-sessionStarted events
-                // don't carry provider info. Improve when ProviderEvent gains a providerID field.
-                self.handleSessionStarted(sessionID, providerID: .claude, cwd: "", pid: nil)
+                self.handleSessionStarted(sessionID, providerID: taggedEvent.providerID, cwd: "", pid: nil)
             }
         }
 
         switch event {
-        case let .sessionStarted(sessionID, providerID: providerID, cwd: cwd, pid: pid):
-            handleSessionStarted(sessionID, providerID: providerID, cwd: cwd, pid: pid)
+        case let .sessionStarted(sessionID, providerID: eventProviderID, cwd: cwd, pid: pid):
+            if eventProviderID != taggedEvent.providerID {
+                logger.warning(
+                    "providerID mismatch for session \(sessionID): event has \(eventProviderID.rawValue) but tagged as \(taggedEvent.providerID.rawValue); using tagged value",
+                )
+            }
+            handleSessionStarted(sessionID, providerID: taggedEvent.providerID, cwd: cwd, pid: pid)
 
         case let .sessionEnded(sessionID):
             transitionSession(sessionID, to: .ended)

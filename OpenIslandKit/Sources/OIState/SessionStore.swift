@@ -28,8 +28,8 @@ public actor SessionStore {
         self.recordAudit(event)
 
         switch event {
-        case let .providerEvent(providerEvent):
-            handleProviderEvent(providerEvent)
+        case let .providerEvent(taggedEvent):
+            handleProviderEvent(taggedEvent)
 
         case let .permissionApproved(sessionID, requestID: requestID):
             handlePermissionApproved(sessionID, requestID: requestID)

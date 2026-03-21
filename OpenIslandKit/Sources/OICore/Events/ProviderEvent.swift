@@ -1,6 +1,27 @@
 /// A unique identifier for a provider session.
 public typealias SessionID = String
 
+// MARK: - TaggedProviderEvent
+
+/// A ``ProviderEvent`` paired with the ``ProviderID`` of the adapter that produced it.
+///
+/// Created at the merge boundary in ``ProviderRegistry/mergedEvents()`` so that
+/// downstream consumers (``SessionStore``) know which provider each event came from
+/// without requiring individual normalizers to embed the information.
+public struct TaggedProviderEvent: Sendable {
+    // MARK: Lifecycle
+
+    public init(event: ProviderEvent, providerID: ProviderID) {
+        self.event = event
+        self.providerID = providerID
+    }
+
+    // MARK: Public
+
+    public let event: ProviderEvent
+    public let providerID: ProviderID
+}
+
 // MARK: - ProviderEvent
 
 /// A normalized event emitted by any provider, representing all observable

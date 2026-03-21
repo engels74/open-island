@@ -3,7 +3,7 @@
 /// An internal event for ``SessionStore``, encompassing provider events
 /// and UI-initiated actions.
 public enum SessionEvent: Sendable {
-    case providerEvent(ProviderEvent)
+    case providerEvent(TaggedProviderEvent)
     case permissionApproved(SessionID, requestID: String)
     case permissionDenied(SessionID, requestID: String, reason: String?)
     case archiveSession(SessionID)
