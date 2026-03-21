@@ -187,11 +187,11 @@ struct ProviderSetupRequirementsTests {
 @Suite(.serialized)
 struct AppSettingsEnabledProvidersTests {
     @Test
-    func `defaults to empty set on fresh UserDefaults`() {
+    func `defaults to all known providers on fresh UserDefaults`() {
         // Remove the key to simulate fresh install
         UserDefaults.standard.removeObject(forKey: "oi_enabledProviders")
         let providers = AppSettings.enabledProviders
-        #expect(providers.isEmpty)
+        #expect(providers == Set(ProviderID.allKnown))
     }
 
     @Test

@@ -1,3 +1,5 @@
+import os
+
 package import SwiftUI
 
 // MARK: - AppSettings
@@ -5,6 +7,10 @@ package import SwiftUI
 // UserDefaults is documented as thread-safe by Apple. Static computed
 // properties here delegate directly to UserDefaults — no Mutex needed.
 // Do NOT add Mutex wrapping or actor isolation to these accessors.
+
+private let logger = Logger(subsystem: "com.engels74.openisland", category: "AppSettings")
+
+// MARK: - AppSettings
 
 /// Central settings store backed by `UserDefaults`.
 ///
@@ -70,10 +76,16 @@ package struct AppSettings: Sendable {
     /// The set of enabled provider IDs, stored as a JSON-encoded array of raw values.
     package static var enabledProviders: Set<ProviderID> {
         get {
-            guard let data = UserDefaults.standard.data(forKey: Key.enabledProviders),
-                  let rawValues = try? JSONDecoder().decode([String].self, from: data)
-            else {
-                return Set<ProviderID>()
+            guard let data = UserDefaults.standard.data(forKey: Key.enabledProviders) else {
+                // Key absent (first launch) — default to all providers.
+                return Set(ProviderID.allKnown)
+            }
+            guard let rawValues = try? JSONDecoder().decode([String].self, from: data) else {
+                // Key present but decode failed (corruption / schema change).
+                // Log so the issue is observable, then fall back to all providers
+                // to avoid silently disabling monitoring.
+                logger.warning("enabledProviders decode failed — resetting to all providers")
+                return Set(ProviderID.allKnown)
             }
             return Set(rawValues.compactMap(ProviderID.init(rawValue:)))
         }
