@@ -30,8 +30,13 @@ extension SessionStore {
         }
 
         switch event {
-        case let .sessionStarted(sessionID, providerID: providerID, cwd: cwd, pid: pid):
-            handleSessionStarted(sessionID, providerID: providerID, cwd: cwd, pid: pid)
+        case let .sessionStarted(sessionID, providerID: eventProviderID, cwd: cwd, pid: pid):
+            if eventProviderID != taggedEvent.providerID {
+                logger.warning(
+                    "providerID mismatch for session \(sessionID): event has \(eventProviderID.rawValue) but tagged as \(taggedEvent.providerID.rawValue); using tagged value",
+                )
+            }
+            handleSessionStarted(sessionID, providerID: taggedEvent.providerID, cwd: cwd, pid: pid)
 
         case let .sessionEnded(sessionID):
             transitionSession(sessionID, to: .ended)
