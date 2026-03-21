@@ -1,4 +1,4 @@
-import Foundation
+package import Foundation
 public import OICore
 import Synchronization
 
@@ -9,6 +9,9 @@ private struct AdapterState: Sendable {
     var eventStream: AsyncStream<ProviderEvent>?
     var eventContinuation: AsyncStream<ProviderEvent>.Continuation?
     var processingTask: Task<Void, Never>?
+    /// Tracks request IDs originating from PreToolUse events so that
+    /// ``respondToPermission`` can use the correct response format.
+    var preToolUseRequestIDs: Set<String> = []
 }
 
 // MARK: - ClaudeProviderAdapter
@@ -78,6 +81,7 @@ public final class ClaudeProviderAdapter: ProviderAdapter, Sendable {
             state.eventContinuation = nil
             state.eventStream = nil
             state.processingTask = nil
+            state.preToolUseRequestIDs.removeAll()
             state.isRunning = false
             return (cont, task)
         }
@@ -100,7 +104,12 @@ public final class ClaudeProviderAdapter: ProviderAdapter, Sendable {
         _ request: PermissionRequest,
         decision: PermissionDecision,
     ) async throws {
-        let responseData = try Self.encodePermissionResponse(decision)
+        let isPreToolUse = self.state.withLock { $0.preToolUseRequestIDs.remove(request.id) != nil }
+        let responseData = if isPreToolUse {
+            try Self.encodePreToolUseResponse(decision)
+        } else {
+            try Self.encodePermissionRequestResponse(decision)
+        }
         let sent = self.socketServer.respondToPermission(requestID: request.id, data: responseData)
         if !sent {
             throw PermissionResponseError.noConnectionFound(requestID: request.id)
@@ -111,12 +120,10 @@ public final class ClaudeProviderAdapter: ProviderAdapter, Sendable {
         true
     }
 
-    // MARK: Private
+    // MARK: Package
 
-    private let socketServer: ClaudeHookSocketServer
-    private let state: Mutex<AdapterState>
-
-    private static func encodePermissionResponse(_ decision: PermissionDecision) throws -> Data {
+    /// Encodes a PermissionRequest response: `{"decision": {"behavior": "allow"|"deny"}}`.
+    package static func encodePermissionRequestResponse(_ decision: PermissionDecision) throws -> Data {
         struct Response: Encodable {
             let decision: DecisionPayload
         }
@@ -135,6 +142,30 @@ public final class ClaudeProviderAdapter: ProviderAdapter, Sendable {
         return try JSONEncoder().encode(Response(decision: payload))
     }
 
+    /// Encodes a PreToolUse response: `{"hookSpecificOutput": {"permissionDecision": "allow"|"deny"}}`.
+    package static func encodePreToolUseResponse(_ decision: PermissionDecision) throws -> Data {
+        struct Response: Encodable {
+            let hookSpecificOutput: HookOutput
+        }
+        struct HookOutput: Encodable {
+            let permissionDecision: String
+        }
+
+        let value = switch decision {
+        case .allow: "allow"
+        case .deny: "deny"
+        }
+
+        return try JSONEncoder().encode(
+            Response(hookSpecificOutput: HookOutput(permissionDecision: value)),
+        )
+    }
+
+    // MARK: Private
+
+    private let socketServer: ClaudeHookSocketServer
+    private let state: Mutex<AdapterState>
+
     private func processRawEvent(_ data: Data, continuation: AsyncStream<ProviderEvent>.Continuation) {
         let hookEvent: ClaudeHookEvent
         do {
@@ -147,6 +178,10 @@ public final class ClaudeProviderAdapter: ProviderAdapter, Sendable {
         do {
             let providerEvents = try ClaudeEventNormalizer.normalize(hookEvent)
             for providerEvent in providerEvents {
+                if hookEvent.hookEventName == "PreToolUse",
+                   case let .permissionRequested(_, request) = providerEvent {
+                    self.state.withLock { _ = $0.preToolUseRequestIDs.insert(request.id) }
+                }
                 continuation.yield(providerEvent)
             }
         } catch {

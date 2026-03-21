@@ -13,8 +13,7 @@ package enum ClaudeEventNormalizer {
         switch event.hookEventName {
         case "Setup",
              "WorktreeCreate",
-             "WorktreeRemove",
-             "PreToolUse":
+             "WorktreeRemove":
             return []
         case "TeammateIdle":
             return self.normalizeTeammateIdle(event)
@@ -24,11 +23,17 @@ package enum ClaudeEventNormalizer {
              "SessionEnd",
              "UserPromptSubmit",
              "Stop",
+             "StopFailure",
              "PreCompact",
+             "PostCompact",
              "ConfigChange",
-             "Notification":
+             "Notification",
+             "InstructionsLoaded",
+             "Elicitation",
+             "ElicitationResult":
             return self.normalizeSession(event)
-        case "PostToolUse",
+        case "PreToolUse",
+             "PostToolUse",
              "PostToolUseFailure",
              "PermissionRequest":
             return try [self.normalizeTool(event)]
@@ -58,12 +63,24 @@ package enum ClaudeEventNormalizer {
             }
             events.append(.waitingForInput(sid))
             return events
+        case "StopFailure":
+            let reason = event.stopReason ?? event.message ?? "unknown error"
+            return [.notification(sid, message: "Turn ended with error: \(reason)")]
         case "PreCompact":
             return [.compacting(sid)]
+        case "PostCompact":
+            return [.notification(sid, message: "Context compacted")]
         case "ConfigChange":
             return [.configChanged(sid)]
         case "Notification":
             return [.notification(sid, message: event.message ?? "")]
+        case "InstructionsLoaded":
+            let detail = event.filePath ?? event.message ?? "instructions"
+            return [.notification(sid, message: "Instructions loaded: \(detail)")]
+        case "Elicitation":
+            return [.notification(sid, message: "Elicitation: \(event.message ?? "user input requested")")]
+        case "ElicitationResult":
+            return [.notification(sid, message: "Elicitation completed")]
         default:
             fatalError("Unreachable: \(event.hookEventName) not a session event")
         }
@@ -74,6 +91,9 @@ package enum ClaudeEventNormalizer {
     ) throws(EventNormalizationError) -> ProviderEvent {
         let sid = event.sessionID
         switch event.hookEventName {
+        case "PreToolUse":
+            let request = try self.makePermissionRequest(from: event)
+            return .permissionRequested(sid, request)
         case "PostToolUse":
             let toolEvent = try makeToolEvent(from: event)
             let result = self.makeToolResult(from: event, isSuccess: true)
@@ -83,7 +103,7 @@ package enum ClaudeEventNormalizer {
             let result = self.makeToolResult(from: event, isSuccess: false)
             return .toolCompleted(sid, toolEvent, result)
         case "PermissionRequest":
-            let request = try makePermissionRequest(from: event)
+            let request = try self.makePermissionRequest(from: event)
             return .permissionRequested(sid, request)
         default:
             fatalError("Unreachable: \(event.hookEventName) not a tool event")

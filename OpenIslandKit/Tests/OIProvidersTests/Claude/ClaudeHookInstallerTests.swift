@@ -40,7 +40,7 @@ private enum HookInstallerTestHelpers {
 @Suite(.tags(.claude), .serialized)
 struct ClaudeHookInstallerInstallTests {
     @Test
-    func `install writes settings json with all 17 event types`() async throws {
+    func `install writes settings json with all 22 event types`() async throws {
         let tempDir = try HookInstallerTestHelpers.makeTempClaudeDir()
         defer { HookInstallerTestHelpers.cleanup(tempDir) }
 
@@ -59,7 +59,7 @@ struct ClaudeHookInstallerInstallTests {
         )
         let hooks = try #require(json["hooks"] as? [String: Any])
 
-        #expect(hooks.count == 17)
+        #expect(hooks.count == 22)
         #expect(hooks["PreToolUse"] == nil)
 
         for eventType in ClaudeHookInstaller.allHookEventTypes {
@@ -74,6 +74,39 @@ struct ClaudeHookInstallerInstallTests {
             let command = try #require(groupHooks[0]["command"] as? String)
             #expect(command.contains("python3"))
             #expect(command.contains(ClaudeHookInstaller.hookScriptName))
+        }
+    }
+
+    @Test
+    func `install sets async true on non-blocking hooks`() async throws {
+        let tempDir = try HookInstallerTestHelpers.makeTempClaudeDir()
+        defer { HookInstallerTestHelpers.cleanup(tempDir) }
+
+        let scriptURL = try HookInstallerTestHelpers.createFakeScript(in: tempDir)
+
+        try await ClaudeHookInstaller.install(
+            hookCommand: .python(path: "/usr/bin/python3"),
+            claudeConfigDir: tempDir,
+            bundledScriptURL: scriptURL,
+        )
+
+        let settingsURL = tempDir.appendingPathComponent("settings.json")
+        let data = try Data(contentsOf: settingsURL)
+        let json = try #require(
+            try JSONSerialization.jsonObject(with: data) as? [String: Any],
+        )
+        let hooks = try #require(json["hooks"] as? [String: Any])
+
+        for eventType in ClaudeHookInstaller.allHookEventTypes {
+            let entries = try #require(hooks[eventType] as? [[String: Any]])
+            let groupHooks = try #require(entries[0]["hooks"] as? [[String: Any]])
+            let asyncFlag = groupHooks[0]["async"] as? Bool
+
+            if ClaudeHookInstaller.blockingEventTypes.contains(eventType) {
+                #expect(asyncFlag == nil, "Blocking event \(eventType) should not have async flag")
+            } else {
+                #expect(asyncFlag == true, "Non-blocking event \(eventType) should have async: true")
+            }
         }
     }
 

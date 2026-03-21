@@ -2,13 +2,13 @@
 """Open Island hook script for Claude Code.
 
 Forwards hook events to the Open Island macOS app via Unix domain socket.
-For PermissionRequest events, blocks waiting for the app's approve/deny decision.
+For blocking events (PermissionRequest, PreToolUse), waits for the app's decision.
 
 Protocol:
     - Reads JSON from stdin (Claude Code hook event)
     - Connects to Unix domain socket at SOCKET_PATH
     - Sends event JSON followed by newline
-    - For PermissionRequest: reads decision JSON from socket, outputs to stdout
+    - For blocking events: reads decision JSON from socket, outputs to stdout
     - For all other events: outputs {} to stdout
     - Exit 0 on success; never blocks Claude Code on failure
 """
@@ -38,7 +38,7 @@ def main() -> None:
         return
 
     hook_name = event.get("hook_event_name", "") if isinstance(event, dict) else ""
-    is_permission = hook_name == "PermissionRequest"
+    is_blocking = hook_name in ("PermissionRequest", "PreToolUse")
 
     sock = _connect()
     if sock is None:
@@ -48,7 +48,7 @@ def main() -> None:
     try:
         _send(sock, raw)
 
-        if is_permission:
+        if is_blocking:
             response = _recv(sock)
             if response is not None:
                 sys.stdout.write(response)
