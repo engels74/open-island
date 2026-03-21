@@ -155,11 +155,54 @@ struct SessionStoreTests {
     }
 
     @Test
-    func `event for unknown session is ignored`() async {
+    func `event for unknown session auto-recovers the session`() async {
         let store = SessionStore()
-        await store.process(.providerEvent(.processingStarted("nonexistent")))
-        let session = await store.session(for: "nonexistent")
+        await store.process(.providerEvent(.processingStarted("recovered")))
+        let session = await store.session(for: "recovered")
+        #expect(session != nil)
+        #expect(session?.phase == .processing)
+        #expect(session?.providerID == .claude)
+    }
+
+    // MARK: - Session Auto-Recovery
+
+    @Test
+    func `auto-recovery creates session then processes event normally`() async {
+        let store = SessionStore()
+        // Send a toolStarted event for an unknown session — should auto-create then process
+        let toolEvent = ToolEvent(id: "t1", name: "Bash", startedAt: Date())
+        await store.process(.providerEvent(.toolStarted("unknown-s1", toolEvent)))
+        let session = await store.session(for: "unknown-s1")
+        #expect(session != nil)
+        #expect(session?.phase == .idle)
+        #expect(session?.activeTools.count == 1)
+    }
+
+    @Test
+    func `sessionEnded for unknown session does not create zombie`() async {
+        let store = SessionStore()
+        await store.process(.providerEvent(.sessionEnded("ghost")))
+        let session = await store.session(for: "ghost")
         #expect(session == nil)
+    }
+
+    @Test
+    func `configChanged with nil sessionID does not create session`() async {
+        let store = SessionStore()
+        await store.process(.providerEvent(.configChanged(nil)))
+        let sessions = await store.currentSessions
+        #expect(sessions.isEmpty)
+    }
+
+    @Test
+    func `auto-recovered session has default provider and empty cwd`() async {
+        let store = SessionStore()
+        await store.process(.providerEvent(.notification("auto-s1", message: "hello")))
+        let session = await store.session(for: "auto-s1")
+        #expect(session != nil)
+        #expect(session?.providerID == .claude)
+        #expect(session?.cwd.isEmpty == true)
+        #expect(session?.pid == nil)
     }
 
     // MARK: - Multi-Subscriber Broadcast

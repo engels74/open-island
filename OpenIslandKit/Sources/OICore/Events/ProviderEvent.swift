@@ -27,4 +27,33 @@ public enum ProviderEvent: Sendable {
     case tokenUsage(SessionID, promptTokens: Int?, completionTokens: Int?, totalTokens: Int?)
     /// The user interrupted the provider (e.g., Ctrl+C / Escape).
     case interruptDetected(SessionID)
+
+    // MARK: Public
+
+    /// Extracts the session ID from any event case.
+    /// Returns `nil` for `.configChanged(nil)` (global config).
+    public var sessionID: SessionID? {
+        switch self {
+        case let .sessionStarted(id, providerID: _, cwd: _, pid: _),
+             let .sessionEnded(id),
+             let .userPromptSubmitted(id),
+             let .processingStarted(id),
+             let .toolStarted(id, _),
+             let .toolCompleted(id, _, _),
+             let .permissionRequested(id, _),
+             let .waitingForInput(id),
+             let .compacting(id),
+             let .notification(id, message: _),
+             let .chatUpdated(id, _),
+             let .subagentStarted(id, taskID: _, parentToolID: _),
+             let .subagentStopped(id, taskID: _),
+             let .diffUpdated(id, unifiedDiff: _),
+             let .modelResponse(id, textDelta: _),
+             let .tokenUsage(id, promptTokens: _, completionTokens: _, totalTokens: _),
+             let .interruptDetected(id):
+            id
+        case let .configChanged(id):
+            id
+        }
+    }
 }

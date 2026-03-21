@@ -8,6 +8,27 @@ private let logger = Logger(subsystem: "com.engels74.openisland", category: "Ses
 
 extension SessionStore {
     func handleProviderEvent(_ event: ProviderEvent) {
+        // Auto-recover unknown sessions: if an event arrives for a session ID
+        // we don't have, create it on the fly so the event is not silently dropped.
+        // This handles the case where Open Island restarts while a provider session
+        // is still active — the next event self-heals the session.
+        if let sessionID = event.sessionID,
+           self.sessions[sessionID] == nil {
+            switch event {
+            case .sessionStarted:
+                // Will be handled normally below — no recovery needed.
+                break
+            case .sessionEnded:
+                // Don't create a zombie session for an already-gone session.
+                break
+            default:
+                logger.warning("Auto-recovering unknown session \(sessionID) from incoming event")
+                // TODO: providerID defaults to .claude because non-sessionStarted events
+                // don't carry provider info. Improve when ProviderEvent gains a providerID field.
+                self.handleSessionStarted(sessionID, providerID: .claude, cwd: "", pid: nil)
+            }
+        }
+
         switch event {
         case let .sessionStarted(sessionID, providerID: providerID, cwd: cwd, pid: pid):
             handleSessionStarted(sessionID, providerID: providerID, cwd: cwd, pid: pid)

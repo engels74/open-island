@@ -41,7 +41,7 @@ public enum SingleInstanceGuard {
         }
 
         existing.activate()
-        NSApp.terminate(nil)
+        exit(0)
     }
 
     /// Pure detection logic — finds an existing running instance of the same
