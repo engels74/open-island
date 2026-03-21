@@ -104,7 +104,7 @@ public final class ClaudeProviderAdapter: ProviderAdapter, Sendable {
         _ request: PermissionRequest,
         decision: PermissionDecision,
     ) async throws {
-        let isPreToolUse = self.state.withLock { $0.preToolUseRequestIDs.remove(request.id) != nil }
+        let isPreToolUse = self.state.withLock { $0.preToolUseRequestIDs.contains(request.id) }
         let responseData = if isPreToolUse {
             try Self.encodePreToolUseResponse(decision)
         } else {
@@ -113,6 +113,9 @@ public final class ClaudeProviderAdapter: ProviderAdapter, Sendable {
         let sent = self.socketServer.respondToPermission(requestID: request.id, data: responseData)
         if !sent {
             throw PermissionResponseError.noConnectionFound(requestID: request.id)
+        }
+        if isPreToolUse {
+            self.state.withLock { _ = $0.preToolUseRequestIDs.remove(request.id) }
         }
     }
 

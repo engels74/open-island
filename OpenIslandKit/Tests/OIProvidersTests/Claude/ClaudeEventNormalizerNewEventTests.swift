@@ -28,14 +28,28 @@ struct ClaudeEventNormalizerPreToolUseTests {
     }
 
     @Test
+    func `PreToolUse without tool_use_id throws`() throws {
+        let event = try decode(#"{"session_id":"s1","hook_event_name":"PreToolUse","tool_name":"Bash"}"#)
+        do {
+            _ = try ClaudeEventNormalizer.normalize(event)
+            Issue.record("Expected error to be thrown")
+        } catch {
+            guard case .missingRequiredField("tool_use_id") = error else {
+                Issue.record("Expected .missingRequiredField(\"tool_use_id\"), got \(error)")
+                return
+            }
+        }
+    }
+
+    @Test
     func `PreToolUse without tool_name throws`() throws {
         let event = try decode(#"{"session_id":"s1","hook_event_name":"PreToolUse"}"#)
         do {
             _ = try ClaudeEventNormalizer.normalize(event)
             Issue.record("Expected error to be thrown")
         } catch {
-            guard case .missingRequiredField("tool_name") = error else {
-                Issue.record("Expected .missingRequiredField(\"tool_name\"), got \(error)")
+            guard case .missingRequiredField("tool_use_id") = error else {
+                Issue.record("Expected .missingRequiredField(\"tool_use_id\"), got \(error)")
                 return
             }
         }

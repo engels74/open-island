@@ -92,6 +92,9 @@ package enum ClaudeEventNormalizer {
         let sid = event.sessionID
         switch event.hookEventName {
         case "PreToolUse":
+            guard event.toolUseID != nil else {
+                throw .missingRequiredField("tool_use_id")
+            }
             let request = try self.makePermissionRequest(from: event)
             return .permissionRequested(sid, request)
         case "PostToolUse":
