@@ -77,6 +77,28 @@ struct GeminiHookInstallerInstallTests {
     }
 
     @Test
+    func `install writes unescaped forward slashes in raw file`() async throws {
+        let tempDir = try GeminiHookInstallerTestHelpers.makeTempGeminiDir()
+        defer { GeminiHookInstallerTestHelpers.cleanup(tempDir) }
+
+        let scriptURL = try GeminiHookInstallerTestHelpers.createFakeScript(in: tempDir)
+
+        try await GeminiHookInstaller.install(
+            hookCommand: .python(path: "/usr/bin/python3"),
+            geminiConfigDir: tempDir,
+            bundledScriptURL: scriptURL,
+        )
+
+        let settingsURL = tempDir.appendingPathComponent("settings.json")
+        let rawContent = try #require(
+            String(data: Data(contentsOf: settingsURL), encoding: .utf8),
+        )
+
+        #expect(!rawContent.contains("\\/"), "settings.json must not contain escaped forward slashes")
+        #expect(rawContent.contains("/usr/bin/python3"), "Raw file should contain unescaped path")
+    }
+
+    @Test
     func `install copies script to hooks directory`() async throws {
         let tempDir = try GeminiHookInstallerTestHelpers.makeTempGeminiDir()
         defer { GeminiHookInstallerTestHelpers.cleanup(tempDir) }

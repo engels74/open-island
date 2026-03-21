@@ -293,7 +293,7 @@ package struct GeminiHookInstaller: Sendable {
         do {
             data = try JSONSerialization.data(
                 withJSONObject: json,
-                options: [.prettyPrinted, .sortedKeys],
+                options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes],
             )
         } catch {
             throw .settingsFileCorrupted(path: url.path)
