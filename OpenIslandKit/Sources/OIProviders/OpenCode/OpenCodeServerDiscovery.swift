@@ -4,7 +4,6 @@ import Synchronization
 
 // MARK: - DiscoveredServer
 
-/// A discovered OpenCode server instance.
 package struct DiscoveredServer: Sendable, Equatable {
     // MARK: Lifecycle
 
@@ -54,32 +53,21 @@ package actor OpenCodeServerDiscovery {
 
     // MARK: Package
 
-    /// Discover an OpenCode server using the priority chain:
-    /// 1. User-configured port
-    /// 2. mDNS discovery (with timeout)
-    /// 3. Process argument parsing fallback
-    /// 4. Default port (4096)
     package func discover(timeout: Duration = .seconds(3)) async -> DiscoveredServer {
-        // 1. User-configured port takes priority
         if let port = configuredPort {
             return DiscoveredServer(host: self.defaultHost, port: port)
         }
 
-        // 2. Try mDNS discovery
         if let server = await discoverViaMDNS(timeout: timeout) {
             return server
         }
 
-        // 3. Try process argument parsing
         if let server = discoverViaProcessParsing() {
             return server
         }
-
-        // 4. Fall back to default port
         return DiscoveredServer(host: self.defaultHost, port: self.defaultPort)
     }
 
-    /// Check if a server is reachable by making a lightweight HTTP request.
     package func checkReachability(server: DiscoveredServer) async -> Bool {
         let url = server.baseURL.appendingPathComponent("config")
         var request = URLRequest(url: url)
@@ -98,14 +86,12 @@ package actor OpenCodeServerDiscovery {
 
     // MARK: Private
 
-    /// The mDNS service type for OpenCode.
     private static let bonjourServiceType = "_opencode._tcp"
 
     private let configuredPort: Int?
     private let defaultHost: String
     private let defaultPort: Int
 
-    /// Handle mDNS browse results by resolving the first service endpoint.
     private static func handleBrowseResults(
         _ results: Set<NWBrowser.Result>,
         resumeOnce: @escaping @Sendable (DiscoveredServer?) -> Void,
@@ -122,7 +108,6 @@ package actor OpenCodeServerDiscovery {
         }
     }
 
-    /// Resolve a discovered service connection to extract host and port.
     private static func handleConnectionState(
         _ connectionState: NWConnection.State,
         connection: NWConnection,
@@ -201,9 +186,7 @@ package actor OpenCodeServerDiscovery {
 
     // MARK: - Process Argument Parsing
 
-    /// Scan running processes for `opencode` instances and extract their `--port` argument.
     private func discoverViaProcessParsing() -> DiscoveredServer? {
-        // Use `pgrep -a opencode` to find running opencode processes with arguments
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
         process.arguments = ["-fl", "opencode"]
@@ -224,7 +207,6 @@ package actor OpenCodeServerDiscovery {
             return nil
         }
 
-        // Parse each line looking for --port or serve arguments
         for line in output.components(separatedBy: "\n") {
             if let port = extractPort(from: line) {
                 return DiscoveredServer(host: self.defaultHost, port: port)
@@ -234,28 +216,19 @@ package actor OpenCodeServerDiscovery {
         return nil
     }
 
-    /// Extract a port number from a process command line.
-    ///
-    /// Looks for patterns like:
-    /// - `--port 4096`
-    /// - `--port=4096`
-    /// - `serve --port 4096`
     private func extractPort(from commandLine: String) -> Int? {
         let components = commandLine.components(separatedBy: .whitespaces)
 
         for (index, component) in components.enumerated() {
-            // --port=VALUE
             if component.hasPrefix("--port=") {
                 let value = String(component.dropFirst("--port=".count))
                 return Int(value)
             }
 
-            // --port VALUE
             if component == "--port", index + 1 < components.count {
                 return Int(components[index + 1])
             }
 
-            // -p VALUE (short form)
             if component == "-p", index + 1 < components.count {
                 return Int(components[index + 1])
             }
