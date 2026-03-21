@@ -25,12 +25,14 @@ public struct ModuleVisibilityContext: Sendable, Equatable {
         hasWaitingForInput: Bool = false,
         activeProviders: Set<ProviderID> = [],
         aggregateProviderState: [ProviderID: ProviderActivitySummary] = [:],
+        earliestSessionStart: Date? = nil,
     ) {
         self.isProcessing = isProcessing
         self.hasPendingPermission = hasPendingPermission
         self.hasWaitingForInput = hasWaitingForInput
         self.activeProviders = activeProviders
         self.aggregateProviderState = aggregateProviderState
+        self.earliestSessionStart = earliestSessionStart
     }
 
     // MARK: Public
@@ -45,6 +47,10 @@ public struct ModuleVisibilityContext: Sendable, Equatable {
 
     /// Per-provider activity summaries for provider-aware module decisions.
     public let aggregateProviderState: [ProviderID: ProviderActivitySummary]
+
+    /// The `createdAt` date of the earliest active session, used by ``TimerModule``
+    /// to display elapsed time since the first session started.
+    public let earliestSessionStart: Date?
 }
 
 // MARK: - ModuleRenderContext
@@ -63,11 +69,13 @@ public struct ModuleRenderContext {
         accentColor: Color = .white,
         isHighlighted: Bool = false,
         activeProviderCount: Int = 0,
+        earliestSessionStart: Date? = nil,
     ) {
         self.animationNamespace = animationNamespace
         self.accentColor = accentColor
         self.isHighlighted = isHighlighted
         self.activeProviderCount = activeProviderCount
+        self.earliestSessionStart = earliestSessionStart
     }
 
     // MARK: Public
@@ -87,6 +95,10 @@ public struct ModuleRenderContext {
     /// value rather than injecting a separate count, keeping visibility and
     /// rendering in sync with the same source of truth.
     public let activeProviderCount: Int
+
+    /// The `createdAt` date of the earliest active session, forwarded from
+    /// ``ModuleVisibilityContext/earliestSessionStart`` for timer display.
+    public let earliestSessionStart: Date?
 }
 
 // MARK: - NotchModule

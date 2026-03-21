@@ -114,7 +114,9 @@ public final class NotchWindowControllerAdapter: WindowControllerHandle {
                 let margin = ModuleLayoutEngine.shapeEdgeMargin
                 let closedWidth = notchRect.width + layout.totalExpansionWidth + 2 * margin + padding * 2
                 let closedHeight = notchRect.height + padding
-                let rectX = notchRect.midX - closedWidth / 2
+                // Anchor the rect so its internal notch gap aligns with the
+                // physical notch, even when left/right module widths differ.
+                let rectX = notchRect.minX - layout.leftSideWidth - margin - padding
                 let rectY = windowHeight - closedHeight
                 return CGRect(x: rectX, y: rectY, width: closedWidth, height: closedHeight)
             }

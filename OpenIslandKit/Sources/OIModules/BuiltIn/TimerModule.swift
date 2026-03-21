@@ -2,18 +2,15 @@ public import SwiftUI
 
 // MARK: - TimerModule
 
-/// Shows elapsed time since the last activity started.
+/// Shows elapsed time since the earliest active session started.
 ///
-/// Always visible when there are active providers. Displays a compact
-/// `mm:ss` or `h:mm:ss` formatted duration.
+/// Always visible when there are active providers. Reads
+/// ``ModuleRenderContext/earliestSessionStart`` to display a live
+/// `mm:ss` or `h:mm:ss` formatted duration via `Text(_:style: .timer)`.
 public struct TimerModule: NotchModule {
     // MARK: Lifecycle
 
-    /// - Parameter startDate: The reference date for elapsed time calculation.
-    ///   Defaults to `nil` (no timer shown until a session starts).
-    public init(startDate: Date? = nil) {
-        self.startDate = startDate
-    }
+    public init() {}
 
     // MARK: Public
 
@@ -37,13 +34,10 @@ public struct TimerModule: NotchModule {
 
     // MARK: Private
 
-    /// The reference start date for the timer. `nil` shows "0:00".
-    private let startDate: Date?
-
     @MainActor
     @ViewBuilder
     private func body(context: ModuleRenderContext) -> some View {
-        if let startDate {
+        if let startDate = context.earliestSessionStart {
             Text(startDate, style: .timer)
                 .font(.system(size: 10, weight: .medium, design: .monospaced))
                 .foregroundStyle(context.accentColor.opacity(0.8))
@@ -80,8 +74,11 @@ private struct _TimerPreviewItem: View {
 
     var body: some View {
         VStack(spacing: 4) {
-            TimerModule(startDate: self.startDate)
-                .makeBody(context: ModuleRenderContext(animationNamespace: self.ns))
+            TimerModule()
+                .makeBody(context: ModuleRenderContext(
+                    animationNamespace: self.ns,
+                    earliestSessionStart: self.startDate,
+                ))
             Text(self.label)
                 .font(.caption2)
                 .foregroundStyle(.secondary)

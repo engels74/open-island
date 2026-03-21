@@ -64,6 +64,7 @@ package struct NotchHeaderView: View {
             accentColor: self.viewModel.mascotColor,
             isHighlighted: self.viewModel.visibilityContext.isProcessing,
             activeProviderCount: self.viewModel.visibilityContext.activeProviders.count,
+            earliestSessionStart: self.viewModel.visibilityContext.earliestSessionStart,
         )
     }
 
@@ -103,11 +104,11 @@ package struct NotchHeaderView: View {
 
     private var closedHeader: some View {
         HStack(spacing: 0) {
-            // Left-side modules — framed to the symmetric width so the
-            // visual boundary matches the layout engine's width contract.
+            // Left-side modules — framed to the left side's natural width so the
+            // visual boundary matches the layout engine's asymmetric width contract.
             self.closedModuleRow(modules: self.closedLeftModules, side: .left)
                 .frame(
-                    width: self.viewModel.moduleLayout.symmetricSideWidth,
+                    width: self.viewModel.moduleLayout.leftSideWidth,
                     alignment: .leading,
                 )
 
@@ -115,12 +116,13 @@ package struct NotchHeaderView: View {
                 .frame(width: self.viewModel.geometry.deviceNotchRect.width)
 
             // Bounce: offset outward when the activity coordinator signals a bounce.
+            // The offset must not exceed shapeEdgeMargin to stay within the clip shape.
             self.closedModuleRow(modules: self.closedRightModules, side: .right)
                 .frame(
-                    width: self.viewModel.moduleLayout.symmetricSideWidth,
+                    width: self.viewModel.moduleLayout.rightSideWidth,
                     alignment: .trailing,
                 )
-                .offset(x: self.activityCoordinator?.isBouncing == true ? 16 : 0)
+                .offset(x: self.activityCoordinator?.isBouncing == true ? ModuleLayoutEngine.shapeEdgeMargin : 0)
                 .animation(
                     self.reduceMotion ? .none : .spring(response: 0.3, dampingFraction: 0.5),
                     value: self.activityCoordinator?.isBouncing,
@@ -258,7 +260,7 @@ private func previewRegistry() -> ModuleRegistry {
     registry.register(ActivitySpinnerModule())
     registry.register(ReadyCheckmarkModule())
     registry.register(SessionDotsModule())
-    registry.register(TimerModule(startDate: Date().addingTimeInterval(-125)))
+    registry.register(TimerModule())
     return registry
 }
 
@@ -331,6 +333,7 @@ private let previewGeometry = NotchGeometry(
             vm.visibilityContext = ModuleVisibilityContext(
                 isProcessing: true,
                 activeProviders: [.claude],
+                earliestSessionStart: Date().addingTimeInterval(-125),
             )
             return vm
         }(),

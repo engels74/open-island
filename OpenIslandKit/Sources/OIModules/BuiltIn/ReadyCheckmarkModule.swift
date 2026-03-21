@@ -2,10 +2,11 @@ public import SwiftUI
 
 // MARK: - ReadyCheckmarkModule
 
-/// Shows a checkmark icon when at least one provider is active and none are
-/// currently processing.
+/// Shows a checkmark icon when a provider session has completed work and is
+/// waiting for user input.
 ///
-/// Visible when NOT processing AND at least one active provider exists.
+/// Visible only when ``ModuleVisibilityContext/hasWaitingForInput`` is `true`,
+/// indicating the agent finished a turn and is awaiting the next prompt.
 public struct ReadyCheckmarkModule: NotchModule {
     // MARK: Lifecycle
 
@@ -19,7 +20,7 @@ public struct ReadyCheckmarkModule: NotchModule {
     public let showInExpandedHeader = false
 
     public func isVisible(context: ModuleVisibilityContext) -> Bool {
-        !context.isProcessing && !context.activeProviders.isEmpty
+        context.hasWaitingForInput
     }
 
     public func preferredWidth() -> CGFloat {
