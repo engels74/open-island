@@ -541,7 +541,7 @@ private func providerEventCaseName(_ event: ProviderEvent) -> String { // swiftl
 /// Extract the session ID from a ProviderEvent.
 private func providerEventSessionID(_ event: ProviderEvent) -> String { // swiftlint:disable:this cyclomatic_complexity
     switch event {
-    case let .sessionStarted(sid, _, _): sid
+    case let .sessionStarted(sid, _, _, _): sid
     case let .sessionEnded(sid): sid
     case let .userPromptSubmitted(sid): sid
     case let .processingStarted(sid): sid

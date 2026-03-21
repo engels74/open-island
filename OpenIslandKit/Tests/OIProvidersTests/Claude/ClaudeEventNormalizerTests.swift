@@ -48,11 +48,12 @@ struct ClaudeEventNormalizerSessionTests {
         """)
         let result = try ClaudeEventNormalizer.normalize(event)
         #expect(result.count == 1)
-        guard case let .sessionStarted(sid, cwd, pid) = result.first else {
+        guard case let .sessionStarted(sid, providerID, cwd, pid) = result.first else {
             Issue.record("Expected .sessionStarted, got \(String(describing: result.first))")
             return
         }
         #expect(sid == "s1")
+        #expect(providerID == .claude)
         #expect(cwd == "/proj")
         #expect(pid == nil)
     }
@@ -62,7 +63,7 @@ struct ClaudeEventNormalizerSessionTests {
         let event = try decode(#"{"session_id":"s1","hook_event_name":"SessionStart"}"#)
         let result = try ClaudeEventNormalizer.normalize(event)
         #expect(result.count == 1)
-        guard case let .sessionStarted(_, cwd, _) = result.first else {
+        guard case let .sessionStarted(_, _, cwd, _) = result.first else {
             Issue.record("Expected .sessionStarted")
             return
         }

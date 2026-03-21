@@ -112,7 +112,7 @@ package final class ExampleProviderAdapter: ProviderAdapter, Sendable {
         _ = self.state.withLock { $0.activeSessions.insert(sessionID) }
 
         let events: [ProviderEvent] = [
-            .sessionStarted(sessionID, cwd: "/tmp/example-project", pid: nil),
+            .sessionStarted(sessionID, providerID: .example, cwd: "/tmp/example-project", pid: nil),
             .processingStarted(sessionID),
             .modelResponse(sessionID, textDelta: "Let me analyze the project structure..."),
             .toolStarted(

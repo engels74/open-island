@@ -26,7 +26,7 @@ package struct GeminiHeadlessStreamParser: Sendable {
         switch eventType {
         case "init":
             let cwd = json["cwd"] as? String ?? ""
-            return .sessionStarted(sessionID, cwd: cwd, pid: nil)
+            return .sessionStarted(sessionID, providerID: .geminiCLI, cwd: cwd, pid: nil)
 
         case "message":
             guard let text = json["content"] as? String else { return nil }

@@ -12,11 +12,12 @@ struct GeminiEventNormalizerSessionTests {
         let data = Data(#"{"hook_event_name":"SessionStart","session_id":"s1","cwd":"/proj"}"#.utf8)
         let (events, _) = try GeminiEventNormalizer.normalize(data, lastAfterModelTime: nil)
         #expect(events.count == 1)
-        guard case let .sessionStarted(sid, cwd, pid) = events.first else {
+        guard case let .sessionStarted(sid, providerID, cwd, pid) = events.first else {
             Issue.record("Expected .sessionStarted, got \(String(describing: events.first))")
             return
         }
         #expect(sid == "s1")
+        #expect(providerID == .geminiCLI)
         #expect(cwd == "/proj")
         #expect(pid == nil)
     }
@@ -25,7 +26,7 @@ struct GeminiEventNormalizerSessionTests {
     func `SessionStart without cwd defaults to empty string`() throws {
         let data = Data(#"{"hook_event_name":"SessionStart","session_id":"s1"}"#.utf8)
         let (events, _) = try GeminiEventNormalizer.normalize(data, lastAfterModelTime: nil)
-        guard case let .sessionStarted(_, cwd, _) = events.first else {
+        guard case let .sessionStarted(_, _, cwd, _) = events.first else {
             Issue.record("Expected .sessionStarted")
             return
         }

@@ -255,7 +255,7 @@ struct SessionStoreTests {
             for i in 0 ..< 20 {
                 group.addTask {
                     await store.process(
-                        .providerEvent(.sessionStarted("s\(i)", cwd: "/tmp/p\(i)", pid: Int32(i))),
+                        .providerEvent(.sessionStarted("s\(i)", providerID: .claude, cwd: "/tmp/p\(i)", pid: Int32(i))),
                     )
                 }
             }
@@ -317,10 +317,10 @@ struct SessionStoreTests {
     func `currentSessions returns sessions sorted by most recent activity`() async throws {
         let store = SessionStore()
 
-        await store.process(.providerEvent(.sessionStarted("s1", cwd: "/tmp/a", pid: 1)))
+        await store.process(.providerEvent(.sessionStarted("s1", providerID: .claude, cwd: "/tmp/a", pid: 1)))
         // Small delay to ensure ordering
         try await Task.sleep(for: .milliseconds(10))
-        await store.process(.providerEvent(.sessionStarted("s2", cwd: "/tmp/b", pid: 2)))
+        await store.process(.providerEvent(.sessionStarted("s2", providerID: .claude, cwd: "/tmp/b", pid: 2)))
 
         let sessions = await store.currentSessions
         #expect(sessions.count == 2)
@@ -338,7 +338,7 @@ struct SessionStoreTests {
         pid: Int32? = 123,
     ) async -> SessionStore {
         let store = SessionStore()
-        await store.process(.providerEvent(.sessionStarted(id, cwd: cwd, pid: pid)))
+        await store.process(.providerEvent(.sessionStarted(id, providerID: .claude, cwd: cwd, pid: pid)))
         return store
     }
 }

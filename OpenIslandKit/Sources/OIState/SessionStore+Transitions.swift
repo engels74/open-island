@@ -9,8 +9,8 @@ private let logger = Logger(subsystem: "com.openisland", category: "SessionTrans
 extension SessionStore {
     func handleProviderEvent(_ event: ProviderEvent) {
         switch event {
-        case let .sessionStarted(sessionID, cwd: cwd, pid: pid):
-            handleSessionStarted(sessionID, cwd: cwd, pid: pid)
+        case let .sessionStarted(sessionID, providerID: providerID, cwd: cwd, pid: pid):
+            handleSessionStarted(sessionID, providerID: providerID, cwd: cwd, pid: pid)
 
         case let .sessionEnded(sessionID):
             transitionSession(sessionID, to: .ended)
@@ -203,12 +203,12 @@ extension SessionStore {
 // MARK: - Private Helpers
 
 extension SessionStore {
-    private func handleSessionStarted(_ sessionID: String, cwd: String, pid: Int32?) {
+    private func handleSessionStarted(_ sessionID: String, providerID: ProviderID, cwd: String, pid: Int32?) {
         let projectName = (cwd as NSString).lastPathComponent
         let now = Date()
         let session = SessionState(
             id: sessionID,
-            providerID: .claude,
+            providerID: providerID,
             phase: .idle,
             projectName: projectName,
             cwd: cwd,

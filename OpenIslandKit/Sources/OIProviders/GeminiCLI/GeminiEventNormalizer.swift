@@ -43,7 +43,7 @@ package enum GeminiEventNormalizer {
         switch hookEventName {
         case "SessionStart":
             let cwd = json["cwd"] as? String ?? ""
-            return ([.sessionStarted(sessionID, cwd: cwd, pid: nil)], lastAfterModelTime)
+            return ([.sessionStarted(sessionID, providerID: .geminiCLI, cwd: cwd, pid: nil)], lastAfterModelTime)
 
         case "SessionEnd":
             return ([.sessionEnded(sessionID)], lastAfterModelTime)

@@ -53,7 +53,7 @@ public final class OpenCodeProviderAdapter: ProviderAdapter, Sendable {
                 let events = OpenCodeEventNormalizer.normalize(sseEvent)
                 for event in events {
                     switch event {
-                    case let .sessionStarted(sessionID, _, _):
+                    case let .sessionStarted(sessionID, _, _, _):
                         adapter.state.withLock { _ = $0.activeSessionIDs.insert(sessionID) }
                     case let .sessionEnded(sessionID):
                         adapter.state.withLock { _ = $0.activeSessionIDs.remove(sessionID) }

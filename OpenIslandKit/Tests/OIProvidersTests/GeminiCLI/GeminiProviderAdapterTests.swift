@@ -108,7 +108,7 @@ struct GeminiCLIProviderAdapterLifecycleTests {
             return
         }
 
-        if case let .sessionStarted(sid, cwd, _) = event {
+        if case let .sessionStarted(sid, _, cwd, _) = event {
             #expect(sid == "s1")
             #expect(cwd == "/tmp")
         } else {
