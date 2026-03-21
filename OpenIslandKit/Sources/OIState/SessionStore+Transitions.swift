@@ -7,7 +7,9 @@ private let logger = Logger(subsystem: "com.engels74.openisland", category: "Ses
 // MARK: - Provider Event Handling
 
 extension SessionStore {
-    func handleProviderEvent(_ event: ProviderEvent) {
+    func handleProviderEvent(_ taggedEvent: TaggedProviderEvent) {
+        let event = taggedEvent.event
+
         // Auto-recover unknown sessions: if an event arrives for a session ID
         // we don't have, create it on the fly so the event is not silently dropped.
         // This handles the case where Open Island restarts while a provider session
@@ -23,9 +25,7 @@ extension SessionStore {
                 break
             default:
                 logger.warning("Auto-recovering unknown session \(sessionID) from incoming event")
-                // TODO: providerID defaults to .claude because non-sessionStarted events
-                // don't carry provider info. Improve when ProviderEvent gains a providerID field.
-                self.handleSessionStarted(sessionID, providerID: .claude, cwd: "", pid: nil)
+                self.handleSessionStarted(sessionID, providerID: taggedEvent.providerID, cwd: "", pid: nil)
             }
         }
 

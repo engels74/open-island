@@ -25,7 +25,7 @@ struct SessionStoreTests {
     @Test
     func `transitions to .processing on processingStarted`() async {
         let store = await storeWithSession()
-        await store.process(.providerEvent(.processingStarted("s1")))
+        await store.process(.providerEvent(self.tagged(.processingStarted("s1"))))
         let session = await store.session(for: "s1")
         #expect(session?.phase == .processing)
     }
@@ -33,8 +33,8 @@ struct SessionStoreTests {
     @Test
     func `transitions to .waitingForInput`() async {
         let store = await storeWithSession()
-        await store.process(.providerEvent(.processingStarted("s1")))
-        await store.process(.providerEvent(.waitingForInput("s1")))
+        await store.process(.providerEvent(self.tagged(.processingStarted("s1"))))
+        await store.process(.providerEvent(self.tagged(.waitingForInput("s1"))))
         let session = await store.session(for: "s1")
         #expect(session?.phase == .waitingForInput)
     }
@@ -42,13 +42,13 @@ struct SessionStoreTests {
     @Test
     func `transitions to .waitingForApproval on permissionRequested`() async {
         let store = await storeWithSession()
-        await store.process(.providerEvent(.processingStarted("s1")))
+        await store.process(.providerEvent(self.tagged(.processingStarted("s1"))))
         let request = PermissionRequest(
             id: "req1",
             toolName: "Bash",
             timestamp: Date(),
         )
-        await store.process(.providerEvent(.permissionRequested("s1", request)))
+        await store.process(.providerEvent(self.tagged(.permissionRequested("s1", request))))
         let session = await store.session(for: "s1")
         // SessionPhase.== compares by case only (ignores associated value)
         #expect(session?.phase == .waitingForApproval(PermissionContext(
@@ -59,8 +59,8 @@ struct SessionStoreTests {
     @Test
     func `transitions to .compacting`() async {
         let store = await storeWithSession()
-        await store.process(.providerEvent(.processingStarted("s1")))
-        await store.process(.providerEvent(.compacting("s1")))
+        await store.process(.providerEvent(self.tagged(.processingStarted("s1"))))
+        await store.process(.providerEvent(self.tagged(.compacting("s1"))))
         let session = await store.session(for: "s1")
         #expect(session?.phase == .compacting)
     }
@@ -68,37 +68,37 @@ struct SessionStoreTests {
     @Test
     func `compacting transitions to .processing on processingStarted`() async {
         let store = await storeWithSession()
-        await store.process(.providerEvent(.processingStarted("s1")))
-        await store.process(.providerEvent(.compacting("s1")))
+        await store.process(.providerEvent(self.tagged(.processingStarted("s1"))))
+        await store.process(.providerEvent(self.tagged(.compacting("s1"))))
         #expect(await store.session(for: "s1")?.phase == .compacting)
-        await store.process(.providerEvent(.processingStarted("s1")))
+        await store.process(.providerEvent(self.tagged(.processingStarted("s1"))))
         #expect(await store.session(for: "s1")?.phase == .processing)
     }
 
     @Test
     func `compacting transitions to .processing on userPromptSubmitted`() async {
         let store = await storeWithSession()
-        await store.process(.providerEvent(.processingStarted("s1")))
-        await store.process(.providerEvent(.compacting("s1")))
+        await store.process(.providerEvent(self.tagged(.processingStarted("s1"))))
+        await store.process(.providerEvent(self.tagged(.compacting("s1"))))
         #expect(await store.session(for: "s1")?.phase == .compacting)
-        await store.process(.providerEvent(.userPromptSubmitted("s1")))
+        await store.process(.providerEvent(self.tagged(.userPromptSubmitted("s1"))))
         #expect(await store.session(for: "s1")?.phase == .processing)
     }
 
     @Test
     func `compacting transitions to .ended on sessionEnded`() async {
         let store = await storeWithSession()
-        await store.process(.providerEvent(.processingStarted("s1")))
-        await store.process(.providerEvent(.compacting("s1")))
+        await store.process(.providerEvent(self.tagged(.processingStarted("s1"))))
+        await store.process(.providerEvent(self.tagged(.compacting("s1"))))
         #expect(await store.session(for: "s1")?.phase == .compacting)
-        await store.process(.providerEvent(.sessionEnded("s1")))
+        await store.process(.providerEvent(self.tagged(.sessionEnded("s1"))))
         #expect(await store.session(for: "s1")?.phase == .ended)
     }
 
     @Test
     func `transitions to .ended on sessionEnded`() async {
         let store = await storeWithSession()
-        await store.process(.providerEvent(.sessionEnded("s1")))
+        await store.process(.providerEvent(self.tagged(.sessionEnded("s1"))))
         let session = await store.session(for: "s1")
         #expect(session?.phase == .ended)
     }
@@ -108,13 +108,13 @@ struct SessionStoreTests {
     @Test
     func `permissionApproved transitions to .processing`() async {
         let store = await storeWithSession()
-        await store.process(.providerEvent(.processingStarted("s1")))
+        await store.process(.providerEvent(self.tagged(.processingStarted("s1"))))
         let request = PermissionRequest(
             id: "req1",
             toolName: "Bash",
             timestamp: Date(),
         )
-        await store.process(.providerEvent(.permissionRequested("s1", request)))
+        await store.process(.providerEvent(self.tagged(.permissionRequested("s1", request))))
         await store.process(.permissionApproved("s1", requestID: "req1"))
         let session = await store.session(for: "s1")
         #expect(session?.phase == .processing)
@@ -123,13 +123,13 @@ struct SessionStoreTests {
     @Test
     func `permissionDenied transitions to .processing`() async {
         let store = await storeWithSession()
-        await store.process(.providerEvent(.processingStarted("s1")))
+        await store.process(.providerEvent(self.tagged(.processingStarted("s1"))))
         let request = PermissionRequest(
             id: "req1",
             toolName: "Bash",
             timestamp: Date(),
         )
-        await store.process(.providerEvent(.permissionRequested("s1", request)))
+        await store.process(.providerEvent(self.tagged(.permissionRequested("s1", request))))
         await store.process(.permissionDenied("s1", requestID: "req1", reason: "too risky"))
         let session = await store.session(for: "s1")
         #expect(session?.phase == .processing)
@@ -149,7 +149,7 @@ struct SessionStoreTests {
     func `invalid transition from idle to waitingForInput is rejected`() async {
         let store = await storeWithSession()
         // idle → waitingForInput is invalid
-        await store.process(.providerEvent(.waitingForInput("s1")))
+        await store.process(.providerEvent(self.tagged(.waitingForInput("s1"))))
         let session = await store.session(for: "s1")
         #expect(session?.phase == .idle)
     }
@@ -157,7 +157,7 @@ struct SessionStoreTests {
     @Test
     func `event for unknown session auto-recovers the session`() async {
         let store = SessionStore()
-        await store.process(.providerEvent(.processingStarted("recovered")))
+        await store.process(.providerEvent(self.tagged(.processingStarted("recovered"))))
         let session = await store.session(for: "recovered")
         #expect(session != nil)
         #expect(session?.phase == .processing)
@@ -171,7 +171,7 @@ struct SessionStoreTests {
         let store = SessionStore()
         // Send a toolStarted event for an unknown session — should auto-create then process
         let toolEvent = ToolEvent(id: "t1", name: "Bash", startedAt: Date())
-        await store.process(.providerEvent(.toolStarted("unknown-s1", toolEvent)))
+        await store.process(.providerEvent(self.tagged(.toolStarted("unknown-s1", toolEvent))))
         let session = await store.session(for: "unknown-s1")
         #expect(session != nil)
         #expect(session?.phase == .idle)
@@ -181,7 +181,7 @@ struct SessionStoreTests {
     @Test
     func `sessionEnded for unknown session does not create zombie`() async {
         let store = SessionStore()
-        await store.process(.providerEvent(.sessionEnded("ghost")))
+        await store.process(.providerEvent(self.tagged(.sessionEnded("ghost"))))
         let session = await store.session(for: "ghost")
         #expect(session == nil)
     }
@@ -189,18 +189,18 @@ struct SessionStoreTests {
     @Test
     func `configChanged with nil sessionID does not create session`() async {
         let store = SessionStore()
-        await store.process(.providerEvent(.configChanged(nil)))
+        await store.process(.providerEvent(self.tagged(.configChanged(nil))))
         let sessions = await store.currentSessions
         #expect(sessions.isEmpty)
     }
 
     @Test
-    func `auto-recovered session has default provider and empty cwd`() async {
+    func `auto-recovered session uses providerID from tagged event`() async {
         let store = SessionStore()
-        await store.process(.providerEvent(.notification("auto-s1", message: "hello")))
+        await store.process(.providerEvent(self.tagged(.notification("auto-s1", message: "hello"), provider: .geminiCLI)))
         let session = await store.session(for: "auto-s1")
         #expect(session != nil)
-        #expect(session?.providerID == .claude)
+        #expect(session?.providerID == .geminiCLI)
         #expect(session?.cwd.isEmpty == true)
         #expect(session?.pid == nil)
     }
@@ -214,7 +214,7 @@ struct SessionStoreTests {
         let stream1 = await store.sessionsStream()
         let stream2 = await store.sessionsStream()
 
-        await store.process(.providerEvent(.processingStarted("s1")))
+        await store.process(.providerEvent(self.tagged(.processingStarted("s1"))))
 
         var iterator1 = stream1.makeAsyncIterator()
         var iterator2 = stream2.makeAsyncIterator()
@@ -276,14 +276,14 @@ struct SessionStoreTests {
 
         // Process 150 events to force the 100-element ring buffer to wrap
         for i in 0 ..< 150 {
-            await store.process(.providerEvent(.notification("s1", message: "event-\(i)")))
+            await store.process(.providerEvent(self.tagged(.notification("s1", message: "event-\(i)"))))
         }
 
         let session = await store.session(for: "s1")
         #expect(session != nil)
         #expect(session?.phase == .idle)
 
-        await store.process(.providerEvent(.processingStarted("s1")))
+        await store.process(.providerEvent(self.tagged(.processingStarted("s1"))))
         let updated = await store.session(for: "s1")
         #expect(updated?.phase == .processing)
     }
@@ -298,7 +298,10 @@ struct SessionStoreTests {
             for i in 0 ..< 20 {
                 group.addTask {
                     await store.process(
-                        .providerEvent(.sessionStarted("s\(i)", providerID: .claude, cwd: "/tmp/p\(i)", pid: Int32(i))),
+                        .providerEvent(TaggedProviderEvent(
+                            event: .sessionStarted("s\(i)", providerID: .claude, cwd: "/tmp/p\(i)", pid: Int32(i)),
+                            providerID: .claude,
+                        )),
                     )
                 }
             }
@@ -319,7 +322,7 @@ struct SessionStoreTests {
         await withTaskGroup(of: Void.self) { group in
             for _ in 0 ..< 10 {
                 group.addTask {
-                    await store.process(.providerEvent(.processingStarted("s1")))
+                    await store.process(.providerEvent(self.tagged(.processingStarted("s1"))))
                 }
             }
         }
@@ -338,7 +341,7 @@ struct SessionStoreTests {
             ChatHistoryItem(id: "c1", timestamp: Date(), type: .user, content: "Hello"),
             ChatHistoryItem(id: "c2", timestamp: Date(), type: .assistant, content: "Hi there"),
         ]
-        await store.process(.providerEvent(.chatUpdated("s1", items)))
+        await store.process(.providerEvent(self.tagged(.chatUpdated("s1", items))))
 
         let session = await store.session(for: "s1")
         #expect(session?.chatItems.count == 2)
@@ -348,7 +351,7 @@ struct SessionStoreTests {
     func `tokenUsage updates session snapshot`() async {
         let store = await storeWithSession()
 
-        await store.process(.providerEvent(.tokenUsage("s1", promptTokens: 100, completionTokens: 50, totalTokens: 150)))
+        await store.process(.providerEvent(self.tagged(.tokenUsage("s1", promptTokens: 100, completionTokens: 50, totalTokens: 150))))
 
         let session = await store.session(for: "s1")
         #expect(session?.tokenUsage?.totalTokens == 150)
@@ -360,10 +363,10 @@ struct SessionStoreTests {
     func `currentSessions returns sessions sorted by most recent activity`() async throws {
         let store = SessionStore()
 
-        await store.process(.providerEvent(.sessionStarted("s1", providerID: .claude, cwd: "/tmp/a", pid: 1)))
+        await store.process(.providerEvent(self.tagged(.sessionStarted("s1", providerID: .claude, cwd: "/tmp/a", pid: 1))))
         // Small delay to ensure ordering
         try await Task.sleep(for: .milliseconds(10))
-        await store.process(.providerEvent(.sessionStarted("s2", providerID: .claude, cwd: "/tmp/b", pid: 2)))
+        await store.process(.providerEvent(self.tagged(.sessionStarted("s2", providerID: .claude, cwd: "/tmp/b", pid: 2))))
 
         let sessions = await store.currentSessions
         #expect(sessions.count == 2)
@@ -374,6 +377,11 @@ struct SessionStoreTests {
 
     // MARK: - Helpers
 
+    /// Wraps a ``ProviderEvent`` in a ``TaggedProviderEvent`` with the given provider ID.
+    private func tagged(_ event: ProviderEvent, provider: ProviderID = .claude) -> TaggedProviderEvent {
+        TaggedProviderEvent(event: event, providerID: provider)
+    }
+
     /// Create a session by sending a `.sessionStarted` event and return the store.
     private func storeWithSession(
         id: String = "s1",
@@ -381,7 +389,7 @@ struct SessionStoreTests {
         pid: Int32? = 123,
     ) async -> SessionStore {
         let store = SessionStore()
-        await store.process(.providerEvent(.sessionStarted(id, providerID: .claude, cwd: cwd, pid: pid)))
+        await store.process(.providerEvent(self.tagged(.sessionStarted(id, providerID: .claude, cwd: cwd, pid: pid))))
         return store
     }
 }

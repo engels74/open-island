@@ -94,17 +94,21 @@ public actor ProviderRegistry {
 
     /// Uses `withThrowingDiscardingTaskGroup` (SE-0381) — child task results
     /// are automatically discarded to prevent memory leaks.
-    public func mergedEvents() -> AsyncStream<ProviderEvent> {
+    ///
+    /// Each event is tagged with the ``ProviderID`` of the adapter that produced it
+    /// so downstream consumers know which provider the event came from.
+    public func mergedEvents() -> AsyncStream<TaggedProviderEvent> {
         let currentAdapters = Array(adapters.values)
-        let (stream, continuation) = AsyncStream<ProviderEvent>.makeStream(
+        let (stream, continuation) = AsyncStream<TaggedProviderEvent>.makeStream(
             bufferingPolicy: .bufferingOldest(128),
         )
         let task = Task {
             try await withThrowingDiscardingTaskGroup { group in
                 for adapter in currentAdapters {
+                    let providerID = adapter.providerID
                     group.addTask {
                         for await event in adapter.events() {
-                            continuation.yield(event)
+                            continuation.yield(TaggedProviderEvent(event: event, providerID: providerID))
                         }
                     }
                 }
