@@ -176,9 +176,14 @@ final class AppCoordinator {
             await registry.stopAll()
             semaphore.signal()
         }
-        _ = semaphore.wait(timeout: .now() + 2)
+        let result = semaphore.wait(timeout: .now() + 2)
 
-        self.logger.info("Graceful shutdown complete")
+        switch result {
+        case .success:
+            self.logger.info("Graceful shutdown complete")
+        case .timedOut:
+            self.logger.warning("Provider shutdown timed out after 2 s — some providers may still be running")
+        }
     }
 
     /// Enables a provider at runtime: updates settings and starts the adapter.

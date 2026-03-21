@@ -21,9 +21,6 @@ extension SessionStore {
             case .sessionEnded:
                 // Don't create a zombie session for an already-gone session.
                 break
-            case .configChanged:
-                // Global config events (nil sessionID) already filtered by outer `if let`.
-                break
             default:
                 logger.warning("Auto-recovering unknown session \(sessionID) from incoming event")
                 // TODO: providerID defaults to .claude because non-sessionStarted events
