@@ -6,21 +6,14 @@ private let logger = Logger(subsystem: "com.openisland", category: "ConfigBackup
 
 // MARK: - BackupEntry
 
-/// A single backup record — the original file path and where it was backed up.
 package struct BackupEntry: Sendable {
-    /// The original path of the file that was backed up.
     package let originalPath: String
-
-    /// The URL where the backup copy lives.
     package let backupURL: URL
-
-    /// When the backup was created.
     package let date: Date
 }
 
 // MARK: - ConfigBackupError
 
-/// Errors that can occur during backup or restore operations.
 public enum ConfigBackupError: Error, Sendable {
     case backupDirectoryCreationFailed(path: String)
     case sourceFileNotFound(path: String)
@@ -50,10 +43,7 @@ extension ConfigBackupError: CustomStringConvertible {
 
 // MARK: - ConfigBackupManager
 
-/// Creates and manages config file backups before hook installation modifies settings files.
-///
-/// Backups are stored at `~/.open-island/backups/{provider}/{timestamp}/`.
-/// Each backup preserves the original filename so restoring is straightforward.
+/// Backups stored at `~/.open-island/backups/{provider}/{timestamp}/`.
 package struct ConfigBackupManager: Sendable {
     // MARK: Lifecycle
 
@@ -63,15 +53,8 @@ package struct ConfigBackupManager: Sendable {
 
     // MARK: Package
 
-    /// The base directory for all backups.
-    /// Defaults to `~/.open-island/backups/`.
     package let backupsBaseURL: URL
 
-    /// Create a backup of the file at the given path.
-    ///
-    /// - Parameter path: The absolute path to the file to back up.
-    /// - Parameter provider: The provider this backup is associated with.
-    /// - Returns: The URL where the backup was stored.
     package func createBackup(
         for path: String,
         provider: ProviderID,
@@ -131,10 +114,6 @@ package struct ConfigBackupManager: Sendable {
         return backupURL
     }
 
-    /// Restore a backup to its original location.
-    ///
-    /// - Parameter backupURL: The URL of the backup file.
-    /// - Parameter destinationPath: The path to restore the file to.
     package func restoreBackup(
         from backupURL: URL,
         to destinationPath: String,
@@ -146,7 +125,6 @@ package struct ConfigBackupManager: Sendable {
         let destinationURL = URL(fileURLWithPath: destinationPath)
 
         do {
-            // Remove existing file if present
             if FileManager.default.fileExists(atPath: destinationPath) {
                 try FileManager.default.removeItem(at: destinationURL)
             }
@@ -156,7 +134,6 @@ package struct ConfigBackupManager: Sendable {
         }
     }
 
-    /// List all backups for a given provider, sorted by date (newest first).
     package func listBackups(for provider: ProviderID) -> [BackupEntry] {
         let providerDir = self.backupsBaseURL
             .appendingPathComponent(provider.rawValue, isDirectory: true)
@@ -182,11 +159,9 @@ package struct ConfigBackupManager: Sendable {
                 continue
             }
 
-            // Parse date from directory name (timestamp format)
             let date = Self.timestampFormatter.date(from: dir.lastPathComponent) ?? Date.distantPast
 
             for file in files where file.pathExtension != "origin" {
-                // Read the original path from the sidecar .origin file written by createBackup.
                 let originFile = file.appendingPathExtension("origin")
                 let originalPath = (try? String(contentsOf: originFile, encoding: .utf8)) ?? file.lastPathComponent
                 entries.append(BackupEntry(

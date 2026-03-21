@@ -59,15 +59,12 @@ package enum HookRuntimeDetector {
     /// - Throws: ``HookInstallError/pythonNotFound`` or
     ///   ``HookInstallError/pythonVersionTooOld(found:required:)``
     package static func detect() throws(HookInstallError) -> HookCommand {
-        // Tier 1: uv
         if let uvPath = findUV() {
             return .uv(path: uvPath)
         }
 
-        // Track the best (highest) Python version found for error reporting
         var bestVersionFound: String?
 
-        // Tier 2: PATH Python 3.14+
         let pathCandidates = [
             resolveInPATH("python3.14"),
             resolveInPATH("python3"),
@@ -90,7 +87,6 @@ package enum HookRuntimeDetector {
             }
         }
 
-        // Tier 3: Homebrew Python 3.14+
         let homebrewCandidates = [
             // Apple Silicon keg
             "/opt/homebrew/opt/python@3.14/libexec/bin/python3.14",
@@ -115,7 +111,6 @@ package enum HookRuntimeDetector {
             }
         }
 
-        // No suitable runtime found
         if let version = bestVersionFound {
             throw .pythonVersionTooOld(found: version, required: "3.\(self.minimumPythonMinor)")
         }
@@ -133,12 +128,10 @@ package enum HookRuntimeDetector {
 
     /// Look for `uv` in common locations.
     private static func findUV() -> String? {
-        // 1. which uv
         if let path = resolveInPATH("uv") {
             return path
         }
 
-        // 2. Common install locations
         let home = FileManager.default.homeDirectoryForCurrentUser.path
         let candidates = [
             "\(home)/.cargo/bin/uv",
@@ -177,9 +170,6 @@ package enum HookRuntimeDetector {
         return self.parseVersionOutput(output)
     }
 
-    /// Parse `Python X.Y.Z` output and check against the minimum version.
-    ///
-    /// Visible for testing via the package access level on the enum.
     private static func parseVersionOutput(_ output: String) -> VersionCheckResult {
         // Expected format: "Python 3.14.0a1\n" or "Python 3.13.2\n"
         let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)

@@ -1,3 +1,4 @@
+// @preconcurrency: NSRunningApplication, NSWorkspace predate Sendable annotations
 @preconcurrency import AppKit
 
 // MARK: - RunningAppInfo
@@ -39,7 +40,6 @@ public enum SingleInstanceGuard {
             return
         }
 
-        // Activate the existing instance's window.
         existing.activate()
         NSApp.terminate(nil)
     }

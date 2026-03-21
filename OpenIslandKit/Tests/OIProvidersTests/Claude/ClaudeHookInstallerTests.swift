@@ -246,17 +246,14 @@ struct ClaudeHookInstallerInstallTests {
         let hooks = try #require(json["hooks"] as? [String: Any])
         let postToolEntries = try #require(hooks["PostToolUse"] as? [[String: Any]])
 
-        // Should have 2 matcher groups: third-party + ours
         #expect(postToolEntries.count == 2)
 
-        // Verify third-party matcher group preserved
         let thirdPartyGroup = try #require(
             postToolEntries.first { $0["matcher"] as? String == "Bash" },
         )
         let thirdPartyHooks = try #require(thirdPartyGroup["hooks"] as? [[String: Any]])
         #expect(thirdPartyHooks[0]["command"] as? String == "/usr/local/bin/some-other-tool")
 
-        // Verify our matcher group exists
         let ourGroup = try #require(
             postToolEntries.first { matcherGroup in
                 guard let groupHooks = matcherGroup["hooks"] as? [[String: Any]] else { return false }
@@ -328,7 +325,6 @@ struct ClaudeHookInstallerUninstallTests {
             bundledScriptURL: scriptURL,
         )
 
-        // Manually add a third-party hook in nested format
         let settingsURL = tempDir.appendingPathComponent("settings.json")
         var data = try Data(contentsOf: settingsURL)
         var json = try #require(

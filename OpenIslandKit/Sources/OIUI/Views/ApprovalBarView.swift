@@ -27,12 +27,10 @@ package struct ApprovalBarView: View {
                 .overlay(.white.opacity(self.contrast == .increased ? 0.3 : 0.1))
 
             HStack(spacing: 10) {
-                // Tool summary + risk badge
                 self.summaryLabel
 
                 Spacer(minLength: 8)
 
-                // Action buttons
                 self.actionButtons
             }
             .padding(.horizontal, 14)
@@ -79,7 +77,6 @@ package struct ApprovalBarView: View {
 
     private var actionButtons: some View {
         HStack(spacing: 6) {
-            // Deny
             Button {
                 self.monitor.denyPermission(sessionID: self.sessionID, requestID: self.context.toolUseID)
             } label: {
@@ -94,7 +91,6 @@ package struct ApprovalBarView: View {
             .accessibilityLabel("Deny")
             .accessibilityHint("Denies the tool permission request")
 
-            // Always Allow
             Button {
                 self.monitor.approvePermission(sessionID: self.sessionID, requestID: self.context.toolUseID)
             } label: {
@@ -109,7 +105,6 @@ package struct ApprovalBarView: View {
             .accessibilityLabel("Always Allow")
             .accessibilityHint("Approves this and future requests for this tool")
 
-            // Approve
             Button {
                 self.monitor.approvePermission(sessionID: self.sessionID, requestID: self.context.toolUseID)
             } label: {

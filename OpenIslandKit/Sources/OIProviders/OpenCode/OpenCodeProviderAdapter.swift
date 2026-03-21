@@ -4,12 +4,7 @@ import Synchronization
 
 // MARK: - OpenCodeProviderAdapter
 
-/// Top-level adapter that composes all OpenCode components and conforms to ``ProviderAdapter``.
-///
-/// Owns the ``OpenCodeSSEClient`` (event streaming), ``OpenCodeRESTClient`` (HTTP API),
-/// ``OpenCodeServerDiscovery`` (server location), and ``OpenCodeEventNormalizer`` (event mapping).
-/// Connects to OpenCode's HTTP server via SSE and normalizes events into a single
-/// ``AsyncStream<ProviderEvent>``.
+/// Connects to OpenCode's HTTP server via SSE and normalizes events into ``ProviderEvent``.
 public final class OpenCodeProviderAdapter: ProviderAdapter, Sendable {
     // MARK: Lifecycle
 
@@ -30,43 +25,33 @@ public final class OpenCodeProviderAdapter: ProviderAdapter, Sendable {
             throw .alreadyRunning
         }
 
-        // 1. Discover the OpenCode server
         let server = await discovery.discover()
 
-        // 2. Check reachability
         let reachable = await discovery.checkReachability(server: server)
         guard reachable else {
             throw .httpServerUnreachable(host: server.host, port: server.port)
         }
 
-        // 3. Create clients
         let restClient = OpenCodeRESTClient(baseURL: server.baseURL)
         let sseClient = OpenCodeSSEClient(baseURL: server.baseURL)
 
-        // 4. Connect SSE (global endpoint for cross-project events)
         let sseStream = await sseClient.connect(endpoint: .global)
 
-        // 5. Create the provider event stream
         let (stream, continuation) = AsyncStream<ProviderEvent>.makeStream(
-            // Event stream — preserve ordering, don't drop events.
             bufferingPolicy: .bufferingOldest(128),
         )
 
-        // 6. Start SSE processing task (detached to avoid inheriting caller isolation
-        //    — prevents deadlock when stop() is called from the same context).
+        // Detached to avoid inheriting caller isolation — prevents deadlock
+        // when stop() is called from the same context.
         //
-        // The adapter tracks real session IDs and permission→session mappings
-        // from SSE events. This is necessary because:
-        // - SSE events carry the real OpenCode session ID (e.g. from `session.created`)
-        // - Permission responses must use the real session ID in the REST URL
-        // - `isSessionAlive` must match against real session IDs
+        // Tracks real session IDs and permission→session mappings from SSE
+        // events so respondToPermission can target the correct REST endpoint.
         let adapter = self
         let sseTask = Task.detached {
             for await sseEvent in sseStream {
                 guard !Task.isCancelled else { break }
                 let events = OpenCodeEventNormalizer.normalize(sseEvent)
                 for event in events {
-                    // Track session IDs and permission mappings from SSE events
                     switch event {
                     case let .sessionStarted(sessionID, _, _):
                         adapter.state.withLock { _ = $0.activeSessionIDs.insert(sessionID) }
@@ -122,21 +107,18 @@ public final class OpenCodeProviderAdapter: ProviderAdapter, Sendable {
             return (cont, sessions, sse, task)
         }
 
-        // Cancel SSE task, disconnect SSE client (which terminates the SSE
-        // stream the task is iterating), then await the task so it is fully
-        // stopped before we yield .sessionEnded events.
+        // Disconnect SSE client (terminates the stream the task is iterating),
+        // then await the task so it is fully stopped before yielding .sessionEnded.
         extracted.sseTask?.cancel()
         if let sseClient = extracted.sseClient {
             await sseClient.disconnect()
         }
         await extracted.sseTask?.value
 
-        // Emit session ended for all tracked sessions before finishing
         for sessionID in extracted.activeSessionIDs {
             extracted.continuation?.yield(.sessionEnded(sessionID))
         }
 
-        // Finish the provider event stream
         extracted.continuation?.finish()
     }
 
@@ -144,8 +126,7 @@ public final class OpenCodeProviderAdapter: ProviderAdapter, Sendable {
         if let stream = state.withLock({ $0.eventStream }) {
             return stream
         }
-        // Return an immediately-finished empty stream if not started.
-        // No buffering policy needed — finished before any yield.
+        // Not started — return an immediately-finished empty stream.
         let (stream, continuation) = AsyncStream<ProviderEvent>.makeStream()
         continuation.finish()
         return stream
@@ -193,9 +174,7 @@ public final class OpenCodeProviderAdapter: ProviderAdapter, Sendable {
     private let discovery: OpenCodeServerDiscovery
     private let state: Mutex<AdapterState>
 
-    /// Resets adapter state when the SSE stream ends naturally (server disconnected).
-    ///
-    /// Called only on non-cancelled termination — `stop()` handles its own cleanup.
+    /// Called only on non-cancelled SSE termination — `stop()` handles its own cleanup.
     private func handleNaturalSSETermination(
         continuation: AsyncStream<ProviderEvent>.Continuation,
     ) {
@@ -221,13 +200,10 @@ public final class OpenCodeProviderAdapter: ProviderAdapter, Sendable {
 
 // MARK: - AdapterState
 
-/// Mutable state for the adapter, protected by `Mutex`.
 private struct AdapterState: Sendable {
     var isRunning = false
-    /// Real OpenCode session IDs observed from SSE events.
     var activeSessionIDs: Set<String> = []
-    /// Maps permission request IDs to their originating OpenCode session IDs,
-    /// so `respondToPermission` can target the correct REST endpoint.
+    /// Maps permission request IDs → session IDs for REST endpoint targeting.
     var permissionSessionMap: [String: String] = [:]
     var restClient: OpenCodeRESTClient?
     var sseClient: OpenCodeSSEClient?
@@ -238,8 +214,6 @@ private struct AdapterState: Sendable {
 
 // MARK: - OpenCodePermissionResponseError
 
-/// Errors from responding to an OpenCode permission request.
 package enum OpenCodePermissionResponseError: Error, Sendable {
-    /// The adapter is not connected to an OpenCode server.
     case notConnected
 }

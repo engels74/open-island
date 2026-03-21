@@ -1,9 +1,6 @@
 public import OICore
 
 /// Central registry managing all provider adapters.
-///
-/// Starts/stops adapters, provides lookup by ID, and merges
-/// all provider event streams into a single `AsyncStream`.
 public actor ProviderRegistry {
     // MARK: Lifecycle
 
@@ -11,22 +8,18 @@ public actor ProviderRegistry {
 
     // MARK: Public
 
-    /// All registered provider IDs.
     public var registeredProviders: [ProviderID] {
         Array(self.adapters.keys)
     }
 
-    /// Register a provider adapter.
     public func register(_ adapter: any ProviderAdapter) {
         self.adapters[adapter.providerID] = adapter
     }
 
-    /// Look up an adapter by provider ID.
     public func adapter(for id: ProviderID) -> (any ProviderAdapter)? {
         self.adapters[id]
     }
 
-    /// Start all registered adapters concurrently.
     public func startAll() async throws {
         try await withThrowingTaskGroup(of: Void.self) { group in
             for adapter in self.adapters.values {
@@ -39,7 +32,6 @@ public actor ProviderRegistry {
         self.runningProviders = Set(self.adapters.keys)
     }
 
-    /// Stop all registered adapters concurrently.
     public func stopAll() async {
         await withTaskGroup(of: Void.self) { group in
             for adapter in self.adapters.values {
@@ -51,7 +43,6 @@ public actor ProviderRegistry {
         self.runningProviders.removeAll()
     }
 
-    /// Start a single registered provider by ID.
     public func startProvider(_ id: ProviderID) async throws {
         guard let adapter = self.adapters[id] else {
             throw ProviderStartupError.notRegistered(id)
@@ -60,21 +51,17 @@ public actor ProviderRegistry {
         self.runningProviders.insert(id)
     }
 
-    /// Stop a single registered provider by ID.
     public func stopProvider(_ id: ProviderID) async {
         guard let adapter = self.adapters[id] else { return }
         await adapter.stop()
         self.runningProviders.remove(id)
     }
 
-    /// Whether a provider is currently running.
     public func isRunning(_ id: ProviderID) -> Bool {
         self.runningProviders.contains(id)
     }
 
-    /// Start only the providers that are enabled in `AppSettings.enabledProviders`.
-    ///
-    /// Returns the IDs of providers that failed to start so callers can log/report.
+    /// Returns the IDs of providers that failed to start.
     public func startEnabledProviders() async -> [ProviderID: any Error] {
         let enabled = AppSettings.enabledProviders
         var failures: [ProviderID: any Error] = [:]
@@ -91,7 +78,6 @@ public actor ProviderRegistry {
         return failures
     }
 
-    /// Enable a provider at runtime: starts it, then persists to settings on success.
     public func enableProvider(_ id: ProviderID) async throws {
         try await self.startProvider(id)
         var enabled = AppSettings.enabledProviders
@@ -99,7 +85,6 @@ public actor ProviderRegistry {
         AppSettings.enabledProviders = enabled
     }
 
-    /// Disable a provider at runtime: updates settings and stops it.
     public func disableProvider(_ id: ProviderID) async {
         var enabled = AppSettings.enabledProviders
         enabled.remove(id)
@@ -107,15 +92,11 @@ public actor ProviderRegistry {
         await self.stopProvider(id)
     }
 
-    /// Merge all provider event streams into a single stream.
-    ///
-    /// Uses `withThrowingDiscardingTaskGroup` (SE-0381) for long-running
-    /// event forwarding — child task results are automatically discarded
-    /// to prevent memory leaks.
+    /// Uses `withThrowingDiscardingTaskGroup` (SE-0381) — child task results
+    /// are automatically discarded to prevent memory leaks.
     public func mergedEvents() -> AsyncStream<ProviderEvent> {
         let currentAdapters = Array(adapters.values)
         let (stream, continuation) = AsyncStream<ProviderEvent>.makeStream(
-            // Merged event stream — preserve ordering across all providers.
             bufferingPolicy: .bufferingOldest(128),
         )
         let task = Task {

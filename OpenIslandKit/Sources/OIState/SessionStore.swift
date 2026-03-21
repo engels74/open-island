@@ -4,10 +4,6 @@ public import OICore
 // MARK: - SessionStore
 
 /// Single source of truth for all session state.
-///
-/// Events enter through ``process(_:)`` and are dispatched to internal
-/// handlers that mutate ``sessions``. State changes are broadcast to
-/// subscribers via ``publishState()``.
 public actor SessionStore {
     // MARK: Lifecycle
 
@@ -15,12 +11,10 @@ public actor SessionStore {
 
     // MARK: Public
 
-    /// Sorted snapshot of all active sessions, ordered by most-recent activity.
     public var currentSessions: [SessionState] {
         self.sessions.values.sorted { $0.lastActivityAt > $1.lastActivityAt }
     }
 
-    /// Look up a single session by ID.
     public func session(for id: String) -> SessionState? {
         self.sessions[id]
     }
@@ -55,16 +49,15 @@ public actor SessionStore {
 
     // MARK: Internal — stored properties for extensions
 
-    /// Active sessions keyed by session ID.
     var sessions: [String: SessionState] = [:]
 
-    /// UUID-keyed continuations for multi-subscriber broadcast (§2.2).
+    /// Multi-subscriber broadcast (§2.2).
     var continuations: [UUID: AsyncStream<[SessionState]>.Continuation] = [:]
 
-    /// Per-session tool trackers for tool lifecycle management (§2.4).
+    /// Tool lifecycle management (§2.4).
     var toolTrackers: [String: ToolTracker] = [:]
 
-    /// Handle for the periodic health-check task (§2.5).
+    /// Periodic health-check (§2.5).
     var healthCheckTask: Task<Void, Never>?
 
     // MARK: Private

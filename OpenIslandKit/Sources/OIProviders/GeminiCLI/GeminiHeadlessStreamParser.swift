@@ -3,20 +3,8 @@ package import OICore
 
 // MARK: - GeminiHeadlessStreamParser
 
-/// Parses JSONL output from Gemini CLI's headless streaming mode.
-///
-/// When Gemini CLI is invoked with `gemini -p "query" --output-format stream-json`,
-/// it outputs one JSON object per line with the following event types:
-/// - `init`: session metadata (session_id, model, etc.)
-/// - `message`: text response chunks
-/// - `tool_use`: tool call requests
-/// - `tool_result`: tool execution output
-/// - `error`: error events
-/// - `result`: final statistics (token counts, etc.)
-///
-/// This parser consumes raw `Data` lines and emits ``ProviderEvent`` values,
-/// providing an alternative event source to hooks for monitoring non-interactive
-/// Gemini sessions.
+/// Parses JSONL output from `gemini -p "query" --output-format stream-json`
+/// into ``ProviderEvent`` values. Alternative to hooks for non-interactive sessions.
 package struct GeminiHeadlessStreamParser: Sendable {
     // MARK: Lifecycle
 
@@ -24,9 +12,6 @@ package struct GeminiHeadlessStreamParser: Sendable {
 
     // MARK: Package
 
-    /// Parse a single JSONL line into a ``ProviderEvent``.
-    ///
-    /// Returns `nil` if the line cannot be parsed or represents an unknown event type.
     package func parse(_ data: Data) -> ProviderEvent? {
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             return nil
@@ -80,7 +65,6 @@ package struct GeminiHeadlessStreamParser: Sendable {
             return .notification(sessionID, message: "Error: \(message)")
 
         case "result":
-            // Final statistics — extract token usage
             if let usage = json["usage_metadata"] as? [String: Any] {
                 let total = usage["totalTokenCount"] as? Int
                 let prompt = usage["promptTokenCount"] as? Int
@@ -99,10 +83,6 @@ package struct GeminiHeadlessStreamParser: Sendable {
         }
     }
 
-    /// Parse a raw JSONL stream (multiple newline-delimited JSON objects) into events.
-    ///
-    /// - Parameter data: Raw data potentially containing multiple JSONL lines.
-    /// - Returns: Array of parsed events.
     package func parseStream(_ data: Data) -> [ProviderEvent] {
         let lines = data.split(separator: UInt8(ascii: "\n"))
         return lines.compactMap { self.parse(Data($0)) }

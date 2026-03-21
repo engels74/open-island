@@ -2,32 +2,21 @@ package import Foundation
 
 // MARK: - SSEEvent
 
-/// A parsed Server-Sent Event from the OpenCode HTTP server.
 package struct SSEEvent: Sendable {
-    /// The event type (from the `event:` field). Nil for unnamed events.
     package let event: String?
-
-    /// The event data (from the `data:` field). May span multiple lines.
     package let data: String
-
-    /// The last event ID (from the `id:` field).
     package let id: String?
 }
 
 // MARK: - SSEEndpoint
 
-/// Which SSE endpoint to connect to.
 package enum SSEEndpoint: Sendable {
-    /// Project-scoped events: `GET /event?directory=<path>`.
     case project(directory: String)
-
-    /// Cross-project events: `GET /global/event`.
     case global
 }
 
 // MARK: - OpenCodeSSEError
 
-/// Errors specific to the SSE client.
 package enum OpenCodeSSEError: Error, Sendable {
     case invalidURL(String)
     case connectionFailed(statusCode: Int)
@@ -36,10 +25,7 @@ package enum OpenCodeSSEError: Error, Sendable {
 
 // MARK: - OpenCodeSSEClient
 
-/// Actor wrapping `URLSession` for streaming SSE connections to OpenCode's HTTP server.
-///
-/// Parses the SSE wire format (`event:`, `data:`, `id:`, `retry:` fields),
-/// handles reconnection with exponential backoff, and respects the SSE `retry:` field.
+/// SSE streaming client with automatic reconnection and exponential backoff.
 package actor OpenCodeSSEClient {
     // MARK: Lifecycle
 
@@ -50,10 +36,6 @@ package actor OpenCodeSSEClient {
 
     // MARK: Package
 
-    /// Connect to an SSE endpoint and return a stream of parsed events.
-    ///
-    /// The stream automatically reconnects on disconnection using exponential backoff.
-    /// The SSE `retry:` field is respected when present.
     package func connect(
         endpoint: SSEEndpoint,
         lastEventID: String? = nil,
@@ -102,25 +84,16 @@ package actor OpenCodeSSEClient {
         }
     }
 
-    /// Disconnect all active SSE streams.
-    ///
-    /// Invalidates the underlying `URLSession`, immediately cancelling any in-flight
-    /// requests. This causes the `for await` loop in `streamEvents` to throw, ensuring
-    /// the SSE stream terminates promptly rather than relying solely on cooperative
-    /// task cancellation.
+    /// Invalidates the URLSession to force-terminate in-flight byte streams,
+    /// ensuring prompt shutdown rather than relying solely on cooperative cancellation.
     package func disconnect() {
         self.session.invalidateAndCancel()
     }
 
     // MARK: Fileprivate
 
-    /// Parse a single SSE field line into (field, value).
-    ///
-    /// Per the SSE spec:
-    /// - If the line contains ':', the field is everything before the first ':'
-    ///   and the value is everything after (with one optional leading space stripped).
-    /// - If the line does not contain ':', the entire line is the field name
-    ///   and the value is empty.
+    /// Per SSE spec: field is everything before first ':', value is everything after
+    /// (with one optional leading space stripped). No ':' means field=line, value="".
     fileprivate static func parseSSEField(_ line: String) -> (field: String, value: String) {
         guard let colonIndex = line.firstIndex(of: ":") else {
             return (field: line, value: "")
@@ -140,7 +113,6 @@ package actor OpenCodeSSEClient {
 
     // MARK: Private
 
-    /// Result of a single SSE connection attempt.
     private enum StreamResult {
         case reconnect(lastEventID: String?)
         case finished
@@ -150,7 +122,6 @@ package actor OpenCodeSSEClient {
     private let baseURL: URL
     private let session: URLSession
 
-    /// Build the URL for the given SSE endpoint.
     private static func buildURL(baseURL: URL, endpoint: SSEEndpoint) -> URL {
         switch endpoint {
         case let .project(directory):
@@ -161,7 +132,6 @@ package actor OpenCodeSSEClient {
         }
     }
 
-    /// Execute a single SSE connection, yielding events to the continuation.
     private static func streamEvents(
         url: URL,
         session: URLSession,
@@ -217,13 +187,9 @@ package actor OpenCodeSSEClient {
 
 // MARK: - SSELineParser
 
-/// Accumulates SSE field lines and dispatches events on empty lines.
 private struct SSELineParser {
     // MARK: Internal
 
-    /// Process a single line from the SSE stream.
-    ///
-    /// Returns an ``SSEEvent`` when an empty line triggers dispatch, or `nil` otherwise.
     mutating func processLine(_ line: String, backoff: inout ExponentialBackoff) -> SSEEvent? {
         if line.isEmpty {
             return self.dispatchEvent()
@@ -282,11 +248,9 @@ private struct SSELineParser {
 
 // MARK: - ExponentialBackoff
 
-/// Manages exponential backoff delays for SSE reconnection.
 private struct ExponentialBackoff: Sendable {
     // MARK: Internal
 
-    /// Get the next delay in milliseconds and increment the attempt counter.
     mutating func nextDelay() -> Int {
         // If server specified a retry interval, use it
         if let retryMs = retryIntervalMs {
@@ -301,12 +265,10 @@ private struct ExponentialBackoff: Sendable {
         return max(100, baseDelay + jitter)
     }
 
-    /// Reset backoff state after a successful connection.
     mutating func reset() {
         self.attempt = 0
     }
 
-    /// Set the retry interval from an SSE `retry:` field.
     mutating func setRetryInterval(milliseconds: Int) {
         guard milliseconds > 0 else { return }
         self.retryIntervalMs = milliseconds

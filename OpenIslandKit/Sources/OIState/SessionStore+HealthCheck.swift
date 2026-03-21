@@ -6,12 +6,8 @@ import OSLog
 private let logger = Logger(subsystem: "com.openisland", category: "SessionHealthCheck")
 
 extension SessionStore {
-    /// Start the periodic health-check loop.
-    ///
-    /// Every 3 seconds, iterates all non-ended sessions and asks the
-    /// provider adapter whether each session is still alive. Zombie
-    /// sessions (where the provider reports the session is gone) are
-    /// transitioned to `.ended`.
+    /// Detects zombie sessions where the provider process has exited
+    /// but no `.sessionEnded` event was received.
     package func startHealthCheck(registry: ProviderRegistry) {
         healthCheckTask?.cancel()
         healthCheckTask = Task {
@@ -23,7 +19,6 @@ extension SessionStore {
         }
     }
 
-    /// Cancel the periodic health-check loop.
     package func stopHealthCheck() {
         healthCheckTask?.cancel()
         healthCheckTask = nil
@@ -48,7 +43,6 @@ extension SessionStore {
         }
     }
 
-    /// Transition a session to `.ended` if the current phase allows it.
     private func endSession(_ sessionID: String) {
         guard var session = sessions[sessionID] else { return }
 

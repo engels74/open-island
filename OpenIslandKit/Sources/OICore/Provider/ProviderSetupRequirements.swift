@@ -10,12 +10,9 @@ public struct ProviderSetupRequirements: Sendable {
 
     // MARK: Public
 
-    /// Prerequisites that must be met before setup can proceed.
     public let prerequisites: [ProviderPrerequisite]
-
-    /// Ordered steps to configure the provider.
     public let steps: [ProviderSetupStep]
 
-    /// Human-readable estimate (e.g., "~30 seconds"), or `nil` if unknown.
+    /// e.g., "~30 seconds". `nil` if unknown.
     public let estimatedDuration: String?
 }

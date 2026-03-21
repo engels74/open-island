@@ -9,7 +9,6 @@ struct ProviderInstallationStatusTests {
     func `notInstalled case exists`() {
         let status: ProviderInstallationStatus = .notInstalled
         if case .notInstalled = status {
-            // pass
         } else {
             Issue.record("Expected .notInstalled")
         }
@@ -19,7 +18,6 @@ struct ProviderInstallationStatusTests {
     func `installing case exists`() {
         let status: ProviderInstallationStatus = .installing
         if case .installing = status {
-            // pass
         } else {
             Issue.record("Expected .installing")
         }

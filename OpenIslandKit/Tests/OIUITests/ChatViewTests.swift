@@ -4,10 +4,6 @@ import Testing
 
 // MARK: - ChatViewTests
 
-/// Tests for ``ChatHistoryItem`` rendering logic used by ChatView.
-///
-/// Verifies that each ``ChatItemType`` maps to the expected view routing
-/// and that chat items store the correct content and metadata.
 struct ChatViewTests {
     // MARK: - ChatItemType Coverage
 
@@ -72,7 +68,6 @@ struct ChatViewTests {
             result: .string("file contents"),
         )
 
-        // ChatView matches tool calls by ID
         #expect(toolItem.id == activeTool.id)
         #expect(toolItem.type == .toolCall)
         #expect(toolItem.providerSpecific?["tool_name"]?.stringValue == "Read")

@@ -177,7 +177,7 @@ struct ClaudeIntegrationTests {
         ])
     }
 
-    // MARK: - 2. All 18 Event Types End-to-End (parameterized)
+    // MARK: - 2. All 17 Event Types End-to-End (parameterized)
 
     @Test(.timeLimit(.minutes(1)), arguments: mappedFixtures)
     func `mapped event types emit correct ProviderEvent through adapter`(

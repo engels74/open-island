@@ -12,18 +12,14 @@ public struct ProviderSetupStep: Sendable {
 
     // MARK: Public
 
-    /// Unique identifier for this step.
     public let id: String
 
-    /// Human-readable title (e.g., "Install hook scripts").
+    /// e.g., "Install hook scripts"
     public let title: String
 
-    /// Detailed description of what this step does.
     public let description: String
-
-    /// Whether this step makes destructive changes that are hard to undo.
     public let isDestructive: Bool
 
-    /// File paths that will be created or modified by this step.
+    /// File paths that will be created or modified.
     public let affectedPaths: [String]
 }

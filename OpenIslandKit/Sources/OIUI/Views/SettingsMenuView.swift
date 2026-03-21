@@ -766,13 +766,11 @@ private struct ProviderSetupSheetView: View {
         let accentColor = Color(hex: meta.accentColorHex) ?? .white
 
         VStack(spacing: 0) {
-            // Header
             self.sheetHeader(meta: meta, accentColor: accentColor)
 
             Divider()
                 .background(Color.white.opacity(0.08))
 
-            // Content
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 16) {
                     if let requirements {
@@ -790,7 +788,6 @@ private struct ProviderSetupSheetView: View {
             Divider()
                 .background(Color.white.opacity(0.08))
 
-            // Footer
             self.sheetFooter(accentColor: accentColor)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

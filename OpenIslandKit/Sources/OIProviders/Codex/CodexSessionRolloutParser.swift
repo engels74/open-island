@@ -3,19 +3,15 @@ package import OICore
 
 // MARK: - RolloutParseState
 
-/// Tracks incremental parsing state for a single Codex session rollout file.
 package struct RolloutParseState: Sendable {
-    /// Byte offset of the last read position in the JSONL file.
     package var lastFileOffset: UInt64 = 0
-    /// File size at last read, used for truncation detection.
+    /// Used for truncation detection — if current size < last size, the file was rewritten.
     package var lastFileSize: UInt64 = 0
-    /// Accumulated chat history items for this session.
     package var chatItems: [ChatHistoryItem] = []
 }
 
 // MARK: - RolloutParseError
 
-/// Errors that can occur during rollout file parsing.
 package enum RolloutParseError: Error, Sendable {
     case fileNotFound(String)
     case readFailed(String)
@@ -25,21 +21,10 @@ package enum RolloutParseError: Error, Sendable {
 
 /// Incrementally parses Codex session rollout JSONL files into ``ChatHistoryItem`` arrays.
 ///
-/// Codex writes complete conversation history to rollout files at
-/// `~/.codex/sessions/YYYY/MM/DD/rollout-<timestamp>-<uuid>.jsonl`.
-/// This actor tracks file offsets per session to only parse new lines
-/// on each invocation, supporting efficient FSEvents-based polling.
-///
 /// Follows the same incremental parsing pattern as ``ClaudeConversationParser``.
 package actor CodexSessionRolloutParser {
     // MARK: Package
 
-    /// Parse new lines from a rollout file since the last read.
-    ///
-    /// - Parameters:
-    ///   - sessionID: The unique session identifier.
-    ///   - rolloutPath: Absolute path to the rollout `.jsonl` file.
-    /// - Returns: Only the newly parsed ``ChatHistoryItem`` values since the last call.
     package func parseIncremental(
         sessionID: String,
         rolloutPath: String,
@@ -53,14 +38,12 @@ package actor CodexSessionRolloutParser {
         let attributes = try FileManager.default.attributesOfItem(atPath: rolloutPath)
         let currentFileSize = (attributes[.size] as? UInt64) ?? 0
 
-        // Detect file truncation: if current size is smaller than last known size, reset.
         if currentFileSize < state.lastFileSize {
             state.lastFileOffset = 0
             state.lastFileSize = 0
             state.chatItems = []
         }
 
-        // For large files (>10MB), use tail-based approach if starting fresh.
         let tailThreshold: UInt64 = 10 * 1024 * 1024
         if state.lastFileOffset == 0, currentFileSize > tailThreshold {
             let tailSize: UInt64 = 1 * 1024 * 1024
@@ -89,7 +72,6 @@ package actor CodexSessionRolloutParser {
 
         let allLines = content.split(separator: "\n", omittingEmptySubsequences: false)
         let lines: [Substring] = if state.lastFileOffset > 0, state.chatItems.isEmpty, currentFileSize > tailThreshold {
-            // Skip first potentially partial line when doing tail-based read
             Array(allLines.dropFirst())
         } else {
             Array(allLines)
@@ -102,7 +84,6 @@ package actor CodexSessionRolloutParser {
             let bytesToLastNewline = content[content.startIndex ... lastNewline].utf8.count
             state.lastFileOffset += UInt64(bytesToLastNewline)
         }
-        // If no newline found at all, don't advance — the entire read is a partial line.
 
         var newItems: [ChatHistoryItem] = []
         let baseIndex = state.chatItems.count
@@ -118,7 +99,6 @@ package actor CodexSessionRolloutParser {
                 let parsed = Self.convertItem(item, itemIndex: baseIndex + lineIndex)
                 newItems.append(contentsOf: parsed)
             } catch {
-                // Skip malformed JSONL lines gracefully
                 continue
             }
         }
@@ -129,22 +109,18 @@ package actor CodexSessionRolloutParser {
         return newItems
     }
 
-    /// Return the current accumulated chat items for a session.
     package func chatItems(for sessionID: String) -> [ChatHistoryItem] {
         self.sessions[sessionID]?.chatItems ?? []
     }
 
-    /// Reset chat history for a session.
     package func reset(sessionID: String) {
         self.sessions.removeValue(forKey: sessionID)
     }
 
     // MARK: Private
 
-    /// Per-session parsing state.
     private var sessions: [String: RolloutParseState] = [:]
 
-    /// Convert a Codex thread item into zero or more ChatHistoryItem values.
     private static func convertItem(
         _ item: CodexThreadItem,
         itemIndex: Int,
@@ -225,7 +201,6 @@ package actor CodexSessionRolloutParser {
         return [historyItem]
     }
 
-    /// Encode select fields of a CodexThreadItem as a JSONValue for providerSpecific.
     private static func encodeProviderSpecific(_ item: CodexThreadItem) -> JSONValue? {
         guard let data = try? JSONEncoder().encode(item),
               let value = try? JSONDecoder().decode(JSONValue.self, from: data)

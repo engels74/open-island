@@ -32,21 +32,17 @@ package extension NSScreen {
         return baseWidth + Self.notchSafetyPadding * 2
     }
 
-    /// Whether this screen has a physical notch (built-in display with top safe area inset).
     var hasPhysicalNotch: Bool {
         self.isBuiltinDisplay && safeAreaInsets.top > 0
     }
 
-    /// Whether this screen is the built-in display (not an external monitor).
-    ///
-    /// Uses `CGDisplayIsBuiltin` which checks the display hardware connection type.
+    /// `CGDisplayIsBuiltin` checks the display hardware connection type.
     var isBuiltinDisplay: Bool {
         let displayID = deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID
         guard let displayID else { return false }
         return CGDisplayIsBuiltin(displayID) != 0
     }
 
-    /// The built-in display, if currently connected.
     static var builtin: NSScreen? {
         screens.first { $0.isBuiltinDisplay }
     }

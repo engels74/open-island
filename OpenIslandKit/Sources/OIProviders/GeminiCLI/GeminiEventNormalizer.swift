@@ -4,33 +4,9 @@ package import OICore
 // MARK: - GeminiEventNormalizer
 
 /// Maps raw Gemini CLI hook JSON events to normalized ``ProviderEvent`` values.
-///
-/// This is a namespace enum with static methods — it holds no state.
-/// Uses `JSONSerialization` for flexible parsing of the hook event JSON payloads.
-///
-/// ## Event Mappings
-/// - `SessionStart` → `.sessionStarted`
-/// - `SessionEnd` → `.sessionEnded`
-/// - `BeforeAgent` → `.userPromptSubmitted` + `.processingStarted`
-/// - `AfterAgent` → `.waitingForInput`
-/// - `BeforeTool` → `.toolStarted` (also the permission interception point)
-/// - `AfterTool` → `.toolCompleted`
-/// - `BeforeModel` → `.processingStarted`
-/// - `AfterModel` → `.modelResponse` + optionally `.tokenUsage` (throttled)
-/// - `PreCompress` → `.compacting`
-/// - `Notification` → `.notification` or `.permissionRequested` (for ToolPermission)
 package enum GeminiEventNormalizer {
     // MARK: Package
 
-    /// Normalize raw Gemini CLI hook event data into ``ProviderEvent`` values.
-    ///
-    /// Returns an array of events (some hook events map to multiple provider events)
-    /// along with an updated throttle timestamp for AfterModel rate-limiting.
-    ///
-    /// - Parameters:
-    ///   - data: Raw JSON data from the hook socket.
-    ///   - lastAfterModelTime: The timestamp of the last emitted AfterModel event, used for throttling.
-    /// - Throws: ``EventNormalizationError`` for unknown event types or malformed payloads.
     package static func normalize(
         _ data: Data,
         lastAfterModelTime: Date?,
@@ -56,7 +32,6 @@ package enum GeminiEventNormalizer {
 
     private enum ToolPhase { case before, after }
 
-    /// Throttle interval for AfterModel events (100ms).
     private static let afterModelThrottleInterval: TimeInterval = 0.1
 
     // MARK: - Hook Event Dispatch
@@ -146,7 +121,6 @@ package enum GeminiEventNormalizer {
         let now = Date()
         var events: [ProviderEvent] = []
 
-        // Throttle: only emit modelResponse if enough time has passed since last emission
         let shouldEmit = if let lastTime = lastAfterModelTime {
             now.timeIntervalSince(lastTime) >= self.afterModelThrottleInterval
         } else {
@@ -154,12 +128,10 @@ package enum GeminiEventNormalizer {
         }
 
         if shouldEmit {
-            // Extract text content from the response
             let textDelta = self.extractTextDelta(from: json)
             events.append(.modelResponse(sessionID, textDelta: textDelta))
         }
 
-        // Always check for token usage (not throttled)
         if let usageMetadata = json["usageMetadata"] as? [String: Any],
            let totalTokenCount = usageMetadata["totalTokenCount"] as? Int {
             let promptTokens = usageMetadata["promptTokenCount"] as? Int
@@ -176,9 +148,7 @@ package enum GeminiEventNormalizer {
         return (events, updatedTime)
     }
 
-    /// Extract text content from AfterModel response data.
     private static func extractTextDelta(from json: [String: Any]) -> String {
-        // Try common Gemini response structures
         if let text = json["text"] as? String {
             return text
         }
@@ -285,7 +255,6 @@ package enum GeminiEventNormalizer {
             throw .missingRequiredField("tool_name")
         }
 
-        // Construct a composite ID from available fields
         let timestamp = json["timestamp"] as? String ?? "unknown"
         let toolUseID = "\(sessionID):\(toolName):\(timestamp)"
 
@@ -314,7 +283,6 @@ package enum GeminiEventNormalizer {
 
     // MARK: - JSON Conversion Utilities
 
-    /// Convert an `Any` value from JSONSerialization into a ``JSONValue``.
     private static func convertToJSONValue(_ value: Any?) -> JSONValue? {
         guard let value else { return nil }
 

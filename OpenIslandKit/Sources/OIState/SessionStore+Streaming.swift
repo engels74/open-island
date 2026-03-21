@@ -2,11 +2,7 @@ public import Foundation
 public import OICore
 
 extension SessionStore {
-    /// Creates a new subscriber stream that receives session state snapshots.
-    ///
-    /// Each subscriber immediately receives the current state and all subsequent
-    /// updates broadcast via ``publishState()``. The stream uses `.bufferingNewest(1)`
-    /// so slow consumers always see the latest snapshot.
+    /// Uses `.bufferingNewest(1)` so slow consumers always see the latest snapshot.
     public func sessionsStream() -> AsyncStream<[SessionState]> {
         let (stream, continuation) = AsyncStream<[SessionState]>.makeStream(
             bufferingPolicy: .bufferingNewest(1),
@@ -23,7 +19,6 @@ extension SessionStore {
         return stream
     }
 
-    /// Broadcasts the current session state to all active subscribers.
     func publishState() {
         let sorted = self.sortedSessions()
         for continuation in continuations.values {

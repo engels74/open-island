@@ -26,10 +26,8 @@ package struct ChatView: View {
         let accentColor = Color(hex: self.providerMeta.accentColorHex) ?? AppSettings.brandTeal
 
         VStack(spacing: 0) {
-            // Back button header
             self.backBar(accent: accentColor)
 
-            // Chat messages
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 8) {
@@ -60,13 +58,11 @@ package struct ChatView: View {
                 }
             }
 
-            // Compaction banner — shown during context compaction
             if self.session.phase == .compacting {
                 CompactingBanner()
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
 
-            // Approval bar — conditionally shown
             if case let .waitingForApproval(context) = self.session.phase {
                 ApprovalBarView(
                     context: context,

@@ -20,10 +20,7 @@ package struct NotchShape: Shape {
 
     // MARK: Package
 
-    /// Radius applied to the top-left and top-right shoulder curves.
     package var topCornerRadius: CGFloat
-
-    /// Radius applied to the bottom-left and bottom-right corners.
     package var bottomCornerRadius: CGFloat
 
     package var animatableData: AnimatablePair<CGFloat, CGFloat> {
@@ -44,41 +41,23 @@ package struct NotchShape: Shape {
 
         var path = Path()
 
-        // Start at the top-left shoulder tangent point.
         path.move(to: CGPoint(x: rect.minX + tr, y: rect.minY))
-
-        // Flat top edge → top-right shoulder tangent point.
         path.addLine(to: CGPoint(x: rect.maxX - tr, y: rect.minY))
-
-        // Top-right shoulder: quadratic Bézier from top edge to right side.
-        // Control point at the geometric corner pulls the curve outward.
         path.addQuadCurve(
             to: CGPoint(x: rect.maxX, y: rect.minY + tr),
             control: CGPoint(x: rect.maxX, y: rect.minY),
         )
-
-        // Right side straight down to the bottom-right curve start.
         path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - br))
-
-        // Bottom-right corner: curve from right side inward along the bottom.
         path.addQuadCurve(
             to: CGPoint(x: rect.maxX - br, y: rect.maxY),
             control: CGPoint(x: rect.maxX, y: rect.maxY),
         )
-
-        // Flat bottom edge → bottom-left curve start.
         path.addLine(to: CGPoint(x: rect.minX + br, y: rect.maxY))
-
-        // Bottom-left corner: curve from bottom edge up along the left side.
         path.addQuadCurve(
             to: CGPoint(x: rect.minX, y: rect.maxY - br),
             control: CGPoint(x: rect.minX, y: rect.maxY),
         )
-
-        // Left side straight up to the top-left shoulder curve start.
         path.addLine(to: CGPoint(x: rect.minX, y: rect.minY + tr))
-
-        // Top-left shoulder: curve from left side back to the top edge.
         path.addQuadCurve(
             to: CGPoint(x: rect.minX + tr, y: rect.minY),
             control: CGPoint(x: rect.minX, y: rect.minY),

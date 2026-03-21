@@ -3,19 +3,13 @@ package import OICore
 
 // MARK: - GeminiConversationParser
 
-/// Parses Gemini CLI session JSON files from `~/.gemini/tmp/<project_hash>/chats/`
-/// into ``ChatHistoryItem`` arrays.
+/// Parses Gemini CLI session JSON files into ``ChatHistoryItem`` arrays.
 ///
-/// Unlike Claude Code's JSONL transcripts, Gemini CLI stores each session as a
-/// complete JSON file containing the full conversation history. This parser reads
-/// the JSON file and converts messages into normalized chat history items.
+/// Unlike Claude Code's incremental JSONL, Gemini stores each session as a
+/// complete JSON file — so we re-read the whole file each time.
 package actor GeminiConversationParser {
     // MARK: Package
 
-    /// Parse a Gemini CLI session JSON file into chat history items.
-    ///
-    /// - Parameter filePath: Absolute path to the session JSON file.
-    /// - Returns: Array of ``ChatHistoryItem`` values.
     package func parse(filePath: String) throws -> [ChatHistoryItem] {
         guard FileManager.default.fileExists(atPath: filePath) else {
             throw ConversationParseError.fileNotFound(filePath)
@@ -35,10 +29,6 @@ package actor GeminiConversationParser {
         return Self.parseSessionJSON(json)
     }
 
-    /// List available session files in a Gemini project's chat directory.
-    ///
-    /// - Parameter projectChatDir: Path to `~/.gemini/tmp/<project_hash>/chats/`.
-    /// - Returns: Array of file paths to session JSON files, sorted by modification date.
     package func listSessions(projectChatDir: String) throws -> [String] {
         let dirURL = URL(fileURLWithPath: projectChatDir)
         guard FileManager.default.fileExists(atPath: projectChatDir) else {
@@ -63,18 +53,6 @@ package actor GeminiConversationParser {
 
     // MARK: Private
 
-    /// Parse the top-level session JSON into chat history items.
-    ///
-    /// Expected structure:
-    /// ```json
-    /// {
-    ///   "session_id": "...",
-    ///   "messages": [
-    ///     { "role": "user", "content": "...", "timestamp": "..." },
-    ///     { "role": "model", "parts": [...], "timestamp": "..." }
-    ///   ]
-    /// }
-    /// ```
     private static func parseSessionJSON(_ json: [String: Any]) -> [ChatHistoryItem] {
         guard let messages = json["messages"] as? [[String: Any]] else {
             return []
@@ -111,7 +89,6 @@ package actor GeminiConversationParser {
         return items
     }
 
-    /// Parse a model (assistant) message, which may contain text parts and tool calls.
     private static func parseModelMessage(
         _ message: [String: Any],
         id: String,
@@ -119,7 +96,6 @@ package actor GeminiConversationParser {
     ) -> [ChatHistoryItem] {
         var items: [ChatHistoryItem] = []
 
-        // Gemini uses "parts" array for structured content
         if let parts = message["parts"] as? [[String: Any]] {
             var textParts: [String] = []
             var toolCallIndex = 0
@@ -159,7 +135,6 @@ package actor GeminiConversationParser {
                 )
             }
         } else {
-            // Fallback: simple content string
             let content = self.extractContent(from: message)
             if !content.isEmpty {
                 items.append(ChatHistoryItem(
@@ -174,13 +149,10 @@ package actor GeminiConversationParser {
         return items
     }
 
-    /// Extract plain text content from a message.
     private static func extractContent(from message: [String: Any]) -> String {
-        // Direct content field
         if let content = message["content"] as? String {
             return content
         }
-        // Parts array with text
         if let parts = message["parts"] as? [[String: Any]] {
             return parts
                 .compactMap { $0["text"] as? String }
@@ -200,7 +172,6 @@ package actor GeminiConversationParser {
         return basic.date(from: str) ?? Date()
     }
 
-    /// Create a brief description of function call arguments.
     private static func describeArgs(_ args: Any?) -> String {
         guard let dict = args as? [String: Any] else { return "" }
         if let command = dict["command"] as? String {

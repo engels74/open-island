@@ -4,14 +4,6 @@ public import OICore
 // MARK: - ProviderSetupCoordinator
 
 /// Central orchestrator for provider setup and teardown.
-///
-/// Manages the full lifecycle: prerequisite checking, config backup creation,
-/// hook installation, and verification. Each provider has its own setup
-/// requirements based on its transport type.
-///
-/// - Claude Code & Gemini CLI: require Python runtime + hook installation into settings.json
-/// - Codex CLI: only requires CLI binary on PATH (JSON-RPC, no hooks)
-/// - OpenCode: only requires CLI binary on PATH (HTTP SSE, no hooks)
 public actor ProviderSetupCoordinator {
     // MARK: Lifecycle
 
@@ -19,14 +11,12 @@ public actor ProviderSetupCoordinator {
         self.backupManager = ConfigBackupManager()
     }
 
-    /// Internal initializer allowing injection of a custom backup manager (for testing).
     package init(backupManager: ConfigBackupManager) {
         self.backupManager = backupManager
     }
 
     // MARK: Public
 
-    /// Returns what setup will involve for the given provider.
     public func setupRequirements(for provider: ProviderID) -> ProviderSetupRequirements {
         let metadata = ProviderMetadata.metadata(for: provider)
 
@@ -76,7 +66,6 @@ public actor ProviderSetupCoordinator {
         }
     }
 
-    /// Check whether all prerequisites are met for the given provider.
     public func checkPrerequisites(for provider: ProviderID) async -> [PrerequisiteCheckResult] {
         let requirements = self.setupRequirements(for: provider)
         var results: [PrerequisiteCheckResult] = []
@@ -89,14 +78,10 @@ public actor ProviderSetupCoordinator {
         return results
     }
 
-    /// Run the full setup flow for a provider.
-    ///
-    /// Steps: check prerequisites → backup config → install hooks → verify.
     public func install(
         provider: ProviderID,
         progressHandler: @Sendable (SetupProgress) -> Void,
     ) async throws(ProviderSetupError) {
-        // 1. Check prerequisites
         progressHandler(.checkingPrerequisites)
         let prereqResults = await checkPrerequisites(for: provider)
         let failures = prereqResults.filter { !$0.passed }
@@ -104,7 +89,6 @@ public actor ProviderSetupCoordinator {
             throw .prerequisitesNotMet(failures)
         }
 
-        // 2. Back up existing config files before modification
         let configPaths = Self.configPaths(for: provider)
         for path in configPaths {
             let expandedPath = (path as NSString).expandingTildeInPath
@@ -118,7 +102,6 @@ public actor ProviderSetupCoordinator {
             }
         }
 
-        // 3. Install hooks (for providers that need them)
         progressHandler(.installingHooks)
         switch provider {
         case .claude:
@@ -138,10 +121,9 @@ public actor ProviderSetupCoordinator {
         case .codex,
              .openCode,
              .example:
-            break // No hook installation needed
+            break
         }
 
-        // 4. Verify
         progressHandler(.verifying)
         let verification = await verify(provider: provider)
         guard verification.success else {
@@ -151,7 +133,6 @@ public actor ProviderSetupCoordinator {
         progressHandler(.complete)
     }
 
-    /// Reverse setup for a provider — remove hooks and clean up.
     public func uninstall(provider: ProviderID) async throws(ProviderSetupError) {
         switch provider {
         case .claude:
@@ -171,11 +152,10 @@ public actor ProviderSetupCoordinator {
         case .codex,
              .openCode,
              .example:
-            break // Nothing to uninstall
+            break
         }
     }
 
-    /// Verify that a provider's setup is correct.
     public func verify(provider: ProviderID) async -> VerificationResult {
         let metadata = ProviderMetadata.metadata(for: provider)
 
@@ -294,7 +274,6 @@ extension ProviderSetupCoordinator {
         }
     }
 
-    /// Check if any of the given binary names are available on PATH.
     private static func checkBinaryOnPath(
         names: [String],
         prerequisite: ProviderPrerequisite,
@@ -316,7 +295,6 @@ extension ProviderSetupCoordinator {
         )
     }
 
-    /// Check if Python 3.14+ or uv is available.
     private static func checkPythonRuntime(
         prerequisite: ProviderPrerequisite,
     ) -> PrerequisiteCheckResult {
@@ -354,12 +332,10 @@ extension ProviderSetupCoordinator {
         var details: [String] = []
         var allPassed = true
 
-        // Check binary
         let hasBinary = metadata.cliBinaryNames.contains { self.resolveInPATH($0) != nil }
         details.append(hasBinary ? "CLI binary: found" : "CLI binary: not found")
         if !hasBinary { allPassed = false }
 
-        // Check hooks installed
         details.append(isInstalled ? "Hooks: installed" : "Hooks: not installed")
         if !isInstalled { allPassed = false }
 
@@ -427,11 +403,10 @@ extension ProviderSetupCoordinator {
         case .codex,
              .openCode,
              .example:
-            [] // No config files to back up
+            []
         }
     }
 
-    /// Resolve a binary name to an absolute path using `which` with augmented PATH.
     private static func resolveInPATH(_ name: String) -> String? {
         UserPATH.resolveInPATH(name)
     }

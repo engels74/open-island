@@ -21,7 +21,6 @@ package struct ToolResultView: View {
         VStack(alignment: .leading, spacing: 0) {
             ToolCardRow(tool: self.tool, isExpanded: self.$isExpanded)
 
-            // Expanded result content
             if self.isExpanded, let result = self.tool.result {
                 ResultContentView(result: result)
                     .padding(.leading, 28)
@@ -29,7 +28,6 @@ package struct ToolResultView: View {
                     .padding(.bottom, 8)
             }
 
-            // Nested subagent tools
             if !self.tool.nestedTools.isEmpty {
                 NestedToolsView(tools: self.tool.nestedTools)
                     .padding(.leading, 20)
@@ -302,7 +300,6 @@ private struct NestedToolsView: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 6) {
-            // Visual connector line
             Rectangle()
                 .fill(.white.opacity(self.contrast == .increased ? 0.3 : 0.1))
                 .frame(width: 1.5)

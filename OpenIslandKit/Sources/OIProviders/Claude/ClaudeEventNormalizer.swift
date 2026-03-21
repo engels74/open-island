@@ -9,12 +9,6 @@ package import OICore
 package enum ClaudeEventNormalizer {
     // MARK: Package
 
-    /// Normalize a raw Claude hook event into zero or more ``ProviderEvent`` values.
-    ///
-    /// Returns an empty array for events that have no meaningful ``ProviderEvent`` equivalent
-    /// (e.g. `Setup`, `WorktreeCreate`, `WorktreeRemove`).
-    ///
-    /// - Throws: ``EventNormalizationError`` for unknown event types or malformed payloads.
     package static func normalize(_ event: ClaudeHookEvent) throws(EventNormalizationError) -> [ProviderEvent] {
         switch event.hookEventName {
         case "Setup",
@@ -130,7 +124,6 @@ package enum ClaudeEventNormalizer {
         return [.subagentStopped(sid, taskID: taskID)]
     }
 
-    /// Extract the parent tool ID from the `parent_context` JSON field.
     private static func extractParentToolID(from parentContext: JSONValue?) -> String? {
         guard case let .object(dict) = parentContext else { return nil }
         if case let .string(toolID) = dict["tool_use_id"] {

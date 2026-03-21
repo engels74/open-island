@@ -56,7 +56,6 @@ package final class TokenTrackingManager {
                 changed = true
             }
         }
-        // Prune sessions no longer present
         let activeIDs = Set(sessions.map(\.id))
         let staleKeys = self.sessionTokens.keys.filter { !activeIDs.contains($0) }
         for key in staleKeys {

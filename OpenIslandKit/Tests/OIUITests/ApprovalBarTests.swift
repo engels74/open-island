@@ -4,11 +4,6 @@ import Testing
 
 // MARK: - ApprovalBarTests
 
-/// Tests for approval bar visibility logic and risk level data.
-///
-/// The ``ApprovalBarView`` is shown only when a session phase is
-/// `.waitingForApproval(context)`. These tests verify phase matching,
-/// risk level properties, and ``PermissionContext`` data storage.
 struct ApprovalBarTests {
     // MARK: - Approval Bar Visibility
 
@@ -24,7 +19,6 @@ struct ApprovalBarTests {
         let phase = SessionPhase.waitingForApproval(context)
 
         if case .waitingForApproval = phase {
-            // Expected — bar should be visible
         } else {
             Issue.record("Phase should be .waitingForApproval")
         }
@@ -43,7 +37,6 @@ struct ApprovalBarTests {
         if case .waitingForApproval = phase {
             Issue.record("Phase \(phase) should NOT show approval bar")
         }
-        // If we reach here, the phase correctly does not show the approval bar
     }
 
     @Test

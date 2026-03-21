@@ -16,7 +16,6 @@ package enum OpenReason: Sendable {
 
     // MARK: Package
 
-    /// Whether this reason should activate the application and make the panel key.
     package var shouldActivate: Bool {
         switch self {
         case .click,
@@ -44,9 +43,7 @@ package struct NotchWindowStatus: Sendable {
 
     // MARK: Package
 
-    /// Whether the notch panel is open.
     package let isOpened: Bool
-    /// Whether the app should activate and the panel should become key.
     package let shouldActivate: Bool
 }
 
@@ -99,13 +96,8 @@ package final class NotchWindowController: NSWindowController {
 
     // MARK: Package
 
-    /// The current screen geometry driving panel position.
     package private(set) var geometry: NotchGeometry
 
-    /// Shows the notch panel.
-    ///
-    /// - Parameter reason: Why the panel is opening — determines whether the app
-    ///   activates and the panel becomes key.
     package func show(reason: OpenReason) {
         guard let panel = self.window else { return }
 
@@ -159,30 +151,22 @@ package final class NotchWindowController: NSWindowController {
         }
     }
 
-    /// Repositions the panel for updated screen geometry.
-    ///
-    /// Called by `ScreenObserver` when display parameters change.
     package func updateGeometry(_ newGeometry: NotchGeometry) {
         self.geometry = newGeometry
         self.window?.setFrame(newGeometry.windowFrame, display: false)
     }
 
-    /// Plays the first-launch boot animation: briefly opens the panel, holds,
-    /// then closes. Teaches the user where the notch is.
-    ///
-    /// Does nothing if the boot animation has already played.
+    /// Briefly opens and closes the panel to teach the user where the notch is.
     package func playBootAnimationIfNeeded() {
         guard !self.hasPlayedBootAnimation else { return }
         self.hasPlayedBootAnimation = true
 
-        // Delay before opening.
         Task { @MainActor [weak self] in
             try? await Task.sleep(for: .milliseconds(300))
             guard let self else { return }
 
             self.show(reason: .boot)
 
-            // Hold open for 1 second, then close.
             try? await Task.sleep(for: .seconds(1))
             self.hide()
         }
@@ -190,12 +174,7 @@ package final class NotchWindowController: NSWindowController {
 
     // MARK: Private
 
-    /// The hosting view that bridges SwiftUI content into the panel.
     private let hostingView: PassThroughHostingView
-
-    /// Whether the boot animation has already played this session.
     private var hasPlayedBootAnimation: Bool
-
-    /// Task consuming the status stream from ``subscribeToStatusStream(_:)``.
     private var statusTask: Task<Void, Never>?
 }

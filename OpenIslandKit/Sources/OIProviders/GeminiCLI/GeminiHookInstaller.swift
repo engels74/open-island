@@ -3,20 +3,9 @@ package import Foundation
 // MARK: - GeminiHookInstaller
 
 /// Installs and manages the Open Island hook script for Gemini CLI.
-///
-/// The installer:
-/// 1. Detects (or accepts) a hook runtime via ``HookRuntimeDetector``
-/// 2. Copies the bundled `open-island-gemini-hook.py` to `~/.gemini/hooks/`
-/// 3. Registers hook commands in `~/.gemini/settings.json` for all 11 event types
-/// 4. Supports deduplication, uninstallation, and status checking
-///
-/// Gemini CLI's settings format is similar to Claude Code — hooks are registered
-/// in a `"hooks"` dictionary keyed by event type, each containing an array of
-/// matcher groups: `{"matcher": "", "hooks": [{"type": "command", "command": "..."}]}`.
 package struct GeminiHookInstaller: Sendable {
     // MARK: Package
 
-    /// All Gemini CLI hook event types that Open Island registers for.
     package static let allHookEventTypes: [String] = [
         "SessionStart", "SessionEnd",
         "BeforeAgent", "AfterAgent",
@@ -27,22 +16,13 @@ package struct GeminiHookInstaller: Sendable {
         "Notification",
     ]
 
-    /// The hook script filename.
     package static let hookScriptName = "open-island-gemini-hook.py"
 
-    /// Install hooks for Gemini CLI.
-    ///
-    /// - Parameter hookCommand: Explicit hook command override.
-    ///   If `nil`, ``HookRuntimeDetector/detect()`` is used.
-    /// - Parameter geminiConfigDir: Override for the Gemini config directory.
-    ///   Defaults to `~/.gemini`.
-    /// - Parameter bundledScriptURL: Override for the bundled script location (for testing).
     package static func install(
         hookCommand: HookCommand? = nil,
         geminiConfigDir: URL? = nil,
         bundledScriptURL: URL? = nil,
     ) async throws(HookInstallError) {
-        // 1. Resolve hook command
         let resolvedCommand = if let hookCommand {
             hookCommand
         } else {
@@ -51,31 +31,23 @@ package struct GeminiHookInstaller: Sendable {
 
         let configDir = geminiConfigDir ?? self.defaultGeminiConfigDir()
 
-        // 2. Create hooks directory
         let hooksDir = configDir.appendingPathComponent("hooks", isDirectory: true)
         try self.createDirectoryIfNeeded(at: hooksDir)
 
-        // 3. Copy bundled script
         let scriptSource = try resolveBundledScript(override: bundledScriptURL)
         let scriptDest = hooksDir.appendingPathComponent(Self.hookScriptName)
         try self.copyScript(from: scriptSource, to: scriptDest)
 
-        // 4. Update settings.json
         let settingsURL = configDir.appendingPathComponent("settings.json")
         let command = resolvedCommand.commandString(scriptPath: scriptDest.path)
         try self.updateSettings(at: settingsURL, command: command)
     }
 
-    /// Remove all Open Island hooks from Gemini CLI.
-    ///
-    /// - Parameter geminiConfigDir: Override for the Gemini config directory.
-    ///   Defaults to `~/.gemini`.
     package static func uninstall(
         geminiConfigDir: URL? = nil,
     ) async throws(HookInstallError) {
         let configDir = geminiConfigDir ?? self.defaultGeminiConfigDir()
 
-        // 1. Remove hook script
         let scriptPath = configDir
             .appendingPathComponent("hooks", isDirectory: true)
             .appendingPathComponent(Self.hookScriptName)
@@ -88,17 +60,10 @@ package struct GeminiHookInstaller: Sendable {
             }
         }
 
-        // 2. Remove entries from settings.json
         let settingsURL = configDir.appendingPathComponent("settings.json")
         try self.removeHooksFromSettings(at: settingsURL)
     }
 
-    /// Check whether Open Island hooks are currently installed for Gemini CLI.
-    ///
-    /// - Parameter geminiConfigDir: Override for the Gemini config directory.
-    ///   Defaults to `~/.gemini`.
-    /// - Returns: `true` if the hook script exists and settings.json contains
-    ///   at least one Open Island hook entry.
     package static func isInstalled(
         geminiConfigDir: URL? = nil,
     ) -> Bool {
@@ -120,7 +85,6 @@ package struct GeminiHookInstaller: Sendable {
             return false
         }
 
-        // Look for at least one event with our hook script in nested hooks arrays
         for (_, value) in hooks {
             guard let entries = value as? [[String: Any]] else { continue }
             for matcherGroup in entries {
@@ -192,7 +156,6 @@ package struct GeminiHookInstaller: Sendable {
         }
     }
 
-    /// Read, modify, and write back `settings.json` with our hook commands.
     private static func updateSettings(
         at settingsURL: URL,
         command: String,
@@ -206,7 +169,6 @@ package struct GeminiHookInstaller: Sendable {
         for eventType in self.allHookEventTypes {
             var entries = hooks[eventType] as? [[String: Any]] ?? []
 
-            // Deduplication: find existing matcher group containing our hook script
             if let existingIndex = entries.firstIndex(where: { matcherGroup in
                 guard let groupHooks = matcherGroup["hooks"] as? [[String: Any]] else { return false }
                 return groupHooks.contains { hook in
@@ -214,11 +176,9 @@ package struct GeminiHookInstaller: Sendable {
                     return cmd.contains(Self.hookScriptName)
                 }
             }) {
-                // Update the matcher group's hooks array with our new command
                 var matcherGroup = entries[existingIndex]
                 var groupHooks = matcherGroup["hooks"] as? [[String: Any]] ?? []
 
-                // Replace our hook entry within the group (preserve other hooks in same group)
                 if let hookIndex = groupHooks.firstIndex(where: { hook in
                     guard let cmd = hook["command"] as? String else { return false }
                     return cmd.contains(Self.hookScriptName)
@@ -231,7 +191,6 @@ package struct GeminiHookInstaller: Sendable {
                 matcherGroup["hooks"] = groupHooks
                 entries[existingIndex] = matcherGroup
             } else {
-                // Append new matcher group
                 entries.append(["matcher": "", "hooks": [hookEntry]])
             }
 
@@ -242,7 +201,6 @@ package struct GeminiHookInstaller: Sendable {
         try self.writeSettingsJSON(root, to: settingsURL)
     }
 
-    /// Remove all Open Island hook entries from settings.json.
     private static func removeHooksFromSettings(
         at settingsURL: URL,
     ) throws(HookInstallError) {
@@ -255,9 +213,8 @@ package struct GeminiHookInstaller: Sendable {
         for eventType in self.allHookEventTypes {
             guard var entries = hooks[eventType] as? [[String: Any]] else { continue }
 
-            // Process each entry: remove our hooks from nested arrays and legacy flat entries
             entries = entries.compactMap { matcherGroup in
-                // Remove legacy flat entries (pre-matcher-group format) that reference our hook
+                // Legacy flat entry (pre-matcher-group format)
                 if matcherGroup["hooks"] == nil,
                    let cmd = matcherGroup["command"] as? String,
                    cmd.contains(Self.hookScriptName) {
@@ -273,7 +230,6 @@ package struct GeminiHookInstaller: Sendable {
                     return cmd.contains(Self.hookScriptName)
                 }
 
-                // If no hooks remain in this matcher group, remove the entire group
                 if groupHooks.isEmpty {
                     return nil
                 }

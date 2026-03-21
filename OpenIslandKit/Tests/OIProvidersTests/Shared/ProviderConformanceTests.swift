@@ -52,7 +52,6 @@ struct ProviderConformanceTests {
     @Test(arguments: allProviderIDs)
     func `transport types are valid`(provider: ProviderID) {
         let metadata = ProviderMetadata.metadata(for: provider)
-        // Each provider's metadata transport type should be valid
         switch metadata.transportType {
         case .hookSocket,
              .jsonRPC,

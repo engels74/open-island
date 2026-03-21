@@ -28,31 +28,26 @@ public final class ScreenObserver {
 
     // MARK: Public
 
-    /// The current notch geometry, or `nil` when no notch screen is available.
     public private(set) var geometry: NotchGeometry?
 
-    /// The current screen selector (automatic or user-selected).
     public var selector: ScreenSelector {
         didSet {
             self.geometry = Self.computeGeometry(selector: self.selector)
         }
     }
 
-    /// Whether a notch-capable screen is currently connected.
     public var hasNotchScreen: Bool {
         self.geometry != nil
     }
 
     // MARK: Private
 
-    /// Debounce interval in nanoseconds (500ms).
     private static let debounceNanoseconds: UInt64 = 500_000_000
 
     @ObservationIgnored private var notificationObserver: (any NSObjectProtocol)?
 
     @ObservationIgnored private var debounceTask: Task<Void, Never>?
 
-    /// Computes `NotchGeometry` for the screen identified by the given selector.
     private static func computeGeometry(selector: ScreenSelector) -> NotchGeometry? {
         guard let screen = selector.resolveScreen() else { return nil }
         guard let notchSize = screen.notchSize else { return nil }

@@ -10,12 +10,11 @@ public struct ProviderPrerequisite: Sendable {
 
     // MARK: Public
 
-    /// Unique identifier for this prerequisite.
     public let id: String
 
-    /// Human-readable description (e.g., "Claude CLI must be installed").
+    /// e.g., "Claude CLI must be installed"
     public let description: String
 
-    /// What the check verifies (e.g., "Claude CLI binary on PATH").
+    /// e.g., "Claude CLI binary on PATH"
     public let checkDescription: String
 }

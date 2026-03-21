@@ -3,13 +3,10 @@ package import OICore
 
 // MARK: - SessionParseState
 
-/// Tracks incremental parsing state for a single Claude Code session transcript.
 package struct SessionParseState: Sendable {
-    /// Byte offset of the last read position in the JSONL file.
     package var lastFileOffset: UInt64 = 0
-    /// File size at last read, used for truncation detection.
+    /// Used for truncation detection — if current size < last size, the file was rewritten.
     package var lastFileSize: UInt64 = 0
-    /// Accumulated chat history items for this session.
     package var chatItems: [ChatHistoryItem] = []
 }
 
@@ -40,7 +37,6 @@ package struct SessionIndexEntry: Sendable, Codable {
 
 // MARK: - ConversationParseError
 
-/// Errors that can occur during conversation parsing.
 package enum ConversationParseError: Error, Sendable {
     case fileNotFound(String)
     case readFailed(String)
@@ -58,12 +54,6 @@ package enum ConversationParseError: Error, Sendable {
 package actor ClaudeConversationParser {
     // MARK: Package
 
-    /// Parse new lines from a session transcript file since the last read.
-    ///
-    /// - Parameters:
-    ///   - sessionID: The unique session identifier.
-    ///   - transcriptPath: Absolute path to the `.jsonl` transcript file.
-    /// - Returns: Only the newly parsed ``ChatHistoryItem`` values since the last call.
     package func parseIncremental(
         sessionID: String,
         transcriptPath: String,
@@ -78,17 +68,15 @@ package actor ClaudeConversationParser {
         let attributes = try FileManager.default.attributesOfItem(atPath: transcriptPath)
         let currentFileSize = (attributes[.size] as? UInt64) ?? 0
 
-        // Detect file truncation: if current size is smaller than last known size, reset.
         if currentFileSize < state.lastFileSize {
             state.lastFileOffset = 0
             state.lastFileSize = 0
             state.chatItems = []
         }
 
-        // For large files (>10MB), use tail-based approach if starting fresh.
         let tailThreshold: UInt64 = 10 * 1024 * 1024
         if state.lastFileOffset == 0, currentFileSize > tailThreshold {
-            let tailSize: UInt64 = 1 * 1024 * 1024 // Read last 1MB
+            let tailSize: UInt64 = 1 * 1024 * 1024
             state.lastFileOffset = currentFileSize - tailSize
         }
 
@@ -105,8 +93,6 @@ package actor ClaudeConversationParser {
             return []
         }
 
-        // If we seeked to a mid-file position for tail-based reading,
-        // skip the first partial line (unless we're at offset 0).
         let lines: [Substring]
         guard let content = String(data: data, encoding: .utf8) else {
             self.sessions[sessionID] = state
@@ -115,7 +101,6 @@ package actor ClaudeConversationParser {
 
         let allLines = content.split(separator: "\n", omittingEmptySubsequences: false)
         if state.lastFileOffset > 0, state.chatItems.isEmpty, currentFileSize > tailThreshold {
-            // Skip first potentially partial line when doing tail-based read
             lines = Array(allLines.dropFirst())
         } else {
             lines = Array(allLines)
@@ -124,15 +109,12 @@ package actor ClaudeConversationParser {
         // Advance offset only past complete lines (those terminated by '\n').
         // A trailing partial line (no final '\n') will be re-read once completed.
         if content.hasSuffix("\n") {
-            // All lines are complete — advance past everything.
             state.lastFileOffset += UInt64(data.count)
         } else if let lastNewline = content.lastIndex(of: "\n") {
-            // Partial line after last '\n' — advance only to the newline boundary.
             let bytesToLastNewline = content[content.startIndex ... lastNewline]
                 .utf8.count
             state.lastFileOffset += UInt64(bytesToLastNewline)
         }
-        // If no newline found at all, don't advance — the entire read is a partial line.
 
         var newItems: [ChatHistoryItem] = []
         let baseIndex = state.chatItems.count
@@ -144,7 +126,6 @@ package actor ClaudeConversationParser {
             guard let lineData = trimmed.data(using: .utf8),
                   let json = try? JSONSerialization.jsonObject(with: lineData) as? [String: Any]
             else {
-                // Skip malformed JSONL lines gracefully
                 continue
             }
 
@@ -158,11 +139,6 @@ package actor ClaudeConversationParser {
         return newItems
     }
 
-    /// Parse the `sessions-index.json` file from a Claude Code project directory.
-    ///
-    /// - Parameter projectPath: Path to the Claude project directory
-    ///   (e.g. `~/.claude/projects/my-project`).
-    /// - Returns: Array of session index entries.
     package func parseSessionsIndex(projectPath: String) throws -> [SessionIndexEntry] {
         let indexPath = (projectPath as NSString).appendingPathComponent("sessions-index.json")
 
@@ -177,19 +153,16 @@ package actor ClaudeConversationParser {
         return try decoder.decode([SessionIndexEntry].self, from: data)
     }
 
-    /// Reset chat history for a session (e.g. when `/clear` is detected).
     package func handleClear(sessionID: String) {
         self.sessions[sessionID]?.chatItems = []
     }
 
-    /// Return the current accumulated chat items for a session.
     package func chatItems(for sessionID: String) -> [ChatHistoryItem] {
         self.sessions[sessionID]?.chatItems ?? []
     }
 
     // MARK: Private
 
-    /// Per-session parsing state.
     private var sessions: [String: SessionParseState] = [:]
 
     private static func parseTimestamp(_ value: Any?) -> Date {
@@ -204,7 +177,6 @@ package actor ClaudeConversationParser {
         return withoutFraction.date(from: str) ?? Date()
     }
 
-    /// Parse a single JSONL line into zero or more ``ChatHistoryItem`` values.
     private static func parseLine(_ json: [String: Any], itemIndex: Int) -> [ChatHistoryItem] {
         guard let type = json["type"] as? String else { return [] }
 
@@ -294,7 +266,6 @@ package actor ClaudeConversationParser {
             }
         }
 
-        // Emit the concatenated text blocks as a single assistant message.
         if !textParts.isEmpty {
             let combined = textParts.joined(separator: "\n")
             items.insert(
@@ -311,7 +282,6 @@ package actor ClaudeConversationParser {
         return items
     }
 
-    /// Extract concatenated text from `message.content[].text` blocks.
     private static func extractTextContent(from json: [String: Any]) -> String {
         guard let message = json["message"] as? [String: Any],
               let contentArray = message["content"] as? [[String: Any]]
@@ -327,7 +297,6 @@ package actor ClaudeConversationParser {
             .joined(separator: "\n")
     }
 
-    /// Create a brief description of tool input for display.
     private static func describeToolInput(_ input: Any?) -> String {
         guard let dict = input as? [String: Any] else { return "" }
         if let command = dict["command"] as? String {
@@ -342,7 +311,6 @@ package actor ClaudeConversationParser {
         return dict.keys.sorted().joined(separator: ", ")
     }
 
-    /// Encode a tool_use block as ``JSONValue`` for `providerSpecific`.
     private static func encodeToolUseBlock(_ block: [String: Any]) -> JSONValue? {
         guard let data = try? JSONSerialization.data(withJSONObject: block),
               let value = try? JSONDecoder().decode(JSONValue.self, from: data)

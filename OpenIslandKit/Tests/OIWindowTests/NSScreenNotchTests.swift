@@ -46,7 +46,6 @@ struct NSScreenNotchTests {
     @Test
     @MainActor
     func `Non-notch screen returns nil notchSize`() {
-        // External monitors don't have a notch.
         for screen in NSScreen.screens where !screen.hasPhysicalNotch {
             #expect(screen.notchSize == nil)
         }

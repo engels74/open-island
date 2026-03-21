@@ -3,7 +3,6 @@ package import OICore
 
 // MARK: - OpenCodeRESTError
 
-/// Errors specific to the OpenCode REST client.
 package enum OpenCodeRESTError: Error, Sendable {
     case invalidURL(String)
     case httpError(statusCode: Int, body: String?)
@@ -14,7 +13,6 @@ package enum OpenCodeRESTError: Error, Sendable {
 
 // MARK: - OpenCodePermissionDecision
 
-/// The decision payload sent to OpenCode's permission endpoint.
 package struct OpenCodePermissionDecision: Sendable, Encodable {
     // MARK: Lifecycle
 
@@ -31,12 +29,7 @@ package struct OpenCodePermissionDecision: Sendable, Encodable {
 
 // MARK: - OpenCodeRESTClient
 
-/// Actor wrapping `URLSession` for REST API calls to the OpenCode HTTP server.
-///
-/// Covers all REST endpoints:
-/// - Session management: create, prompt, abort, list messages
-/// - Permission response: approve/deny tool actions
-/// - Configuration: get config, provider info, OpenAPI doc
+/// REST API client for the OpenCode HTTP server.
 package actor OpenCodeRESTClient {
     // MARK: Lifecycle
 
@@ -49,9 +42,6 @@ package actor OpenCodeRESTClient {
 
     // MARK: - Session Management
 
-    /// Create a new session.
-    ///
-    /// `POST /session`
     package func createSession(
         directory: String? = nil,
     ) async throws(OpenCodeRESTError) -> JSONValue {
@@ -62,9 +52,6 @@ package actor OpenCodeRESTClient {
         return try await self.post(path: "session", body: .object(body))
     }
 
-    /// Send a prompt to an existing session.
-    ///
-    /// `POST /session/{id}/prompt`
     package func sendPrompt(
         sessionID: String,
         message: String,
@@ -73,18 +60,12 @@ package actor OpenCodeRESTClient {
         return try await self.post(path: "session/\(sessionID)/prompt", body: body)
     }
 
-    /// Abort the current processing in a session.
-    ///
-    /// `POST /session/{id}/abort`
     package func abortSession(
         sessionID: String,
     ) async throws(OpenCodeRESTError) -> JSONValue {
         try await self.post(path: "session/\(sessionID)/abort", body: nil)
     }
 
-    /// List messages in a session (for chat history).
-    ///
-    /// `GET /session/{id}/message`
     package func listMessages(
         sessionID: String,
     ) async throws(OpenCodeRESTError) -> JSONValue {
@@ -93,9 +74,6 @@ package actor OpenCodeRESTClient {
 
     // MARK: - Permission Response
 
-    /// Respond to a permission request.
-    ///
-    /// `POST /session/{id}/permissions/{permId}`
     package func respondToPermission(
         sessionID: String,
         permissionID: String,
@@ -113,32 +91,20 @@ package actor OpenCodeRESTClient {
 
     // MARK: - Configuration
 
-    /// Get the OpenCode configuration.
-    ///
-    /// `GET /config`
     package func getConfig() async throws(OpenCodeRESTError) -> JSONValue {
         try await self.get(path: "config")
     }
 
-    /// Get provider information.
-    ///
-    /// `GET /provider`
     package func getProvider() async throws(OpenCodeRESTError) -> JSONValue {
         try await self.get(path: "provider")
     }
 
-    /// Get the OpenAPI documentation spec.
-    ///
-    /// `GET /doc`
     package func getDoc() async throws(OpenCodeRESTError) -> JSONValue {
         try await self.get(path: "doc")
     }
 
     // MARK: - Health Check
 
-    /// Check if a session is alive by attempting to list its messages.
-    ///
-    /// Returns `true` if the server responds with 200, `false` otherwise.
     package func isSessionAlive(sessionID: String) async -> Bool {
         do {
             _ = try await self.listMessages(sessionID: sessionID)
@@ -217,7 +183,6 @@ package actor OpenCodeRESTClient {
     }
 
     private func decodeJSON(_ data: Data) throws(OpenCodeRESTError) -> JSONValue {
-        // Handle empty responses
         if data.isEmpty {
             return .null
         }

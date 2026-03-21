@@ -101,9 +101,8 @@ struct SocketTests {
 // MARK: - ConditionalTests
 
 struct ConditionalTests {
-    @Test(.disabled("Provider registry not yet implemented"))
+    @Test(.disabled("Demonstration of .disabled() trait"))
     func `feature behind flag`() {
-        // Will be enabled once ProviderRegistry exists in Phase 1.6
         #expect(Bool(true))
     }
 
@@ -132,7 +131,6 @@ struct BugTrackingTests {
 
     @Test(.tags(.claude), .bug(id: "OI-17"))
     func `hook installation idempotency`() {
-        // Installing hooks twice should not duplicate entries
         var hooks: Set<String> = []
         hooks.insert("UserPromptSubmit")
         hooks.insert("UserPromptSubmit") // duplicate
