@@ -340,7 +340,7 @@ extension Color {
 @MainActor
 private func previewGeometry() -> NotchGeometry {
     NotchGeometry(
-        notchSize: CGSize(width: 200, height: 32),
+        notchSize: CGSize(width: 224, height: 38),
         screenFrame: CGRect(x: 0, y: 0, width: 1440, height: 900),
     )
 }
