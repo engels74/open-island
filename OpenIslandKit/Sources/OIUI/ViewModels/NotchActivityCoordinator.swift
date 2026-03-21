@@ -46,6 +46,11 @@ public final class NotchActivityCoordinator {
     public func start() {
         guard self.observationTask == nil else { return }
         self.observationTask = Task { [weak self] in
+            // Seed visibility context with current state so closed-notch
+            // modules reflect any sessions that already exist at startup.
+            if let coordinator = self {
+                coordinator.updateVisibilityContext(from: coordinator.sessionMonitor.instances)
+            }
             while !Task.isCancelled {
                 guard let coordinator = self else { return }
                 let currentInstances = coordinator.sessionMonitor.instances
